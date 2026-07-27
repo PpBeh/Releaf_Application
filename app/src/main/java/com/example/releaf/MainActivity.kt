@@ -21,7 +21,7 @@ class MainActivity : ComponentActivity() {
             ReleafTheme {
                 Scaffold(modifier = Modifier.fillMaxSize()) { innerPadding ->
                     Greeting(
-                        name = "Michael GOh",
+                        name = "Michael Goh, Jeremy Ch'ng, Lim Ting Wei, led by Beh",
                         modifier = Modifier.padding(innerPadding)
                     )
                 }
