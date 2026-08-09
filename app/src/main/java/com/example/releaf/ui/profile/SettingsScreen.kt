@@ -1,6 +1,7 @@
 package com.example.releaf.ui.profile
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -39,11 +40,14 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 
+private const val LOG_OUT_LABEL = "Log out"
+
 private data class SettingsRowData(val icon: ImageVector, val label: String)
 
 @Composable
 fun SettingsScreen(
-    onBackClick: () -> Unit
+    onBackClick: () -> Unit,
+    onLogoutClick: () -> Unit
 ) {
     val rows = listOf(
         SettingsRowData(Icons.Default.Refresh, "Updates"),
@@ -53,7 +57,7 @@ fun SettingsScreen(
         SettingsRowData(Icons.Default.Delete, "Clear Cache"),
         SettingsRowData(Icons.Default.Person, "Account"),
         SettingsRowData(Icons.Default.Info, "About Us"),
-        SettingsRowData(Icons.AutoMirrored.Filled.Logout, "Log out")
+        SettingsRowData(Icons.AutoMirrored.Filled.Logout, LOG_OUT_LABEL)
     )
 
     Column(modifier = Modifier.fillMaxSize()) {
@@ -97,7 +101,16 @@ fun SettingsScreen(
 
         LazyColumn(modifier = Modifier.fillMaxSize()) {
             items(rows) { row ->
-                SettingsRow(row = row, onClick = { /* TODO: handle this settings row */ })
+                SettingsRow(
+                    row = row,
+                    onClick = {
+                        if (row.label == LOG_OUT_LABEL) {
+                            onLogoutClick()
+                        } else {
+                            // TODO: handle this settings row
+                        }
+                    }
+                )
             }
         }
     }
@@ -108,6 +121,7 @@ private fun SettingsRow(row: SettingsRowData, onClick: () -> Unit) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
+            .clickable(onClick = onClick)
             .padding(horizontal = 24.dp, vertical = 16.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
@@ -121,5 +135,5 @@ private fun SettingsRow(row: SettingsRowData, onClick: () -> Unit) {
 @Preview(showBackground = true)
 @Composable
 private fun SettingsScreenPreview() {
-    SettingsScreen(onBackClick = {})
+    SettingsScreen(onBackClick = {}, onLogoutClick = {})
 }
