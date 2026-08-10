@@ -40,9 +40,9 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 
-private const val LOG_OUT_LABEL = "Log out"
+internal const val LOG_OUT_LABEL = "Log out"
 
-private data class SettingsRowData(val icon: ImageVector, val label: String)
+internal data class SettingsRowData(val icon: ImageVector, val label: String)
 
 @Composable
 fun SettingsScreen(
@@ -117,7 +117,7 @@ fun SettingsScreen(
 }
 
 @Composable
-private fun SettingsRow(row: SettingsRowData, onClick: () -> Unit) {
+internal fun SettingsRow(row: SettingsRowData, onClick: () -> Unit) {
     Row(
         modifier = Modifier
             .fillMaxWidth()

@@ -92,7 +92,7 @@ fun ReleafNavGraph(navController: NavHostController) {
             val userId = backStackEntry.arguments?.getString(Screen.Profile.ARG_USER_ID) ?: Screen.Profile.ME
             ProfileScreen(
                 userId = userId,
-                onSettingsClick = { navController.navigate(Screen.Settings.route) }
+                onLogoutClick = { navController.logout() }
             )
         }
         composable(Screen.Settings.route) {
