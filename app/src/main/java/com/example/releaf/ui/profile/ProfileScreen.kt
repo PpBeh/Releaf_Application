@@ -19,39 +19,50 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Logout
 import androidx.compose.material.icons.filled.Block
+import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.filled.Palette
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
-
-private data class Achievement(val id: String, val label: String)
+import com.example.releaf.ui.viewmodel.ProfileViewModel
 
 @Composable
 fun ProfileScreen(
     userId: String,
+    currentUserId: String,
+    viewModel: ProfileViewModel,
     onLogoutClick: () -> Unit
 ) {
-    // TODO: load the real user (own profile vs. another user's) based on userId
-    val isOwnProfile = userId == "me"
-    val achievements = listOf(
-        Achievement("1", "Expert Reviewer"),
-        Achievement("2", "Expert Gardener"),
-        Achievement("3", "Expert Navigator")
-    )
+    val profile by viewModel.profile.collectAsState()
+    val achievements by viewModel.achievements.collectAsState()
+    val totalAchievements by viewModel.totalAchievements.collectAsState()
+
+    LaunchedEffect(userId) {
+        viewModel.loadProfile(userId)
+    }
+
+    val displayName = profile?.name?.ifBlank { "User" } ?: "User"
+    val title = profile?.title?.ifBlank { "Gardener" } ?: "Gardener"
+    val phone = profile?.phone?.ifBlank { "N/A" } ?: "N/A"
+    val email = profile?.email?.ifBlank { "N/A" } ?: "N/A"
+    val isOwnProfile = userId == currentUserId
 
     val settingsRows = listOf(
         SettingsRowData(Icons.Default.Refresh, "Updates"),
@@ -86,58 +97,65 @@ fun ProfileScreen(
                             .size(64.dp)
                             .clip(CircleShape)
                             .background(MaterialTheme.colorScheme.surface)
-                        // TODO: painterResource(R.drawable.avatar_placeholder) or AsyncImage(user.avatarUrl)
                     )
                     Spacer(modifier = Modifier.width(16.dp))
                     Column {
                         Text(
-                            "User$userId",
+                            displayName,
                             color = Color.White,
                             fontWeight = FontWeight.Bold,
                             style = MaterialTheme.typography.titleMedium
                         )
                         Text(
-                            "Veteran Gardener",
+                            title,
                             color = Color.White,
                             style = MaterialTheme.typography.bodyMedium
                         )
                         if (isOwnProfile) {
-                            Text(
-                                "000000128",
-                                color = Color.White,
-                                style = MaterialTheme.typography.bodySmall
-                            )
-                            Text(
-                                "email@whatever.com",
-                                color = Color.White,
-                                style = MaterialTheme.typography.bodySmall
-                            )
+                            Text(phone, color = Color.White, style = MaterialTheme.typography.bodySmall)
+                            Text(email, color = Color.White, style = MaterialTheme.typography.bodySmall)
                         }
                     }
                 }
                 Spacer(modifier = Modifier.height(16.dp))
                 Text(
-                    "Achievements (${achievements.size}/55)",
+                    "Achievements (${achievements.size}/$totalAchievements)",
                     color = Color.White,
                     fontWeight = FontWeight.Bold,
                     style = MaterialTheme.typography.titleSmall
                 )
                 Spacer(modifier = Modifier.height(8.dp))
                 Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                    achievements.forEach { achievement ->
-                        Box(
-                            modifier = Modifier
-                                .size(60.dp)
-                                .background(Color(0xFF6D4C29), RoundedCornerShape(8.dp)),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            // TODO: swap in the real trophy illustration (painterResource) per achievement
-                            Text(
-                                achievement.label,
-                                color = Color.White,
-                                style = MaterialTheme.typography.labelSmall,
-                                textAlign = TextAlign.Center
-                            )
+                    if (achievements.isEmpty()) {
+                        repeat(3) {
+                            Box(
+                                modifier = Modifier
+                                    .size(60.dp)
+                                    .background(Color(0xFF6D4C29), RoundedCornerShape(8.dp)),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Text(
+                                    "?",
+                                    color = Color.White,
+                                    style = MaterialTheme.typography.labelSmall
+                                )
+                            }
+                        }
+                    } else {
+                        achievements.take(3).forEach { ua ->
+                            Box(
+                                modifier = Modifier
+                                    .size(60.dp)
+                                    .background(Color(0xFF6D4C29), RoundedCornerShape(8.dp)),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Text(
+                                    ua.achievement?.label?.take(10) ?: "?",
+                                    color = Color.White,
+                                    style = MaterialTheme.typography.labelSmall,
+                                    textAlign = TextAlign.Center
+                                )
+                            }
                         }
                     }
                 }
@@ -145,34 +163,30 @@ fun ProfileScreen(
         }
 
         OutlinedButton(
-            onClick = { /* TODO: navigate to this user's garden */ },
+            onClick = { /* TODO: navigate to garden */ },
             modifier = Modifier.padding(start = 20.dp, top = 16.dp)
         ) {
             Text("View Garden")
         }
 
-        Text(
-            "Settings",
-            style = MaterialTheme.typography.titleMedium,
-            fontWeight = FontWeight.Bold,
-            modifier = Modifier.padding(start = 20.dp, top = 12.dp, bottom = 4.dp)
-        )
-
-        settingsRows.forEach { row ->
-            SettingsRow(
-                row = row,
-                onClick = {
-                    if (row.label == LOG_OUT_LABEL) {
-                        onLogoutClick()
-                    }
-                }
+        if (isOwnProfile) {
+            Text(
+                "Settings",
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.Bold,
+                modifier = Modifier.padding(start = 20.dp, top = 12.dp, bottom = 4.dp)
             )
+
+            settingsRows.forEach { row ->
+                SettingsRow(
+                    row = row,
+                    onClick = {
+                        if (row.label == LOG_OUT_LABEL) {
+                            onLogoutClick()
+                        }
+                    }
+                )
+            }
         }
     }
-}
-
-@Preview(showBackground = true)
-@Composable
-private fun ProfileScreenPreview() {
-    ProfileScreen(userId = "me", onLogoutClick = {})
 }

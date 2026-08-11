@@ -21,19 +21,27 @@ import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
-import com.example.releaf.model.Quest
-import com.example.releaf.model.QuestStatus
+import com.example.releaf.data.remote.dto.UserQuestDto
+import com.example.releaf.ui.viewmodel.ActivityViewModel
 
 @Composable
-fun ActivityScreen() {
-    // TODO: replace with real quest data
-    val quests = emptyList<Quest>()
+fun ActivityScreen(
+    viewModel: ActivityViewModel,
+    userId: String
+) {
+    val userQuests by viewModel.userQuests.collectAsState()
+
+    LaunchedEffect(userId) {
+        viewModel.loadQuests(userId)
+    }
 
     Column(modifier = Modifier.fillMaxSize()) {
         Box(
@@ -44,19 +52,43 @@ fun ActivityScreen() {
         ) {
             Text("Activity", style = MaterialTheme.typography.headlineLarge)
         }
-        LazyColumn(
-            contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp)
-        ) {
-            items(quests) { quest ->
-                QuestCard(quest = quest, onActionClick = { /* TODO: claim or navigate for this quest */ })
+        if (userQuests.isEmpty()) {
+            Box(
+                modifier = Modifier.fillMaxSize(),
+                contentAlignment = Alignment.Center
+            ) {
+                Text("No quests available", style = MaterialTheme.typography.bodyLarge)
+            }
+        } else {
+            LazyColumn(
+                contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
+                verticalArrangement = Arrangement.spacedBy(16.dp)
+            ) {
+                items(userQuests) { userQuest ->
+                    QuestCard(
+                        userQuest = userQuest,
+                        onActionClick = {
+                            when (userQuest.status) {
+                                "CLAIMABLE" -> viewModel.claimQuest(userQuest.quest_id, userId)
+                                "IN_PROGRESS" -> viewModel.updateQuestProgress(
+                                    userQuest.quest_id,
+                                    userId,
+                                    userQuest.progress_current + 1,
+                                    userQuest.quest?.progress_target ?: 10,
+                                    userQuest.status
+                                )
+                            }
+                        }
+                    )
+                }
             }
         }
     }
 }
 
 @Composable
-private fun QuestCard(quest: Quest, onActionClick: () -> Unit) {
+private fun QuestCard(userQuest: UserQuestDto, onActionClick: () -> Unit) {
+    val quest = userQuest.quest ?: return
     Card(
         shape = RoundedCornerShape(20.dp),
         colors = CardDefaults.cardColors(containerColor = Color(0xFF6B8FD1))
@@ -70,11 +102,11 @@ private fun QuestCard(quest: Quest, onActionClick: () -> Unit) {
             ) {
                 Column {
                     Text("Reward:", color = Color.White, style = MaterialTheme.typography.labelMedium)
-                    Text("${quest.rewardLabel} x${quest.rewardCount}", color = Color.White)
+                    Text("${quest.reward_label} x${quest.reward_count}", color = Color.White)
                 }
                 Spacer(modifier = Modifier.weight(1f))
-                if (quest.status == QuestStatus.IN_PROGRESS) {
-                    Text("${quest.progressCurrent}/${quest.progressTarget}", color = Color.White)
+                if (userQuest.status == "IN_PROGRESS") {
+                    Text("${userQuest.progress_current}/${quest.progress_target}", color = Color.White)
                     Spacer(modifier = Modifier.width(8.dp))
                 }
                 Button(
@@ -82,15 +114,15 @@ private fun QuestCard(quest: Quest, onActionClick: () -> Unit) {
                     colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF4CAF50)),
                     shape = RoundedCornerShape(50)
                 ) {
-                    Text(if (quest.status == QuestStatus.IN_PROGRESS) "Go" else "Claim")
+                    Text(
+                        when (userQuest.status) {
+                            "CLAIMABLE" -> "Claim"
+                            "CLAIMED" -> "Done"
+                            else -> "Go"
+                        }
+                    )
                 }
             }
         }
     }
-}
-
-@Preview(showBackground = true)
-@Composable
-private fun ActivityScreenPreview() {
-    ActivityScreen()
 }

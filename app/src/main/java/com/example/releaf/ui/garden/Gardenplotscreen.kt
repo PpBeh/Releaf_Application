@@ -20,35 +20,52 @@ import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.AttachMoney
+import androidx.compose.material.icons.filled.Construction
+import androidx.compose.material.icons.filled.Opacity
+import androidx.compose.material.icons.filled.Spa
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
-import com.example.releaf.model.PlantSlot
-import com.example.releaf.model.PlantSlotState
+import com.example.releaf.data.remote.dto.PlantSlotDto
+import com.example.releaf.ui.viewmodel.GardenViewModel
 
 @Composable
 fun GardenPlotScreen(
+    viewModel: GardenViewModel,
+    userId: String,
     onBackClick: () -> Unit
 ) {
-    // TODO: replace with real points + plant slot data from save state
-    val currentPoints = 60
-    val pointsTarget = 100
-    val slots = listOf(
-        PlantSlot("1", PlantSlotState.EMPTY_POT),
-        PlantSlot("2", PlantSlotState.EMPTY_POT),
-        PlantSlot("3", PlantSlotState.EMPTY_POT),
-        PlantSlot("4", PlantSlotState.GROWING),
-        PlantSlot("5", PlantSlotState.FULLY_GROWN),
-        PlantSlot("6", PlantSlotState.EMPTY_POT)
-    )
+    val garden by viewModel.garden.collectAsState()
+    val plantSlots by viewModel.plantSlots.collectAsState()
+
+    LaunchedEffect(userId) {
+        viewModel.loadGarden(userId)
+    }
+
+    val currentPoints = garden?.current_points ?: 0
+    val pointsTarget = garden?.points_target ?: 100
+    val slots = plantSlots.ifEmpty {
+        listOf(
+            PlantSlotDto(user_id = userId, slot_index = 1, state = "EMPTY_POT"),
+            PlantSlotDto(user_id = userId, slot_index = 2, state = "EMPTY_POT"),
+            PlantSlotDto(user_id = userId, slot_index = 3, state = "EMPTY_POT"),
+            PlantSlotDto(user_id = userId, slot_index = 4, state = "GROWING"),
+            PlantSlotDto(user_id = userId, slot_index = 5, state = "FULLY_GROWN"),
+            PlantSlotDto(user_id = userId, slot_index = 6, state = "EMPTY_POT")
+        )
+    }
 
     Column(
         modifier = Modifier
@@ -80,16 +97,30 @@ fun GardenPlotScreen(
             modifier = Modifier.weight(1f)
         ) {
             items(slots) { slot ->
-                PlantPotTile(slot = slot, onClick = { /* TODO: handle tap on this plant slot */ })
+                PlantPotTile(
+                    slot = slot,
+                    onClick = {
+                        if (slot.state == "FULLY_GROWN") {
+                            viewModel.harvestSlot(slot.id, userId)
+                        }
+                    }
+                )
             }
         }
 
         Row(modifier = Modifier.fillMaxWidth()) {
-            listOf("Watering can", "Cash", "Shovel", "Fertilizer").forEach { toolName ->
+            val tools = listOf(
+                Triple("Water", Icons.Default.Opacity, { }),
+                Triple("Cash", Icons.Default.AttachMoney, { }),
+                Triple("Shovel", Icons.Default.Construction, { }),
+                Triple("Fertilize", Icons.Default.Spa, { })
+            )
+            tools.forEach { (label, icon, action) ->
                 GardenToolTile(
-                    label = toolName,
+                    label = label,
+                    icon = icon,
                     modifier = Modifier.weight(1f),
-                    onClick = { /* TODO: use this tool once tool actions are wired in */ }
+                    onClick = action
                 )
             }
         }
@@ -97,7 +128,7 @@ fun GardenPlotScreen(
 }
 
 @Composable
-private fun PlantPotTile(slot: PlantSlot, onClick: () -> Unit) {
+private fun PlantPotTile(slot: PlantSlotDto, onClick: () -> Unit) {
     Box(
         modifier = Modifier
             .aspectRatio(1f)
@@ -105,33 +136,38 @@ private fun PlantPotTile(slot: PlantSlot, onClick: () -> Unit) {
             .clickable(onClick = onClick),
         contentAlignment = Alignment.Center
     ) {
-        // TODO: swap for the real pot / character illustration (painterResource) based on slot.state
+        val color = when (slot.state) {
+            "LOCKED" -> Color(0xFF9E9E9E)
+            "EMPTY_POT" -> Color(0xFFB5652A)
+            "GROWING" -> Color(0xFF66BB6A)
+            "FULLY_GROWN" -> Color(0xFFFFC107)
+            else -> Color(0xFFB5652A)
+        }
         Box(
             modifier = Modifier
                 .size(48.dp)
                 .background(
-                    Color(0xFFB5652A),
+                    color,
                     RoundedCornerShape(topStart = 6.dp, topEnd = 6.dp, bottomStart = 16.dp, bottomEnd = 16.dp)
                 )
         )
+        if (slot.state == "FULLY_GROWN") {
+            Text("Tap to\nHarvest", style = MaterialTheme.typography.labelSmall, color = Color.Black)
+        }
     }
 }
 
 @Composable
-private fun GardenToolTile(label: String, modifier: Modifier = Modifier, onClick: () -> Unit) {
-    Box(
+private fun GardenToolTile(label: String, icon: ImageVector, modifier: Modifier = Modifier, onClick: () -> Unit) {
+    Column(
         modifier = modifier
             .aspectRatio(1f)
             .background(Color(0xFF3E2415))
             .clickable(onClick = onClick),
-        contentAlignment = Alignment.Center
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.Center
     ) {
-        // TODO: swap for the real tool icon (painterResource) — watering can / cash / shovel / fertilizer
+        Icon(icon, contentDescription = label, tint = Color.White)
+        Text(label, style = MaterialTheme.typography.labelSmall, color = Color.White)
     }
-}
-
-@Preview(showBackground = true)
-@Composable
-private fun GardenPlotScreenPreview() {
-    GardenPlotScreen(onBackClick = {})
 }

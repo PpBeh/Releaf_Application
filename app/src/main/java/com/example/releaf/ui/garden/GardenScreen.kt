@@ -17,27 +17,35 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
-import com.example.releaf.model.GardenProgress
+import com.example.releaf.ui.viewmodel.GardenViewModel
 
 @Composable
 fun GardenScreen(
+    viewModel: GardenViewModel,
+    userId: String,
     onHouseClick: () -> Unit
 ) {
-    // TODO: replace with real progress from save data
-    val progress = GardenProgress(
-        currentExp = 0,
-        expTarget = 1000,
-        growUsesLeft = 1,
-        growUsesMax = 1,
-        fertilizeUsesLeft = 1,
-        fertilizeUsesMax = 1
-    )
+    val garden by viewModel.garden.collectAsState()
+
+    LaunchedEffect(userId) {
+        viewModel.loadGarden(userId)
+    }
+
+    val progress = garden
+    val currentExp = progress?.current_exp ?: 0
+    val expTarget = progress?.exp_target ?: 1000
+    val growUsesLeft = progress?.grow_uses_left ?: 0
+    val growUsesMax = progress?.grow_uses_max ?: 1
+    val fertilizeUsesLeft = progress?.fertilize_uses_left ?: 0
+    val fertilizeUsesMax = progress?.fertilize_uses_max ?: 1
 
     Box(
         modifier = Modifier
@@ -52,7 +60,7 @@ fun GardenScreen(
                     .background(MaterialTheme.colorScheme.surface, RoundedCornerShape(20.dp))
                     .padding(horizontal = 16.dp, vertical = 8.dp)
             ) {
-                Text("Exp: ${progress.currentExp}/${progress.expTarget}")
+                Text("Exp: $currentExp/$expTarget")
             }
 
             Spacer(modifier = Modifier.weight(1f))
@@ -61,7 +69,6 @@ fun GardenScreen(
                 modifier = Modifier.fillMaxWidth().padding(end = 24.dp),
                 horizontalArrangement = Arrangement.End
             ) {
-                // TODO: swap this box for the real house illustration (painterResource) from the Figma export
                 Box(
                     modifier = Modifier
                         .size(160.dp)
@@ -83,15 +90,15 @@ fun GardenScreen(
             ) {
                 GardenActionButton(
                     label = "Grow Plant",
-                    usesLeft = progress.growUsesLeft,
-                    usesMax = progress.growUsesMax,
-                    onClick = { /* TODO: grow the plant */ }
+                    usesLeft = growUsesLeft,
+                    usesMax = growUsesMax,
+                    onClick = { viewModel.growPlant(userId) }
                 )
                 GardenActionButton(
                     label = "Fertilize Plant",
-                    usesLeft = progress.fertilizeUsesLeft,
-                    usesMax = progress.fertilizeUsesMax,
-                    onClick = { /* TODO: fertilize the plant */ }
+                    usesLeft = fertilizeUsesLeft,
+                    usesMax = fertilizeUsesMax,
+                    onClick = { viewModel.fertilizePlant(userId) }
                 )
             }
         }
@@ -105,16 +112,10 @@ private fun GardenActionButton(
     usesMax: Int,
     onClick: () -> Unit
 ) {
-    Button(onClick = onClick, shape = RoundedCornerShape(50)) {
+    Button(onClick = onClick, shape = RoundedCornerShape(50), enabled = usesLeft > 0) {
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
             Text(label)
             Text("$usesLeft/$usesMax", style = MaterialTheme.typography.labelSmall)
         }
     }
-}
-
-@Preview(showBackground = true)
-@Composable
-private fun GardenScreenPreview() {
-    GardenScreen(onHouseClick = {})
 }

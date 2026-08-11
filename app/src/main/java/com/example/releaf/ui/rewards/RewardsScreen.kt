@@ -13,50 +13,62 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
-
-// Note: the plant-pot collection grid moved to GardenPlotScreen.kt — that
-// screen was actually the real garden plot, not a Rewards sub-view. This
-// screen is just the points/tier unlock list now.
-private data class UnlockTier(val target: Int, val unlocked: Boolean)
+import com.example.releaf.ui.viewmodel.RewardsViewModel
 
 @Composable
-fun RewardsScreen() {
-    // TODO: replace with real points / tier data
-    val current = 600
-    val tiers = listOf(UnlockTier(500, true), UnlockTier(2000, false), UnlockTier(10000, false))
+fun RewardsScreen(
+    viewModel: RewardsViewModel,
+    userId: String
+) {
+    val tiers by viewModel.tiers.collectAsState()
+    val userRewards by viewModel.userRewards.collectAsState()
+    val userPoints by viewModel.userPoints.collectAsState()
+
+    LaunchedEffect(userId) {
+        viewModel.loadRewards(userId)
+    }
 
     Column(
         modifier = Modifier
             .fillMaxSize()
             .padding(16.dp)
     ) {
-        Text("$current/1000 points", style = MaterialTheme.typography.titleLarge)
+        Text("$userPoints points", style = MaterialTheme.typography.titleLarge)
         Spacer(modifier = Modifier.height(16.dp))
         Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
-            tiers.forEach { tier ->
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(80.dp)
-                        .background(
-                            if (tier.unlocked) Color(0xFF8BC34A) else MaterialTheme.colorScheme.surfaceVariant,
-                            RoundedCornerShape(12.dp)
-                        )
-                        .padding(16.dp)
-                ) {
-                    Text("$current/${tier.target} Unlock")
+            if (tiers.isEmpty()) {
+                val fallbackTiers = listOf(500 to true, 2000 to false, 10000 to false)
+                fallbackTiers.forEach { (target, unlocked) ->
+                    TierBox(points = userPoints, target = target, unlocked = unlocked)
+                }
+            } else {
+                tiers.forEach { tier ->
+                    val unlocked = userRewards.any { it.tier_id == tier.id }
+                    TierBox(points = userPoints, target = tier.target_points, unlocked = unlocked)
                 }
             }
         }
     }
 }
 
-@Preview(showBackground = true)
 @Composable
-private fun RewardsScreenPreview() {
-    RewardsScreen()
+private fun TierBox(points: Int, target: Int, unlocked: Boolean) {
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(80.dp)
+            .background(
+                if (unlocked) Color(0xFF8BC34A) else MaterialTheme.colorScheme.surfaceVariant,
+                RoundedCornerShape(12.dp)
+            )
+            .padding(16.dp)
+    ) {
+        Text("$points/$target ${if (unlocked) "Unlocked" else "Locked"}")
+    }
 }
