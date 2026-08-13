@@ -1,91 +1,110 @@
 package com.example.releaf.ui.components
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.FilterChip
+import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
-import com.example.releaf.model.CleanlinessStatus
-import com.example.releaf.model.PoiCategory
 
 @Composable
 fun MapFilterBar(
-    selectedCategory: PoiCategory?,
-    onCategorySelected: (PoiCategory?) -> Unit,
-    selectedCleanliness: CleanlinessStatus?,
-    onCleanlinessSelected: (CleanlinessStatus?) -> Unit
+    enabledCategories: Set<String>,
+    onToggleCategory: (String) -> Unit,
+    onResetCategories: () -> Unit,
+    enabledCleanliness: Set<String>,
+    onToggleCleanliness: (String) -> Unit,
+    onResetCleanliness: () -> Unit,
+    excludedPaid: Boolean?,
+    onTogglePaid: (Boolean?) -> Unit,
+    showUnverified: Boolean,
+    onToggleUnverified: () -> Unit
 ) {
     Column {
-        // Which type of pin to show
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            FilterChip(
-                selected = selectedCategory == null,
-                onClick = { onCategorySelected(null) },
-                label = { Text("All") }
-            )
-            FilterChip(
-                selected = selectedCategory == PoiCategory.TOILET,
-                onClick = { onCategorySelected(PoiCategory.TOILET) },
-                label = { Text("Toilet") }
-            )
-            FilterChip(
-                selected = selectedCategory == PoiCategory.TRASH_CAN,
-                onClick = { onCategorySelected(PoiCategory.TRASH_CAN) },
-                label = { Text("Trash can") }
-            )
+        Row(
+            modifier = Modifier.horizontalScroll(rememberScrollState()),
+            horizontalArrangement = Arrangement.spacedBy(6.dp)
+        ) {
+            ToggleChip("All", enabledCategories.size == 2) { onResetCategories() }
+            ToggleChip("Toilet", "TOILET" in enabledCategories) { onToggleCategory("TOILET") }
+            ToggleChip("Trash can", "TRASH_CAN" in enabledCategories) { onToggleCategory("TRASH_CAN") }
+            ToggleChip("Unverified", showUnverified) { onToggleUnverified() }
         }
 
-        // Cleanliness rating filter — independent of category, so both can be picked together
         Row(
-            modifier = Modifier.padding(top = 8.dp),
-            horizontalArrangement = Arrangement.spacedBy(8.dp)
+            modifier = Modifier
+                .padding(top = 4.dp)
+                .horizontalScroll(rememberScrollState()),
+            horizontalArrangement = Arrangement.spacedBy(6.dp)
         ) {
-            FilterChip(
-                selected = selectedCleanliness == null,
-                onClick = { onCleanlinessSelected(null) },
-                label = { Text("All") }
-            )
-            CleanlinessChip("Clean", Color(0xFF4CAF50), selectedCleanliness == CleanlinessStatus.CLEAN) {
-                onCleanlinessSelected(CleanlinessStatus.CLEAN)
+            ToggleChip("All", enabledCleanliness.size == 3) { onResetCleanliness() }
+            CleanlinessToggleChip("Clean", Color(0xFF4CAF50), "CLEAN" in enabledCleanliness) {
+                onToggleCleanliness("CLEAN")
             }
-            CleanlinessChip("Average", Color(0xFFFFC107), selectedCleanliness == CleanlinessStatus.AVERAGE) {
-                onCleanlinessSelected(CleanlinessStatus.AVERAGE)
+            CleanlinessToggleChip("Average", Color(0xFFFFC107), "AVERAGE" in enabledCleanliness) {
+                onToggleCleanliness("AVERAGE")
             }
-            CleanlinessChip("Dirty", Color(0xFFF44336), selectedCleanliness == CleanlinessStatus.DIRTY) {
-                onCleanlinessSelected(CleanlinessStatus.DIRTY)
+            CleanlinessToggleChip("Dirty", Color(0xFFF44336), "DIRTY" in enabledCleanliness) {
+                onToggleCleanliness("DIRTY")
+            }
+            ToggleChip("Paid", excludedPaid != true) {
+                onTogglePaid(if (excludedPaid == true) null else true)
+            }
+            ToggleChip("Free", excludedPaid != false) {
+                onTogglePaid(if (excludedPaid == false) null else false)
             }
         }
     }
 }
 
 @Composable
-private fun CleanlinessChip(
+private fun ToggleChip(label: String, enabled: Boolean, onClick: () -> Unit) {
+    FilterChip(
+        selected = enabled,
+        onClick = onClick,
+        label = { Text(label) },
+        colors = FilterChipDefaults.filterChipColors(
+            containerColor = if (enabled) Color(0xFF2196F3) else Color(0xFFBDBDBD),
+            labelColor = if (enabled) Color.White else Color(0xFF424242)
+        )
+    )
+}
+
+@Composable
+private fun CleanlinessToggleChip(
     label: String,
     dotColor: Color,
-    selected: Boolean,
+    enabled: Boolean,
     onClick: () -> Unit
 ) {
     FilterChip(
-        selected = selected,
+        selected = enabled,
         onClick = onClick,
         leadingIcon = {
             Box(
                 modifier = Modifier
                     .size(10.dp)
                     .clip(CircleShape)
-                    .background(dotColor)
+                    .background(if (enabled) dotColor else Color(0xFFBDBDBD))
             )
         },
-        label = { Text(label) }
+        label = { Text(label) },
+        colors = FilterChipDefaults.filterChipColors(
+            containerColor = if (enabled) Color.White else Color(0xFFBDBDBD),
+            labelColor = if (enabled) Color.Black else Color(0xFF424242)
+        )
     )
 }
+

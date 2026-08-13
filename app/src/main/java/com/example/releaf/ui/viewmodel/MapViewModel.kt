@@ -28,9 +28,21 @@ class MapViewModel : ViewModel() {
     private val _photos = MutableStateFlow<List<PoiPhotoDto>>(emptyList())
     val photos: StateFlow<List<PoiPhotoDto>> = _photos.asStateFlow()
 
-    private val _categoryFilter = MutableStateFlow("ALL")
-    private val _cleanlinessFilter = MutableStateFlow("ALL")
-    private val _paidFilter = MutableStateFlow("ALL")
+    private val _reviewCount = MutableStateFlow(0)
+    val reviewCount: StateFlow<Int> = _reviewCount.asStateFlow()
+
+    private val _isFavorite = MutableStateFlow(false)
+    val isFavorite: StateFlow<Boolean> = _isFavorite.asStateFlow()
+
+    private val _enabledCategories = MutableStateFlow(setOf("TOILET", "TRASH_CAN"))
+    private val _enabledCleanliness = MutableStateFlow(setOf("CLEAN", "AVERAGE", "DIRTY"))
+    private val _excludedPaid = MutableStateFlow<Boolean?>(null)
+    private val _showUnverified = MutableStateFlow(true)
+
+    val enabledCategories: StateFlow<Set<String>> = _enabledCategories.asStateFlow()
+    val enabledCleanliness: StateFlow<Set<String>> = _enabledCleanliness.asStateFlow()
+    val excludedPaid: StateFlow<Boolean?> = _excludedPaid.asStateFlow()
+    val showUnverified: StateFlow<Boolean> = _showUnverified.asStateFlow()
 
     private val _actionResult = MutableStateFlow<PoiActionResult?>(null)
     val actionResult: StateFlow<PoiActionResult?> = _actionResult.asStateFlow()
@@ -51,47 +63,105 @@ class MapViewModel : ViewModel() {
     fun selectPoi(poi: PoiDto) {
         _selectedPoi.value = poi
         viewModelScope.launch {
-            _photos.value = repository.getPoiPhotos(poi.id)
+            try {
+                _photos.value = repository.getPoiPhotos(poi.id)
+                _reviewCount.value = repository.getReviewCount(poi.id)
+                _isFavorite.value = repository.isFavorite(poi.id, currentUserId)
+            } catch (_: Exception) { }
+        }
+    }
+
+    private var currentUserId = ""
+
+    fun setCurrentUserId(userId: String) {
+        currentUserId = userId
+    }
+
+    fun toggleFavorite(poiId: String) {
+        viewModelScope.launch {
+            try {
+                _isFavorite.value = repository.toggleFavorite(poiId, currentUserId)
+            } catch (_: Exception) { }
+        }
+    }
+
+    fun uploadPhoto(poiId: String, uri: android.net.Uri, context: android.content.Context) {
+        viewModelScope.launch {
+            try {
+                val success = repository.uploadPoiPhoto(poiId, currentUserId, uri, context)
+                if (success) {
+                    _photos.value = repository.getPoiPhotos(poiId)
+                    _actionResult.value = PoiActionResult.Message("photo_uploaded")
+                } else {
+                    _actionResult.value = PoiActionResult.Message("photo_failed")
+                }
+            } catch (_: Exception) {
+                _actionResult.value = PoiActionResult.Message("photo_failed")
+            }
         }
     }
 
     fun clearSelection() {
         _selectedPoi.value = null
         _photos.value = emptyList()
+        _reviewCount.value = 0
+        _isFavorite.value = false
     }
 
-    fun setCategoryFilter(category: String) {
-        _categoryFilter.value = category
+    fun toggleCategory(category: String) {
+        val current = _enabledCategories.value
+        _enabledCategories.value = if (category in current) current - category else current + category
         applyFilters()
     }
 
-    fun setCleanlinessFilter(cleanliness: String) {
-        _cleanlinessFilter.value = cleanliness
+    fun resetCategories() {
+        _enabledCategories.value = setOf("TOILET", "TRASH_CAN")
         applyFilters()
     }
 
-    fun setPaidFilter(paid: String) {
-        _paidFilter.value = paid
+    fun toggleCleanliness(cleanliness: String) {
+        val current = _enabledCleanliness.value
+        _enabledCleanliness.value = if (cleanliness in current) current - cleanliness else current + cleanliness
+        applyFilters()
+    }
+
+    fun resetCleanliness() {
+        _enabledCleanliness.value = setOf("CLEAN", "AVERAGE", "DIRTY")
+        applyFilters()
+    }
+
+    fun togglePaid(paid: Boolean?) {
+        _excludedPaid.value = paid
+        applyFilters()
+    }
+
+    fun toggleUnverified() {
+        _showUnverified.value = !_showUnverified.value
         applyFilters()
     }
 
     private fun applyFilters() {
         var result = _pois.value
-        if (_categoryFilter.value != "ALL") {
-            result = result.filter { it.category == _categoryFilter.value }
+        result = result.filter { it.category in _enabledCategories.value }
+        result = result.filter { it.cleanliness in _enabledCleanliness.value }
+        _excludedPaid.value?.let { excluded ->
+            result = result.filter { it.is_paid != excluded }
         }
-        if (_cleanlinessFilter.value != "ALL") {
-            result = result.filter { it.cleanliness == _cleanlinessFilter.value }
-        }
-        if (_paidFilter.value != "ALL") {
-            val isPaid = _paidFilter.value == "PAID"
-            result = result.filter { it.is_paid == isPaid }
+        if (!_showUnverified.value) {
+            result = result.filter { it.is_verified }
         }
         _filteredPois.value = result
     }
 
     fun createPoi(name: String, category: String, latitude: Double, longitude: Double, isPaid: Boolean, userId: String, description: String = "") {
         viewModelScope.launch {
+            val tooClose = _pois.value.any {
+                haversine(latitude, longitude, it.latitude, it.longitude) < 5.0
+            }
+            if (tooClose) {
+                _actionResult.value = PoiActionResult.Message("too_close")
+                return@launch
+            }
             val dto = PoiInsertDto(
                 name = name,
                 category = category,
@@ -101,22 +171,26 @@ class MapViewModel : ViewModel() {
                 description = description.ifBlank { "" },
                 created_by = userId.ifBlank { null }
             )
-            try {
-                val created = repository.createPoi(dto)
-                if (created != null) {
-                    loadPois()
-                    _actionResult.value = PoiActionResult.Message("created")
-                } else {
-                    _actionResult.value = PoiActionResult.Message("create_failed")
-                }
-            } catch (e: Exception) {
-                _actionResult.value = PoiActionResult.Message("error_${e.message}")
+            val created = repository.createPoi(dto)
+            if (created) {
+                loadPois()
+                _actionResult.value = PoiActionResult.Message("created")
+            } else {
+                _actionResult.value = PoiActionResult.Message("create_failed")
             }
         }
     }
 
-    fun verifyPoi(poiId: String, userId: String) {
+    fun verifyPoi(poiId: String, userId: String, userLat: Double = 0.0, userLng: Double = 0.0) {
         viewModelScope.launch {
+            val poi = try { repository.getPoi(poiId) } catch (_: Exception) { null }
+            if (poi != null && userLat != 0.0 && userLng != 0.0) {
+                val distance = haversine(userLat, userLng, poi.latitude, poi.longitude)
+                if (distance > 300.0) {
+                    _actionResult.value = PoiActionResult.Message("too_far_${distance.toInt()}")
+                    return@launch
+                }
+            }
             when (val result = repository.verifyPoi(poiId, userId)) {
                 is VerifyResult.AlreadyVerified -> _actionResult.value = PoiActionResult.Message("already_verified")
                 is VerifyResult.NowVerified -> {
@@ -131,8 +205,16 @@ class MapViewModel : ViewModel() {
         }
     }
 
-    fun reportNotExist(poiId: String, userId: String) {
+    fun reportNotExist(poiId: String, userId: String, userLat: Double = 0.0, userLng: Double = 0.0) {
         viewModelScope.launch {
+            val poi = try { repository.getPoi(poiId) } catch (_: Exception) { null }
+            if (poi != null && userLat != 0.0 && userLng != 0.0) {
+                val distance = haversine(userLat, userLng, poi.latitude, poi.longitude)
+                if (distance > 300.0) {
+                    _actionResult.value = PoiActionResult.Message("too_far_${distance.toInt()}")
+                    return@launch
+                }
+            }
             when (val result = repository.reportNotExist(poiId, userId)) {
                 is ReportResult.AlreadyReported -> _actionResult.value = PoiActionResult.Message("already_reported")
                 is ReportResult.NowUnverified -> {
@@ -163,6 +245,17 @@ class MapViewModel : ViewModel() {
 
     fun clearActionResult() {
         _actionResult.value = null
+    }
+
+    private fun haversine(lat1: Double, lon1: Double, lat2: Double, lon2: Double): Double {
+        val r = 6371000.0
+        val dLat = Math.toRadians(lat2 - lat1)
+        val dLon = Math.toRadians(lon2 - lon1)
+        val a = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+                Math.cos(Math.toRadians(lat1)) * Math.cos(Math.toRadians(lat2)) *
+                Math.sin(dLon / 2) * Math.sin(dLon / 2)
+        val c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a))
+        return r * c
     }
 }
 

@@ -1,6 +1,7 @@
 package com.example.releaf.ui.map
 
 import android.Manifest
+import android.content.Intent
 import android.content.pm.PackageManager
 import android.location.LocationManager
 import android.net.Uri
@@ -84,10 +85,14 @@ fun MapScreen(
     val selectedPoi by viewModel.selectedPoi.collectAsState()
     val photos by viewModel.photos.collectAsState()
     val actionResult by viewModel.actionResult.collectAsState()
+    val reviewCount by viewModel.reviewCount.collectAsState()
+    val isFavorite by viewModel.isFavorite.collectAsState()
 
     var searchQuery by remember { mutableStateOf("") }
-    var selectedCategory by remember { mutableStateOf<PoiCategory?>(null) }
-    var selectedCleanliness by remember { mutableStateOf<CleanlinessStatus?>(null) }
+    val enabledCategories by viewModel.enabledCategories.collectAsState()
+    val enabledCleanliness by viewModel.enabledCleanliness.collectAsState()
+    val excludedPaid by viewModel.excludedPaid.collectAsState()
+    val showUnverified by viewModel.showUnverified.collectAsState()
     var showAddPoiDialog by remember { mutableStateOf(false) }
     var currentLat by remember { mutableStateOf(3.1390) }
     var currentLng by remember { mutableStateOf(101.6869) }
@@ -100,6 +105,16 @@ fun MapScreen(
         ActivityResultContracts.GetContent()
     ) { uri -> selectedPhotoUri = uri }
 
+    val detailPhotoPicker = rememberLauncherForActivityResult(
+        ActivityResultContracts.GetContent()
+    ) { uri ->
+        if (uri != null) {
+            viewModel.selectedPoi.value?.let { poi ->
+                viewModel.uploadPhoto(poi.id, uri, context)
+            }
+        }
+    }
+
     val cameraLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.TakePicturePreview()
     ) { bitmap -> }
@@ -109,7 +124,12 @@ fun MapScreen(
     }
 
     LaunchedEffect(Unit) {
+        viewModel.setCurrentUserId(currentUserId)
         viewModel.loadPois()
+        while (true) {
+            kotlinx.coroutines.delay(5000)
+            viewModel.loadPois()
+        }
     }
 
     LaunchedEffect(actionResult) {
@@ -119,6 +139,9 @@ fun MapScreen(
                 when (msg.message) {
                     "created" -> "POI created!"
                     "create_failed" -> "Failed to create POI"
+                    "too_close" -> "A POI already exists within 5m of this location."
+                    "photo_uploaded" -> "Photo uploaded!"
+                    "photo_failed" -> "Photo upload failed"
                     else -> msg.message.take(100)
                 }
             )
@@ -162,16 +185,16 @@ fun MapScreen(
             Spacer(modifier = Modifier.height(8.dp))
 
             MapFilterBar(
-                selectedCategory = selectedCategory,
-                onCategorySelected = {
-                    selectedCategory = it
-                    viewModel.setCategoryFilter(it?.name ?: "ALL")
-                },
-                selectedCleanliness = selectedCleanliness,
-                onCleanlinessSelected = {
-                    selectedCleanliness = it
-                    viewModel.setCleanlinessFilter(it?.name ?: "ALL")
-                }
+                enabledCategories = enabledCategories,
+                onToggleCategory = { viewModel.toggleCategory(it) },
+                onResetCategories = { viewModel.resetCategories() },
+                enabledCleanliness = enabledCleanliness,
+                onToggleCleanliness = { viewModel.toggleCleanliness(it) },
+                onResetCleanliness = { viewModel.resetCleanliness() },
+                excludedPaid = excludedPaid,
+                onTogglePaid = { viewModel.togglePaid(it) },
+                showUnverified = showUnverified,
+                onToggleUnverified = { viewModel.toggleUnverified() }
             )
         }
 
@@ -216,11 +239,47 @@ fun MapScreen(
             PoiDetailSheet(
                 poi = poi,
                 photos = photos,
+                reviewCount = reviewCount,
+                isFavorite = isFavorite,
                 onCloseClick = { viewModel.clearSelection() },
-                onDirectionClick = { onDirectionClick(poi.id) },
+                onDirectionClick = {
+                    val uri = Uri.parse("google.navigation:q=${poi.latitude},${poi.longitude}&mode=w")
+                    val navIntent = Intent(Intent.ACTION_VIEW, uri).apply {
+                        setPackage("com.google.android.apps.maps")
+                    }
+                    try {
+                        context.startActivity(navIntent)
+                    } catch (_: Exception) {
+                        val fallback = Uri.parse("geo:${poi.latitude},${poi.longitude}?q=${poi.latitude},${poi.longitude}(${poi.name})")
+                        context.startActivity(Intent(Intent.ACTION_VIEW, fallback))
+                    }
+                },
                 onCommentClick = { onCommentClick(poi.id) },
-                onVerifyClick = { viewModel.verifyPoi(poi.id, currentUserId) },
-                onReportNotExist = { viewModel.reportNotExist(poi.id, currentUserId) },
+                onVerifyClick = {
+                    val lm = context.getSystemService(android.content.Context.LOCATION_SERVICE) as? LocationManager
+                    val loc = try {
+                        lm?.getLastKnownLocation(LocationManager.GPS_PROVIDER)
+                            ?: lm?.getLastKnownLocation(LocationManager.NETWORK_PROVIDER)
+                    } catch (_: SecurityException) { null }
+                    viewModel.verifyPoi(poi.id, currentUserId, loc?.latitude ?: 0.0, loc?.longitude ?: 0.0)
+                },
+                onReportNotExist = {
+                    val lm = context.getSystemService(android.content.Context.LOCATION_SERVICE) as? LocationManager
+                    val loc = try {
+                        lm?.getLastKnownLocation(LocationManager.GPS_PROVIDER)
+                            ?: lm?.getLastKnownLocation(LocationManager.NETWORK_PROVIDER)
+                    } catch (_: SecurityException) { null }
+                    viewModel.reportNotExist(poi.id, currentUserId, loc?.latitude ?: 0.0, loc?.longitude ?: 0.0)
+                },
+                onFavoriteClick = { viewModel.toggleFavorite(poi.id) },
+                onShareClick = {
+                    val sendIntent = Intent(Intent.ACTION_SEND).apply {
+                        type = "text/plain"
+                        putExtra(Intent.EXTRA_TEXT, "Check out ${poi.name} on Releaf! Location: https://maps.google.com/?q=${poi.latitude},${poi.longitude}")
+                    }
+                    context.startActivity(Intent.createChooser(sendIntent, "Share POI"))
+                },
+                onAddPhotoClick = { detailPhotoPicker.launch("image/*") },
                 actionResult = actionResult
             )
         }
@@ -310,9 +369,28 @@ private fun AddPoiDialog(
 
     androidx.compose.material3.AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("Add New Toilet") },
+        title = { Text(if (category == "TOILET") "Add New Toilet" else "Add New Trash Can") },
         text = {
             Column {
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Button(
+                        onClick = { category = "TOILET" },
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = if (category == "TOILET") Color(0xFFE53935) else MaterialTheme.colorScheme.surfaceVariant
+                        )
+                    ) {
+                        Text("Toilet")
+                    }
+                    Button(
+                        onClick = { category = "TRASH_CAN" },
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = if (category == "TRASH_CAN") Color(0xFF43A047) else MaterialTheme.colorScheme.surfaceVariant
+                        )
+                    ) {
+                        Text("Trash Can")
+                    }
+                }
+                Spacer(modifier = Modifier.height(8.dp))
                 OutlinedTextField(
                     value = name,
                     onValueChange = { name = it },

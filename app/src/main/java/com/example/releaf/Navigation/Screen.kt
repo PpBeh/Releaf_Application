@@ -3,6 +3,8 @@ package com.example.releaf.navigation
 sealed class Screen(val route: String) {
     data object Login : Screen("login")
     data object Register : Screen("register")
+    data object ForgotPassword : Screen("forgot_password")
+    data object SetNewPassword : Screen("set_new_password")
     data object Verify : Screen("verify/{email}") {
         fun createRoute(email: String) = "verify/$email"
     }
@@ -29,4 +31,5 @@ sealed class Screen(val route: String) {
     }
 
     data object Settings : Screen("settings")
+    data object Favourites : Screen("favourites")
 }

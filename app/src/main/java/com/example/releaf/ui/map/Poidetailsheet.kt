@@ -1,5 +1,6 @@
 package com.example.releaf.ui.map
 
+import android.content.Intent
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -16,6 +17,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Directions
+import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.FavoriteBorder
 import androidx.compose.material.icons.filled.Share
 import androidx.compose.material.icons.filled.Star
@@ -30,7 +32,9 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.example.releaf.data.remote.dto.PoiDto
@@ -41,20 +45,31 @@ import com.example.releaf.ui.viewmodel.PoiActionResult
 fun PoiDetailSheet(
     poi: PoiDto,
     photos: List<PoiPhotoDto>,
+    reviewCount: Int,
+    isFavorite: Boolean,
     onCloseClick: () -> Unit,
     onDirectionClick: () -> Unit,
     onCommentClick: () -> Unit,
     onVerifyClick: () -> Unit,
     onReportNotExist: () -> Unit,
+    onFavoriteClick: () -> Unit,
+    onShareClick: () -> Unit,
+    onAddPhotoClick: () -> Unit,
     actionResult: PoiActionResult?
 ) {
+    val context = LocalContext.current
+
     Column(modifier = Modifier.padding(horizontal = 20.dp, vertical = 8.dp)) {
 
         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
-            IconButton(onClick = { /* save to favorites */ }) {
-                Icon(Icons.Default.FavoriteBorder, contentDescription = "Favorite")
+            IconButton(onClick = onFavoriteClick) {
+                Icon(
+                    if (isFavorite) Icons.Default.Favorite else Icons.Default.FavoriteBorder,
+                    contentDescription = "Favorite",
+                    tint = if (isFavorite) Color(0xFFE53935) else MaterialTheme.colorScheme.onSurface
+                )
             }
-            IconButton(onClick = { /* share */ }) {
+            IconButton(onClick = onShareClick) {
                 Icon(Icons.Default.Share, contentDescription = "Share")
             }
             IconButton(onClick = onCloseClick) {
@@ -63,17 +78,22 @@ fun PoiDetailSheet(
         }
 
         Row(verticalAlignment = Alignment.CenterVertically) {
-            Text(text = poi.name, style = MaterialTheme.typography.headlineMedium)
+            Text(
+                text = poi.name,
+                style = MaterialTheme.typography.headlineSmall,
+                fontWeight = FontWeight.Bold,
+                modifier = Modifier.weight(1f, fill = false)
+            )
+            Spacer(modifier = Modifier.width(8.dp))
             if (!poi.is_verified) {
-                Spacer(modifier = Modifier.width(8.dp))
                 Text(
                     "(Unverified)",
-                    style = MaterialTheme.typography.labelMedium,
+                    style = MaterialTheme.typography.labelSmall,
                     color = Color(0xFFFF9800),
-                    fontWeight = FontWeight.Bold
+                    fontWeight = FontWeight.Bold,
+                    maxLines = 1
                 )
             } else {
-                Spacer(modifier = Modifier.width(8.dp))
                 Icon(Icons.Default.Verified, contentDescription = "Verified", tint = Color(0xFF4CAF50))
             }
         }
@@ -84,7 +104,16 @@ fun PoiDetailSheet(
             Text(text = String.format("%.1f", poi.rating), fontWeight = FontWeight.Bold, style = MaterialTheme.typography.titleLarge)
             Spacer(modifier = Modifier.width(12.dp))
             Text(
-                text = "${poi.cleanliness} | ${if (poi.is_paid) "Paid" else "Free"} | ${poi.category}",
+                text = "${poi.cleanliness} | ${if (poi.is_paid) "Paid" else "Free"} | $reviewCount comments",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
+
+        if (poi.description.isNotBlank()) {
+            Spacer(modifier = Modifier.height(4.dp))
+            Text(
+                poi.description,
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
@@ -146,14 +175,18 @@ fun PoiDetailSheet(
             if (it is PoiActionResult.Message) {
                 Spacer(modifier = Modifier.height(8.dp))
                 Text(
-                    text = when (it.message) {
-                        "already_verified" -> "You already verified this POI."
-                        "now_verified" -> "POI is now verified!"
-                        "verification_counted" -> "Verification recorded."
-                        "already_reported" -> "You already reported this POI."
-                        "now_unverified" -> "Too many reports. POI is now unverified."
-                        "removed" -> "POI has been removed due to reports."
-                        "report_counted" -> "Report recorded."
+                    text = when {
+                        it.message.startsWith("too_far_") -> {
+                            val meters = it.message.removePrefix("too_far_")
+                            "You must be at the location to do this (you are ${meters}m away)."
+                        }
+                        it.message == "already_verified" -> "You already verified this POI."
+                        it.message == "now_verified" -> "POI is now verified!"
+                        it.message == "verification_counted" -> "Verification recorded."
+                        it.message == "already_reported" -> "You already reported this POI."
+                        it.message == "now_unverified" -> "Too many reports. POI is now unverified."
+                        it.message == "removed" -> "POI has been removed due to reports."
+                        it.message == "report_counted" -> "Report recorded."
                         else -> it.message
                     },
                     style = MaterialTheme.typography.bodySmall,
@@ -167,18 +200,18 @@ fun PoiDetailSheet(
         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
             if (photos.isNotEmpty()) {
                 photos.take(3).forEach { photo ->
-                    PhotoTile(modifier = Modifier.weight(1f))
+                    PhotoTile(url = photo.photo_url, modifier = Modifier.weight(1f))
                 }
             } else {
-                PhotoTile(modifier = Modifier.weight(1f))
-                PhotoTile(modifier = Modifier.weight(1f))
+                PhotoTile(url = null, modifier = Modifier.weight(1f))
+                PhotoTile(url = null, modifier = Modifier.weight(1f))
             }
-            AddPhotoTile(modifier = Modifier.weight(1f), onClick = { })
+            AddPhotoTile(modifier = Modifier.weight(1f), onClick = onAddPhotoClick)
         }
         Spacer(modifier = Modifier.height(12.dp))
         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
             if (photos.size > 3) {
-                PhotoTile(modifier = Modifier.weight(1f))
+                PhotoTile(url = photos[3].photo_url, modifier = Modifier.weight(1f))
             }
             Spacer(modifier = Modifier.weight(1f))
         }
@@ -187,12 +220,23 @@ fun PoiDetailSheet(
 }
 
 @Composable
-private fun PhotoTile(modifier: Modifier = Modifier) {
-    Column(
-        modifier = modifier
-            .aspectRatio(1f)
-            .background(MaterialTheme.colorScheme.surfaceVariant, RoundedCornerShape(12.dp))
-    ) {}
+private fun PhotoTile(url: String?, modifier: Modifier = Modifier) {
+    if (url.isNullOrBlank()) {
+        Column(
+            modifier = modifier
+                .aspectRatio(1f)
+                .background(MaterialTheme.colorScheme.surfaceVariant, RoundedCornerShape(12.dp))
+        ) {}
+    } else {
+        androidx.compose.foundation.Image(
+            painter = coil.compose.rememberAsyncImagePainter(model = url),
+            contentDescription = "Photo",
+            modifier = modifier
+                .aspectRatio(1f)
+                .clip(RoundedCornerShape(12.dp)),
+            contentScale = androidx.compose.ui.layout.ContentScale.Crop
+        )
+    }
 }
 
 @Composable

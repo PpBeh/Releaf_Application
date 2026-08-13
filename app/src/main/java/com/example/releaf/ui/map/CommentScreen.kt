@@ -55,11 +55,18 @@ fun CommentScreen(
 ) {
     val reviews by viewModel.reviews.collectAsState()
     val isLoading by viewModel.isLoading.collectAsState()
+    val userVotes by viewModel.userVotes.collectAsState()
+    val errorMessage by viewModel.errorMessage.collectAsState()
     var commentText by remember { mutableStateOf("") }
     var starRating by remember { mutableIntStateOf(5) }
+    val context = androidx.compose.ui.platform.LocalContext.current
 
     LaunchedEffect(poiId) {
-        viewModel.loadReviews(poiId)
+        viewModel.loadReviews(poiId, currentUserId)
+        while (true) {
+            kotlinx.coroutines.delay(3000)
+            viewModel.loadReviews(poiId, currentUserId)
+        }
     }
 
     Column(modifier = Modifier.fillMaxSize()) {
@@ -106,7 +113,14 @@ fun CommentScreen(
             IconButton(
                 onClick = {
                     if (commentText.isNotBlank()) {
-                        viewModel.addReview(poiId, currentUserId, starRating, commentText)
+                        val lm = context.getSystemService(android.content.Context.LOCATION_SERVICE) as? android.location.LocationManager
+                        val loc = try {
+                            lm?.getLastKnownLocation(android.location.LocationManager.GPS_PROVIDER)
+                                ?: lm?.getLastKnownLocation(android.location.LocationManager.NETWORK_PROVIDER)
+                        } catch (_: SecurityException) { null }
+                        val lat = loc?.latitude ?: 0.0
+                        val lng = loc?.longitude ?: 0.0
+                        viewModel.addReview(poiId, currentUserId, starRating, commentText, lat, lng)
                         commentText = ""
                         starRating = 5
                     }
@@ -114,6 +128,15 @@ fun CommentScreen(
             ) {
                 Icon(Icons.AutoMirrored.Filled.Send, contentDescription = "Send")
             }
+        }
+
+        if (errorMessage != null) {
+            Text(
+                errorMessage ?: "",
+                color = MaterialTheme.colorScheme.error,
+                style = MaterialTheme.typography.bodySmall,
+                modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp)
+            )
         }
 
         if (isLoading && reviews.isEmpty()) {
@@ -132,9 +155,11 @@ fun CommentScreen(
                 items(reviews) { review ->
                     ReviewRowItem(
                         review = review,
+                        isOwnComment = review.user_id == currentUserId,
+                        userVote = userVotes[review.id],
                         onAvatarClick = { onAvatarClick(review.user_id) },
-                        onLike = { viewModel.likeReview(review.id, review.like_count) },
-                        onDislike = { viewModel.dislikeReview(review.id, review.dislike_count) }
+                        onLike = { viewModel.toggleLike(review) },
+                        onDislike = { viewModel.toggleDislike(review) }
                     )
                     Spacer(modifier = Modifier.height(16.dp))
                 }
@@ -156,6 +181,8 @@ fun CommentScreen(
 @Composable
 private fun ReviewRowItem(
     review: ReviewDto,
+    isOwnComment: Boolean,
+    userVote: String?,
     onAvatarClick: () -> Unit,
     onLike: () -> Unit,
     onDislike: () -> Unit
@@ -175,11 +202,12 @@ private fun ReviewRowItem(
                     style = MaterialTheme.typography.labelSmall,
                     fontWeight = FontWeight.Bold
                 )
+                val stars = review.star_rating.coerceIn(0, 5)
                 Row {
-                    repeat(review.star_rating) {
+                    repeat(stars) {
                         Icon(Icons.Default.Star, contentDescription = null, tint = Color(0xFFFFC107), modifier = Modifier.size(14.dp))
                     }
-                    repeat(5 - review.star_rating) {
+                    repeat(5 - stars) {
                         Icon(Icons.Default.Star, contentDescription = null, tint = MaterialTheme.colorScheme.outlineVariant, modifier = Modifier.size(14.dp))
                     }
                 }
@@ -192,13 +220,31 @@ private fun ReviewRowItem(
         ) {
             Text(review.created_at.take(10), style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
             Spacer(modifier = Modifier.weight(1f))
-            IconButton(onClick = onLike, modifier = Modifier.size(28.dp)) {
-                Icon(Icons.Default.ThumbUp, contentDescription = "Like", modifier = Modifier.size(16.dp))
+            IconButton(
+                onClick = onLike,
+                enabled = userVote == null,
+                modifier = Modifier.size(28.dp)
+            ) {
+                Icon(
+                    Icons.Default.ThumbUp,
+                    contentDescription = "Like",
+                    modifier = Modifier.size(16.dp),
+                    tint = if (userVote == "LIKE") Color(0xFF4285F4) else MaterialTheme.colorScheme.onSurfaceVariant
+                )
             }
             Text(review.like_count.toString(), style = MaterialTheme.typography.labelSmall)
             Spacer(modifier = Modifier.width(8.dp))
-            IconButton(onClick = onDislike, modifier = Modifier.size(28.dp)) {
-                Icon(Icons.Default.ThumbDown, contentDescription = "Dislike", modifier = Modifier.size(16.dp))
+            IconButton(
+                onClick = onDislike,
+                enabled = userVote == null,
+                modifier = Modifier.size(28.dp)
+            ) {
+                Icon(
+                    Icons.Default.ThumbDown,
+                    contentDescription = "Dislike",
+                    modifier = Modifier.size(16.dp),
+                    tint = if (userVote == "DISLIKE") Color(0xFFE53935) else MaterialTheme.colorScheme.onSurfaceVariant
+                )
             }
             Text(review.dislike_count.toString(), style = MaterialTheme.typography.labelSmall)
         }

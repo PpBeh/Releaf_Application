@@ -18,20 +18,24 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import com.example.releaf.data.repository.SessionState
 import com.example.releaf.ui.activity.ActivityScreen
+import com.example.releaf.ui.auth.ForgotPasswordScreen
 import com.example.releaf.ui.auth.LoginScreen
 import com.example.releaf.ui.auth.RegisterScreen
+import com.example.releaf.ui.auth.SetNewPasswordScreen
 import com.example.releaf.ui.auth.VerificationScreen
 import com.example.releaf.ui.garden.GardenPlotScreen
 import com.example.releaf.ui.garden.GardenScreen
 import com.example.releaf.ui.map.CommentScreen
 import com.example.releaf.ui.map.DirectionScreen
 import com.example.releaf.ui.map.MapScreen
+import com.example.releaf.ui.profile.FavouritesScreen
 import com.example.releaf.ui.profile.ProfileScreen
 import com.example.releaf.ui.profile.SettingsScreen
 import com.example.releaf.ui.rewards.RewardsScreen
 import com.example.releaf.ui.viewmodel.ActivityViewModel
 import com.example.releaf.ui.viewmodel.AuthViewModel
 import com.example.releaf.ui.viewmodel.CommentViewModel
+import com.example.releaf.ui.viewmodel.FavouritesViewModel
 import com.example.releaf.ui.viewmodel.GardenViewModel
 import com.example.releaf.ui.viewmodel.MapViewModel
 import com.example.releaf.ui.viewmodel.ProfileViewModel
@@ -45,12 +49,21 @@ fun ReleafNavGraph(
     val session by authViewModel.session.collectAsState()
     val authUiState by authViewModel.uiState.collectAsState()
     val isChecking by authViewModel.isCheckingSession.collectAsState()
+    val needsPasswordReset by authViewModel.needsPasswordReset.collectAsState()
 
     if (isChecking) {
         Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
             CircularProgressIndicator()
         }
         return
+    }
+
+    LaunchedEffect(needsPasswordReset) {
+        if (needsPasswordReset) {
+            navController.navigate(Screen.SetNewPassword.route) {
+                popUpTo(Screen.Login.route) { inclusive = true }
+            }
+        }
     }
 
     val startDestination = when (session) {
@@ -75,7 +88,32 @@ fun ReleafNavGraph(
                     authViewModel.login(email, password)
                 },
                 onRegisterClick = { navController.navigate(Screen.Register.route) },
+                onForgotPasswordClick = { navController.navigate(Screen.ForgotPassword.route) },
                 onClearError = { authViewModel.clearError() }
+            )
+        }
+        composable(Screen.ForgotPassword.route) {
+            val resetState by authViewModel.resetState.collectAsState()
+            ForgotPasswordScreen(
+                isLoading = resetState.isLoading,
+                isSuccess = resetState.isSuccess,
+                error = resetState.error,
+                onSendClick = { email -> authViewModel.sendResetEmail(email) },
+                onBackClick = {
+                    authViewModel.clearResetState()
+                    navController.popBackStack()
+                }
+            )
+        }
+        composable(Screen.SetNewPassword.route) {
+            SetNewPasswordScreen(
+                isLoading = authUiState.isLoading,
+                error = authUiState.error,
+                onSubmit = { password ->
+                    authViewModel.updatePassword(password) {
+                        navController.logout()
+                    }
+                }
             )
         }
         composable(Screen.Register.route) {
@@ -197,10 +235,20 @@ fun ReleafNavGraph(
                 userId = actualUserId,
                 currentUserId = currentUserId,
                 viewModel = profileViewModel,
+                onFavouritesClick = { navController.navigate(Screen.Favourites.route) },
                 onLogoutClick = {
                     authViewModel.logout()
                     navController.logout()
                 }
+            )
+        }
+        composable(Screen.Favourites.route) {
+            val favouritesViewModel: FavouritesViewModel = viewModel()
+            val userId = (session as? SessionState.LoggedIn)?.userId ?: ""
+            FavouritesScreen(
+                viewModel = favouritesViewModel,
+                userId = userId,
+                onBackClick = { navController.popBackStack() }
             )
         }
         composable(Screen.Settings.route) {

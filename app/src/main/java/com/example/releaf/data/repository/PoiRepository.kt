@@ -21,8 +21,17 @@ class PoiRepository {
             .decodeSingleOrNull()
     }
 
-    suspend fun createPoi(poi: PoiInsertDto): PoiDto? {
-        return client.postgrest.from("pois").insert(poi).decodeSingleOrNull()
+    suspend fun createPoi(poi: PoiInsertDto): Boolean {
+        return try {
+            client.postgrest.from("pois").insert(poi)
+            true
+        } catch (e: Exception) {
+            if (e.message?.contains("duplicate") == true) {
+                true
+            } else {
+                false
+            }
+        }
     }
 
     suspend fun getPoiPhotos(poiId: String): List<PoiPhotoDto> {
@@ -31,10 +40,87 @@ class PoiRepository {
             .decodeList()
     }
 
+    suspend fun uploadPoiPhoto(poiId: String, userId: String, uri: android.net.Uri, context: android.content.Context): Boolean {
+        return try {
+            val bytes = context.contentResolver.openInputStream(uri)?.use { it.readBytes() } ?: return false
+            val fileName = "${poiId}_${System.currentTimeMillis()}.jpg"
+            client.storage.from("poi-photos").upload(
+                path = fileName,
+                data = bytes
+            ) {
+                upsert = true
+            }
+            val url = client.storage.from("poi-photos").publicUrl(fileName)
+            client.postgrest.from("poi_photos").insert(
+                PoiPhotoDto(poi_id = poiId, photo_url = url, uploaded_by = userId)
+            )
+            true
+        } catch (_: Exception) {
+            false
+        }
+    }
+
     suspend fun addPoiPhoto(poiId: String, photoUrl: String, userId: String) {
         client.postgrest.from("poi_photos").insert(
             PoiPhotoDto(poi_id = poiId, photo_url = photoUrl, uploaded_by = userId)
         )
+    }
+
+    suspend fun getReviewCount(poiId: String): Int {
+        return try {
+            val reviews = client.postgrest.from("reviews")
+                .select { filter { eq("poi_id", poiId) } }
+                .decodeList<com.example.releaf.data.remote.dto.ReviewDto>()
+            reviews.size
+        } catch (_: Exception) {
+            0
+        }
+    }
+
+    suspend fun isFavorite(poiId: String, userId: String): Boolean {
+        return try {
+            val favs = client.postgrest.from("favorites")
+                .select { filter { eq("poi_id", poiId); eq("user_id", userId) } }
+                .decodeList<kotlinx.serialization.json.JsonObject>()
+            favs.isNotEmpty()
+        } catch (_: Exception) {
+            false
+        }
+    }
+
+    suspend fun toggleFavorite(poiId: String, userId: String): Boolean {
+        val currentlyFav = isFavorite(poiId, userId)
+        return try {
+            if (currentlyFav) {
+                client.postgrest.from("favorites").delete {
+                    filter { eq("poi_id", poiId); eq("user_id", userId) }
+                }
+                false
+            } else {
+                client.postgrest.from("favorites").insert(
+                    mapOf("poi_id" to poiId, "user_id" to userId)
+                )
+                true
+            }
+        } catch (_: Exception) {
+            currentlyFav
+        }
+    }
+
+    suspend fun getFavoritePois(userId: String): List<PoiDto> {
+        return try {
+            val favPoiIds = client.postgrest.from("favorites")
+                .select { filter { eq("user_id", userId) } }
+                .decodeList<kotlinx.serialization.json.JsonObject>()
+                .mapNotNull { it["poi_id"]?.toString()?.removeSurrounding("\"") }
+
+            if (favPoiIds.isEmpty()) return emptyList()
+
+            val allPois = client.postgrest.from("pois").select().decodeList<PoiDto>()
+            allPois.filter { it.id in favPoiIds }
+        } catch (_: Exception) {
+            emptyList()
+        }
     }
 
     suspend fun verifyPoi(poiId: String, userId: String): VerifyResult {

@@ -58,6 +58,38 @@ class AuthRepository {
         } catch (_: Exception) { }
     }
 
+    suspend fun resetPassword(email: String): Result<Unit> {
+        return try {
+            client.auth.resetPasswordForEmail(email = email, redirectUrl = "releaf://login-callback")
+            Result.success(Unit)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    suspend fun importSession(accessToken: String, refreshToken: String): Boolean {
+        return try {
+            val session = io.github.jan.supabase.auth.user.UserSession(
+                accessToken = accessToken,
+                refreshToken = refreshToken,
+                expiresIn = 3600,
+                expiresAt = kotlinx.datetime.Instant.fromEpochSeconds(System.currentTimeMillis() / 1000 + 3600),
+                tokenType = "bearer",
+                user = null
+            )
+            client.auth.importSession(session)
+            true
+        } catch (_: Exception) {
+            false
+        }
+    }
+
+    suspend fun updatePassword(newPassword: String) {
+        client.auth.updateUser {
+            password = newPassword
+        }
+    }
+
     suspend fun logout() {
         client.auth.signOut()
         _sessionState.value = SessionState.LoggedOut
@@ -69,10 +101,25 @@ class AuthRepository {
 
     suspend fun restoreSession(): Boolean {
         return try {
-            client.auth.retrieveUserForCurrentSession()
-            val userId = client.auth.currentUserOrNull()?.id ?: return false
-            _sessionState.value = SessionState.LoggedIn(userId)
-            true
+            try {
+                client.auth.loadFromStorage()
+            } catch (_: Exception) { }
+            val localSession = client.auth.currentSessionOrNull()
+            if (localSession != null) {
+                val userId = localSession.user?.id ?: return false
+                _sessionState.value = SessionState.LoggedIn(userId)
+                true
+            } else {
+                try {
+                    client.auth.retrieveUserForCurrentSession()
+                    val userId = client.auth.currentUserOrNull()?.id ?: return false
+                    _sessionState.value = SessionState.LoggedIn(userId)
+                    true
+                } catch (_: Exception) {
+                    _sessionState.value = SessionState.LoggedOut
+                    false
+                }
+            }
         } catch (e: Exception) {
             _sessionState.value = SessionState.LoggedOut
             false

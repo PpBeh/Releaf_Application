@@ -1,0 +1,151 @@
+package com.example.releaf.ui.auth
+
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.Email
+import androidx.compose.material3.Button
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.Text
+import androidx.compose.material3.TopAppBar
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.unit.dp
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun ForgotPasswordScreen(
+    isLoading: Boolean,
+    isSuccess: Boolean,
+    error: String?,
+    onSendClick: (email: String) -> Unit,
+    onBackClick: () -> Unit
+) {
+    var email by remember { mutableStateOf("") }
+
+    Column(modifier = Modifier.fillMaxSize()) {
+        TopAppBar(
+            title = { Text("Forgot Password") },
+            navigationIcon = {
+                IconButton(onClick = onBackClick) {
+                    Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+                }
+            }
+        )
+
+        if (isSuccess) {
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(24.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.Center
+            ) {
+                Icon(
+                    Icons.Default.Email,
+                    contentDescription = null,
+                    modifier = Modifier.size(64.dp),
+                    tint = MaterialTheme.colorScheme.primary
+                )
+                Spacer(modifier = Modifier.height(24.dp))
+                Text(
+                    "Check your email",
+                    style = MaterialTheme.typography.headlineSmall,
+                    fontWeight = FontWeight.Bold
+                )
+                Spacer(modifier = Modifier.height(8.dp))
+                Text(
+                    "We sent a password reset link to $email. Click the link to set a new password, then come back and log in.",
+                    style = MaterialTheme.typography.bodyMedium,
+                    textAlign = TextAlign.Center
+                )
+                Spacer(modifier = Modifier.height(24.dp))
+                Button(onClick = onBackClick) {
+                    Text("Back to Login")
+                }
+            }
+        } else {
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .verticalScroll(rememberScrollState())
+                    .padding(24.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.Center
+            ) {
+                Text(
+                    "Reset your password",
+                    style = MaterialTheme.typography.headlineSmall,
+                    fontWeight = FontWeight.Bold
+                )
+                Spacer(modifier = Modifier.height(8.dp))
+                Text(
+                    "Enter your email and we'll send you a link to reset your password.",
+                    style = MaterialTheme.typography.bodyMedium,
+                    textAlign = TextAlign.Center
+                )
+                Spacer(modifier = Modifier.height(32.dp))
+                OutlinedTextField(
+                    value = email,
+                    onValueChange = { email = it },
+                    label = { Text("Email") },
+                    singleLine = true,
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email),
+                    modifier = Modifier.fillMaxWidth()
+                )
+
+                if (error != null) {
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Text(
+                        error,
+                        color = MaterialTheme.colorScheme.error,
+                        style = MaterialTheme.typography.bodySmall
+                    )
+                }
+
+                Spacer(modifier = Modifier.height(24.dp))
+
+                Button(
+                    onClick = { onSendClick(email) },
+                    enabled = email.isNotBlank() && !isLoading,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(50.dp)
+                ) {
+                    if (isLoading) {
+                        CircularProgressIndicator(
+                            color = MaterialTheme.colorScheme.onPrimary,
+                            modifier = Modifier.size(24.dp),
+                            strokeWidth = 2.dp
+                        )
+                    } else {
+                        Text("Send Reset Link")
+                    }
+                }
+            }
+        }
+    }
+}

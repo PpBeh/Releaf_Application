@@ -1,10 +1,26 @@
 package com.example.releaf.data.repository
 
 import com.example.releaf.data.remote.SupabaseModule
+import com.example.releaf.data.remote.dto.ProfileDto
 import com.example.releaf.data.remote.dto.ReviewDto
 import com.example.releaf.data.remote.dto.ReviewInsertDto
-import com.example.releaf.data.remote.dto.ProfileDto
 import io.github.jan.supabase.postgrest.postgrest
+import kotlinx.serialization.Serializable
+
+@Serializable
+data class ReviewVoteDto(
+    val id: String = "",
+    val review_id: String,
+    val user_id: String,
+    val vote_type: String = "LIKE",
+    val created_at: String = ""
+)
+
+@Serializable
+data class PoiStatsUpdateDto(
+    val rating: Double,
+    val cleanliness: String
+)
 
 class ReviewRepository {
     private val client = SupabaseModule.client
@@ -19,6 +35,48 @@ class ReviewRepository {
         return client.postgrest.from("reviews").insert(review).decodeSingleOrNull()
     }
 
+    suspend fun getUserVotes(userId: String, reviewIds: List<String>): Map<String, String> {
+        if (reviewIds.isEmpty()) return emptyMap()
+        return try {
+            val votes = client.postgrest.from("review_votes")
+                .select { filter { eq("user_id", userId) } }
+                .decodeList<ReviewVoteDto>()
+            votes.filter { it.review_id in reviewIds }.associate { it.review_id to it.vote_type }
+        } catch (_: Exception) {
+            emptyMap()
+        }
+    }
+
+    suspend fun vote(reviewId: String, userId: String, voteType: String, review: ReviewDto): VoteResult {
+        val existing = try {
+            client.postgrest.from("review_votes")
+                .select { filter { eq("review_id", reviewId); eq("user_id", userId) } }
+                .decodeList<ReviewVoteDto>()
+        } catch (_: Exception) {
+            emptyList()
+        }
+
+        if (existing.isNotEmpty()) {
+            return VoteResult.AlreadyVoted
+        }
+
+        client.postgrest.from("review_votes").insert(
+            ReviewVoteDto(review_id = reviewId, user_id = userId, vote_type = voteType)
+        )
+
+        if (voteType == "LIKE") {
+            client.postgrest.from("reviews").update(
+                mapOf("like_count" to review.like_count + 1)
+            ) { filter { eq("id", reviewId) } }
+        } else {
+            client.postgrest.from("reviews").update(
+                mapOf("dislike_count" to review.dislike_count + 1)
+            ) { filter { eq("id", reviewId) } }
+        }
+
+        return VoteResult.Success
+    }
+
     suspend fun likeReview(reviewId: String, currentLikes: Int) {
         client.postgrest.from("reviews").update(
             mapOf("like_count" to currentLikes + 1)
@@ -31,34 +89,34 @@ class ReviewRepository {
         ) { filter { eq("id", reviewId) } }
     }
 
-    suspend fun getCleanlinessScore(poiId: String): String {
-        val reviews = getReviews(poiId)
-        if (reviews.isEmpty()) return "AVERAGE"
+    suspend fun updatePoiStats(poiId: String) {
+        try {
+            val reviews = getReviews(poiId)
+            if (reviews.isEmpty()) return
 
-        val avgRating = reviews.map { it.star_rating }.average()
-        val dirtyCount = reviews.count {
-            it.text.contains("dirty", ignoreCase = true) ||
-            it.text.contains("disgusting", ignoreCase = true) ||
-            it.text.contains("filthy", ignoreCase = true)
-        }
-        val cleanCount = reviews.count {
-            it.text.contains("clean", ignoreCase = true) ||
-            it.text.contains("spotless", ignoreCase = true) ||
-            it.text.contains("tidy", ignoreCase = true)
-        }
+            val avgRating = reviews.map { it.star_rating }.average()
+            val dirtyCount = reviews.count {
+                it.text.contains("dirty", ignoreCase = true) ||
+                it.text.contains("disgusting", ignoreCase = true) ||
+                it.text.contains("filthy", ignoreCase = true)
+            }
+            val cleanCount = reviews.count {
+                it.text.contains("clean", ignoreCase = true) ||
+                it.text.contains("spotless", ignoreCase = true) ||
+                it.text.contains("tidy", ignoreCase = true)
+            }
 
-        return when {
-            avgRating >= 4.0 && cleanCount > dirtyCount -> "CLEAN"
-            avgRating <= 2.0 || dirtyCount > cleanCount -> "DIRTY"
-            else -> "AVERAGE"
-        }
-    }
+            val cleanliness = when {
+                avgRating >= 4.0 && cleanCount > dirtyCount -> "CLEAN"
+                avgRating <= 2.0 || dirtyCount > cleanCount -> "DIRTY"
+                else -> "AVERAGE"
+            }
 
-    suspend fun updatePoiCleanliness(poiId: String) {
-        val score = getCleanlinessScore(poiId)
-        client.postgrest.from("pois").update(
-            mapOf("cleanliness" to score)
-        ) { filter { eq("id", poiId) } }
+            val roundedRating = (avgRating * 10).toInt() / 10.0
+            client.postgrest.from("pois").update(
+                PoiStatsUpdateDto(rating = roundedRating, cleanliness = cleanliness)
+            ) { filter { eq("id", poiId) } }
+        } catch (_: Exception) { }
     }
 
     suspend fun getReviewerProfile(userId: String): ProfileDto? {
@@ -66,4 +124,9 @@ class ReviewRepository {
             .select { filter { eq("id", userId) } }
             .decodeSingleOrNull()
     }
+}
+
+sealed class VoteResult {
+    data object Success : VoteResult()
+    data object AlreadyVoted : VoteResult()
 }

@@ -2,6 +2,7 @@ package com.example.releaf.ui.viewmodel
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.example.releaf.data.remote.DeepLinkHolder
 import com.example.releaf.data.repository.AuthRepository
 import com.example.releaf.data.repository.SessionState
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -21,6 +22,9 @@ class AuthViewModel : ViewModel() {
     private val _isCheckingSession = MutableStateFlow(true)
     val isCheckingSession: StateFlow<Boolean> = _isCheckingSession.asStateFlow()
 
+    private val _needsPasswordReset = MutableStateFlow(false)
+    val needsPasswordReset: StateFlow<Boolean> = _needsPasswordReset.asStateFlow()
+
     init {
         viewModelScope.launch {
             val restored = repository.restoreSession()
@@ -31,6 +35,31 @@ class AuthViewModel : ViewModel() {
                 SessionState.LoggedOut
             }
             _isCheckingSession.value = false
+
+            val token = DeepLinkHolder.accessToken
+            val refresh = DeepLinkHolder.refreshToken
+            val type = DeepLinkHolder.type
+            if (token != null && refresh != null && type == "recovery") {
+                val imported = repository.importSession(token, refresh)
+                if (imported) {
+                    val userId = repository.getCurrentUserId() ?: ""
+                    _session.value = SessionState.LoggedIn(userId)
+                    _needsPasswordReset.value = true
+                }
+                DeepLinkHolder.clear()
+            }
+        }
+    }
+
+    fun updatePassword(newPassword: String, onDone: () -> Unit) {
+        viewModelScope.launch {
+            try {
+                repository.updatePassword(newPassword)
+                _needsPasswordReset.value = false
+                onDone()
+            } catch (e: Exception) {
+                _uiState.value = AuthUiState(error = e.message ?: "Failed to update password")
+            }
         }
     }
 
@@ -107,6 +136,28 @@ class AuthViewModel : ViewModel() {
         _uiState.value = _uiState.value.copy(error = null)
     }
 
+    private val _resetState = MutableStateFlow(ResetUiState())
+    val resetState: StateFlow<ResetUiState> = _resetState.asStateFlow()
+
+    fun sendResetEmail(email: String) {
+        viewModelScope.launch {
+            _resetState.value = ResetUiState(isLoading = true)
+            val result = repository.resetPassword(email)
+            result.fold(
+                onSuccess = {
+                    _resetState.value = ResetUiState(isSuccess = true)
+                },
+                onFailure = { error ->
+                    _resetState.value = ResetUiState(error = error.message ?: "Failed to send reset email")
+                }
+            )
+        }
+    }
+
+    fun clearResetState() {
+        _resetState.value = ResetUiState()
+    }
+
     fun getCurrentUserId(): String? = repository.getCurrentUserId()
 }
 
@@ -115,4 +166,10 @@ data class AuthUiState(
     val isSuccess: Boolean = false,
     val error: String? = null,
     val registeredEmail: String = ""
+)
+
+data class ResetUiState(
+    val isLoading: Boolean = false,
+    val isSuccess: Boolean = false,
+    val error: String? = null
 )

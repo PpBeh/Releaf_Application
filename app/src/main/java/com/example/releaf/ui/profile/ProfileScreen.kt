@@ -21,6 +21,7 @@ import androidx.compose.material.icons.automirrored.filled.Logout
 import androidx.compose.material.icons.filled.Block
 import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.filled.Palette
@@ -48,6 +49,7 @@ fun ProfileScreen(
     userId: String,
     currentUserId: String,
     viewModel: ProfileViewModel,
+    onFavouritesClick: () -> Unit,
     onLogoutClick: () -> Unit
 ) {
     val profile by viewModel.profile.collectAsState()
@@ -65,6 +67,7 @@ fun ProfileScreen(
     val isOwnProfile = userId == currentUserId
 
     val settingsRows = listOf(
+        SettingsRowData(Icons.Default.Favorite, "Favourite Toilets"),
         SettingsRowData(Icons.Default.Refresh, "Updates"),
         SettingsRowData(Icons.Default.Notifications, "Notification Settings"),
         SettingsRowData(Icons.Default.Palette, "Theme"),
@@ -181,8 +184,9 @@ fun ProfileScreen(
                 SettingsRow(
                     row = row,
                     onClick = {
-                        if (row.label == LOG_OUT_LABEL) {
-                            onLogoutClick()
+                        when (row.label) {
+                            LOG_OUT_LABEL -> onLogoutClick()
+                            "Favourite Toilets" -> onFavouritesClick()
                         }
                     }
                 )

@@ -1,5 +1,6 @@
 package com.example.releaf
 
+import android.content.Intent
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
@@ -12,6 +13,7 @@ import androidx.compose.ui.Modifier
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
+import com.example.releaf.data.remote.DeepLinkHolder
 import com.example.releaf.navigation.ReleafNavGraph
 import com.example.releaf.navigation.Screen
 import com.example.releaf.ui.components.BottomNavBar
@@ -30,10 +32,31 @@ class MainActivity : ComponentActivity() {
                 it.listFiles()?.forEach { f -> f.deleteRecursively() }
             }
         }
+        handleDeepLink(intent)
         setContent {
             ReleafTheme {
                 ReleafApp()
             }
+        }
+    }
+
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        handleDeepLink(intent)
+    }
+
+    private fun handleDeepLink(intent: Intent?) {
+        val data = intent?.data ?: return
+        if (data.scheme == "releaf" && data.host == "login-callback") {
+            val fragment = data.encodedFragment ?: ""
+            val params = fragment.split("&").mapNotNull { part ->
+                val kv = part.split("=", limit = 2)
+                if (kv.size == 2) kv[0] to kv[1] else null
+            }.toMap()
+
+            DeepLinkHolder.accessToken = params["access_token"]?.let { android.net.Uri.decode(it) }
+            DeepLinkHolder.refreshToken = params["refresh_token"]?.let { android.net.Uri.decode(it) }
+            DeepLinkHolder.type = params["type"]
         }
     }
 }
