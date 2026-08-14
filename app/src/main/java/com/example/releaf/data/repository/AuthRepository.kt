@@ -6,6 +6,7 @@ import com.example.releaf.data.remote.dto.ProfileUpdateDto
 import io.github.jan.supabase.auth.auth
 import io.github.jan.supabase.auth.providers.builtin.Email
 import io.github.jan.supabase.postgrest.postgrest
+import io.github.jan.supabase.storage.storage
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -156,6 +157,26 @@ class AuthRepository {
         return client.postgrest.from("profiles")
             .select { filter { eq("id", userId) } }
             .decodeSingleOrNull()
+    }
+
+    suspend fun uploadAvatar(userId: String, uri: android.net.Uri, context: android.content.Context): String? {
+        return try {
+            val bytes = context.contentResolver.openInputStream(uri)?.use { it.readBytes() } ?: return null
+            val fileName = "${userId}_${System.currentTimeMillis()}.jpg"
+            client.storage.from("avatars").upload(
+                path = fileName,
+                data = bytes
+            ) {
+                upsert = true
+            }
+            val url = client.storage.from("avatars").publicUrl(fileName)
+            client.postgrest.from("profiles").update(
+                mapOf("avatar_url" to url)
+            ) { filter { eq("id", userId) } }
+            url
+        } catch (_: Exception) {
+            null
+        }
     }
 }
 

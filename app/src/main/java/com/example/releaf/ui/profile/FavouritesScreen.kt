@@ -45,7 +45,8 @@ import com.example.releaf.ui.viewmodel.FavouritesViewModel
 fun FavouritesScreen(
     viewModel: FavouritesViewModel,
     userId: String,
-    onBackClick: () -> Unit
+    onBackClick: () -> Unit,
+    onPoiClick: (PoiDto) -> Unit
 ) {
     val favorites by viewModel.favorites.collectAsState()
 
@@ -95,7 +96,8 @@ fun FavouritesScreen(
                 items(favorites, key = { it.id }) { poi ->
                     FavoritePoiCard(
                         poi = poi,
-                        onRemove = { viewModel.removeFavorite(poi.id, userId) }
+                        onRemove = { viewModel.removeFavorite(poi.id, userId) },
+                        onClick = { onPoiClick(poi) }
                     )
                 }
             }
@@ -104,9 +106,11 @@ fun FavouritesScreen(
 }
 
 @Composable
-private fun FavoritePoiCard(poi: PoiDto, onRemove: () -> Unit) {
+private fun FavoritePoiCard(poi: PoiDto, onRemove: () -> Unit, onClick: () -> Unit) {
     Card(
-        modifier = Modifier.fillMaxWidth(),
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(onClick = onClick),
         shape = RoundedCornerShape(16.dp),
         elevation = CardDefaults.cardElevation(defaultElevation = 3.dp)
     ) {

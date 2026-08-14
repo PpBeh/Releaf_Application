@@ -4,10 +4,15 @@ object DeepLinkHolder {
     var accessToken: String? = null
     var refreshToken: String? = null
     var type: String? = null
+    var pendingPoiId: String? = null
 
     fun clear() {
         accessToken = null
         refreshToken = null
         type = null
+    }
+
+    fun clearPoiId() {
+        pendingPoiId = null
     }
 }

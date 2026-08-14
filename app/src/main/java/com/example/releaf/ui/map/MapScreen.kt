@@ -26,11 +26,14 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.MyLocation
 import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.filled.Search
-import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Star
+import androidx.compose.material.icons.filled.ThumbUp
+import androidx.compose.material.icons.filled.Wc
 import androidx.compose.material3.Badge
 import androidx.compose.material3.BadgedBox
 import androidx.compose.material3.Button
@@ -49,6 +52,7 @@ import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.SmallFloatingActionButton
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -61,12 +65,14 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.example.releaf.model.CleanlinessStatus
 import com.example.releaf.model.PoiCategory
 import com.example.releaf.ui.components.MapFilterBar
 import com.example.releaf.ui.viewmodel.MapViewModel
+import com.example.releaf.ui.viewmodel.NotificationsViewModel
 import com.example.releaf.ui.viewmodel.PoiActionResult
 import androidx.core.content.ContextCompat
 import coil.compose.rememberAsyncImagePainter
@@ -77,6 +83,7 @@ import kotlinx.coroutines.launch
 @Composable
 fun MapScreen(
     viewModel: MapViewModel,
+    notificationsViewModel: NotificationsViewModel,
     onDirectionClick: (String) -> Unit,
     onCommentClick: (String) -> Unit,
     currentUserId: String
@@ -87,6 +94,9 @@ fun MapScreen(
     val actionResult by viewModel.actionResult.collectAsState()
     val reviewCount by viewModel.reviewCount.collectAsState()
     val isFavorite by viewModel.isFavorite.collectAsState()
+    val isProcessing by viewModel.isProcessing.collectAsState()
+    val analyzedStatus by viewModel.analyzedStatus.collectAsState()
+    val analyzedStatusTime by viewModel.analyzedStatusTime.collectAsState()
 
     var searchQuery by remember { mutableStateOf("") }
     val enabledCategories by viewModel.enabledCategories.collectAsState()
@@ -126,6 +136,11 @@ fun MapScreen(
     LaunchedEffect(Unit) {
         viewModel.setCurrentUserId(currentUserId)
         viewModel.loadPois()
+        com.example.releaf.data.remote.DeepLinkHolder.pendingPoiId?.let { poiId ->
+            kotlinx.coroutines.delay(800)
+            viewModel.openPoiFromDeepLink(poiId)
+            com.example.releaf.data.remote.DeepLinkHolder.clearPoiId()
+        }
         while (true) {
             kotlinx.coroutines.delay(5000)
             viewModel.loadPois()
@@ -148,19 +163,54 @@ fun MapScreen(
         }
     }
 
+    LaunchedEffect(selectedPoi?.id) {
+        val poiId = selectedPoi?.id ?: return@LaunchedEffect
+        while (true) {
+            kotlinx.coroutines.delay(4000)
+            viewModel.refreshPoiDetails(poiId)
+        }
+    }
+
     var showMap by remember { mutableStateOf(true) }
     var centerOnLocation by remember { mutableStateOf(false) }
+    var focusPoint by remember { mutableStateOf<org.osmdroid.util.GeoPoint?>(null) }
+    val searchResults by viewModel.searchResults.collectAsState()
+
+    val notifications by notificationsViewModel.notifications.collectAsState()
+    val unreadCount by notificationsViewModel.unreadCount.collectAsState()
+    var showNotifications by remember { mutableStateOf(false) }
+
+    LaunchedEffect(currentUserId) {
+        notificationsViewModel.loadNotifications(currentUserId)
+        while (true) {
+            kotlinx.coroutines.delay(10000)
+            notificationsViewModel.loadNotifications(currentUserId)
+        }
+    }
+
+    var mapAlpha by remember { mutableStateOf(0f) }
+    LaunchedEffect(Unit) {
+        mapAlpha = 1f
+    }
+    val mapAlphaAnim by androidx.compose.animation.core.animateFloatAsState(
+        targetValue = mapAlpha,
+        animationSpec = androidx.compose.animation.core.tween(1200),
+        label = "mapFadeIn"
+    )
 
     Scaffold(
         snackbarHost = { SnackbarHost(snackbarHostState) }
     ) { padding ->
         Box(modifier = Modifier.fillMaxSize().padding(padding)) {
-        OsmMap(
-            pois = filteredSearchPois,
-            onPoiClick = { viewModel.selectPoi(it) },
-            centerOnLocation = centerOnLocation,
-            modifier = Modifier.fillMaxSize()
-        )
+        Box(modifier = Modifier.fillMaxSize().graphicsLayer { alpha = mapAlphaAnim }) {
+            OsmMap(
+                pois = filteredSearchPois,
+                onPoiClick = { viewModel.selectPoi(it) },
+                centerOnLocation = centerOnLocation,
+                focusPoint = focusPoint,
+                modifier = Modifier.fillMaxSize()
+            )
+        }
 
         Column(
             modifier = Modifier
@@ -170,15 +220,55 @@ fun MapScreen(
             Row(verticalAlignment = Alignment.CenterVertically) {
                 OutlinedTextField(
                     value = searchQuery,
-                    onValueChange = { searchQuery = it },
-                    modifier = Modifier.weight(1f),
-                    placeholder = { Text("Search") },
+                    onValueChange = {
+                        searchQuery = it
+                        viewModel.onSearchQueryChanged(it)
+                    },
+                    modifier = Modifier.fillMaxWidth(),
+                    placeholder = { Text("Search toilets and trash cans...") },
                     leadingIcon = { Icon(Icons.Default.Search, contentDescription = null) },
                     singleLine = true
                 )
-                Spacer(modifier = Modifier.width(8.dp))
-                FilledIconButton(onClick = { }) {
-                    Icon(Icons.Default.Settings, contentDescription = "Map settings")
+            }
+
+            if (searchResults.isNotEmpty() && searchQuery.isNotBlank()) {
+                Card(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(top = 8.dp),
+                    elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
+                ) {
+                    Column {
+                        searchResults.take(5).forEach { result ->
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .clickable {
+                                        viewModel.clearSearch()
+                                        searchQuery = ""
+                                        viewModel.selectPoi(result)
+                                        focusPoint = org.osmdroid.util.GeoPoint(result.latitude, result.longitude)
+                                    }
+                                    .padding(horizontal = 16.dp, vertical = 12.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Icon(
+                                    if (result.category == "TOILET") Icons.Default.Wc else Icons.Default.Delete,
+                                    contentDescription = null,
+                                    tint = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                                Spacer(modifier = Modifier.width(12.dp))
+                                Column {
+                                    Text(result.name, style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Bold)
+                                    Text(
+                                        "${result.cleanliness} | ${if (result.is_paid) "Paid" else "Free"} | ${if (result.is_verified) "Verified" else "Unverified"}",
+                                        style = MaterialTheme.typography.labelSmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                }
+                            }
+                        }
+                    }
                 }
             }
 
@@ -199,13 +289,18 @@ fun MapScreen(
         }
 
         BadgedBox(
-            badge = { Badge { Text("9") } },
+            badge = {
+                val unread = unreadCount
+                if (unread > 0) {
+                    Badge { Text("$unread") }
+                }
+            },
             modifier = Modifier
                 .align(Alignment.BottomStart)
                 .padding(16.dp)
         ) {
             FloatingActionButton(
-                onClick = { },
+                onClick = { showNotifications = true },
                 containerColor = MaterialTheme.colorScheme.surface
             ) {
                 Icon(Icons.Default.Notifications, contentDescription = "Notifications")
@@ -241,6 +336,9 @@ fun MapScreen(
                 photos = photos,
                 reviewCount = reviewCount,
                 isFavorite = isFavorite,
+                isProcessing = isProcessing,
+                analyzedStatus = analyzedStatus,
+                analyzedStatusTime = analyzedStatusTime,
                 onCloseClick = { viewModel.clearSelection() },
                 onDirectionClick = {
                     val uri = Uri.parse("google.navigation:q=${poi.latitude},${poi.longitude}&mode=w")
@@ -275,7 +373,10 @@ fun MapScreen(
                 onShareClick = {
                     val sendIntent = Intent(Intent.ACTION_SEND).apply {
                         type = "text/plain"
-                        putExtra(Intent.EXTRA_TEXT, "Check out ${poi.name} on Releaf! Location: https://maps.google.com/?q=${poi.latitude},${poi.longitude}")
+                        putExtra(
+                            Intent.EXTRA_TEXT,
+                            "Check out ${poi.name} on Releaf! \uD83D\uDEBB Open: releaf://poi/${poi.id}"
+                        )
                     }
                     context.startActivity(Intent.createChooser(sendIntent, "Share POI"))
                 },
@@ -312,7 +413,95 @@ fun MapScreen(
             }
         )
     }
+
+    if (showNotifications) {
+        ModalBottomSheet(
+            onDismissRequest = { showNotifications = false }
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 20.dp, vertical = 8.dp)
+            ) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        "Notifications",
+                        style = MaterialTheme.typography.titleLarge,
+                        fontWeight = FontWeight.Bold,
+                        modifier = Modifier.weight(1f)
+                    )
+                    TextButton(
+                        onClick = { notificationsViewModel.markAllAsRead(currentUserId) }
+                    ) {
+                        Text("Mark all read")
+                    }
+                }
+                Spacer(modifier = Modifier.height(8.dp))
+
+                if (notifications.isEmpty()) {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = 32.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally
+                    ) {
+                        Text("No notifications yet", style = MaterialTheme.typography.bodyMedium)
+                    }
+                } else {
+                    notifications.forEach { notification ->
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(vertical = 10.dp)
+                                .background(
+                                    if (!notification.is_read && notification.user_id != null)
+                                        Color(0xFFE3F2FD) else Color.Transparent,
+                                    RoundedCornerShape(8.dp)
+                                )
+                                .padding(12.dp)
+                                .clickable {
+                                    notificationsViewModel.markAsRead(notification, currentUserId)
+                                },
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Icon(
+                                when (notification.type) {
+                                    "ANNOUNCEMENT" -> Icons.Default.Notifications
+                                    "LIKE" -> Icons.Default.ThumbUp
+                                    else -> Icons.Default.Info
+                                },
+                                contentDescription = null,
+                                tint = if (notification.type == "ANNOUNCEMENT") Color(0xFF1E88E5) else Color(0xFF43A047)
+                            )
+                            Spacer(modifier = Modifier.width(12.dp))
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(
+                                    notification.title,
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    fontWeight = FontWeight.Bold
+                                )
+                                Text(
+                                    notification.body,
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                                Text(
+                                    com.example.releaf.data.remote.TimeFormatter.formatCommentTime(notification.created_at),
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                        }
+                    }
+                }
+                Spacer(modifier = Modifier.height(16.dp))
+            }
+        }
     }
+}
 }
 
 @Composable

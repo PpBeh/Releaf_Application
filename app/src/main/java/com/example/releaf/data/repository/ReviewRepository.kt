@@ -9,11 +9,11 @@ import kotlinx.serialization.Serializable
 
 @Serializable
 data class ReviewVoteDto(
-    val id: String = "",
+    val id: String? = null,
     val review_id: String,
     val user_id: String,
-    val vote_type: String = "LIKE",
-    val created_at: String = ""
+    val vote_type: String,
+    val created_at: String? = null
 )
 
 @Serializable
@@ -33,6 +33,30 @@ class ReviewRepository {
 
     suspend fun addReview(review: ReviewInsertDto): ReviewDto? {
         return client.postgrest.from("reviews").insert(review).decodeSingleOrNull()
+    }
+
+    suspend fun updateReview(reviewId: String, newText: String) {
+        try {
+            client.postgrest.from("reviews").update(
+                mapOf("text" to newText)
+            ) { filter { eq("id", reviewId) } }
+        } catch (_: Exception) { }
+    }
+
+    suspend fun deleteReview(reviewId: String) {
+        try {
+            client.postgrest.from("reviews").delete {
+                filter { eq("id", reviewId) }
+            }
+        } catch (_: Exception) { }
+    }
+
+    suspend fun reportReview(reviewId: String, userId: String) {
+        try {
+            client.postgrest.from("review_reports").insert(
+                mapOf("review_id" to reviewId, "user_id" to userId)
+            )
+        } catch (_: Exception) { }
     }
 
     suspend fun getUserVotes(userId: String, reviewIds: List<String>): Map<String, String> {
@@ -57,7 +81,46 @@ class ReviewRepository {
         }
 
         if (existing.isNotEmpty()) {
-            return VoteResult.AlreadyVoted
+            val oldVote = existing.first()
+            val oldVoteId = oldVote.id ?: return VoteResult.AlreadyVoted
+            if (oldVote.vote_type == voteType) {
+                client.postgrest.from("review_votes").delete {
+                    filter { eq("id", oldVoteId) }
+                }
+                if (voteType == "LIKE") {
+                    client.postgrest.from("reviews").update(
+                        mapOf("like_count" to (review.like_count - 1).coerceAtLeast(0))
+                    ) { filter { eq("id", reviewId) } }
+                } else {
+                    client.postgrest.from("reviews").update(
+                        mapOf("dislike_count" to (review.dislike_count - 1).coerceAtLeast(0))
+                    ) { filter { eq("id", reviewId) } }
+                }
+                return VoteResult.Unvoted
+            } else {
+                client.postgrest.from("review_votes").delete {
+                    filter { eq("id", oldVoteId) }
+                }
+                client.postgrest.from("review_votes").insert(
+                    ReviewVoteDto(review_id = reviewId, user_id = userId, vote_type = voteType)
+                )
+                if (voteType == "LIKE") {
+                    client.postgrest.from("reviews").update(
+                        mapOf(
+                            "like_count" to review.like_count + 1,
+                            "dislike_count" to (review.dislike_count - 1).coerceAtLeast(0)
+                        )
+                    ) { filter { eq("id", reviewId) } }
+                } else {
+                    client.postgrest.from("reviews").update(
+                        mapOf(
+                            "dislike_count" to review.dislike_count + 1,
+                            "like_count" to (review.like_count - 1).coerceAtLeast(0)
+                        )
+                    ) { filter { eq("id", reviewId) } }
+                }
+                return VoteResult.Success
+            }
         }
 
         client.postgrest.from("review_votes").insert(
@@ -119,6 +182,41 @@ class ReviewRepository {
         } catch (_: Exception) { }
     }
 
+    suspend fun analyzeReviewAndUpdatePoi(poiId: String, reviewText: String, starRating: Int) {
+        val status = ReviewAnalyzer.analyze(reviewText, starRating)
+        if (status == null) return
+        try {
+            val reviews = getReviews(poiId)
+            val latestTime = reviews.maxByOrNull { it.created_at }?.created_at ?: return
+            client.postgrest.from("pois").update(
+                mapOf(
+                    "recent_status" to status,
+                    "recent_status_time" to latestTime
+                )
+            ) { filter { eq("id", poiId) } }
+        } catch (_: Exception) { }
+    }
+
+    suspend fun getLatestAnalyzedStatus(poiId: String): Pair<String?, String?> {
+        return try {
+            val reviews = getReviews(poiId)
+            if (reviews.isEmpty()) return Pair(null, null)
+
+            val sorted = reviews.sortedByDescending { it.created_at }
+            val recent = sorted.take(5)
+
+            for (review in recent) {
+                val status = ReviewAnalyzer.analyze(review.text, review.star_rating)
+                if (status != null) {
+                    return Pair(status, review.created_at)
+                }
+            }
+            Pair(null, null)
+        } catch (_: Exception) {
+            Pair(null, null)
+        }
+    }
+
     suspend fun getReviewerProfile(userId: String): ProfileDto? {
         return client.postgrest.from("profiles")
             .select { filter { eq("id", userId) } }
@@ -128,5 +226,6 @@ class ReviewRepository {
 
 sealed class VoteResult {
     data object Success : VoteResult()
+    data object Unvoted : VoteResult()
     data object AlreadyVoted : VoteResult()
 }

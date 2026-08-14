@@ -32,6 +32,7 @@ fun OsmMap(
     pois: List<PoiDto>,
     onPoiClick: (PoiDto) -> Unit,
     centerOnLocation: Boolean = false,
+    focusPoint: GeoPoint? = null,
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
@@ -118,6 +119,13 @@ fun OsmMap(
                 lm?.requestLocationUpdates(LocationManager.GPS_PROVIDER, 0L, 0f, listener, mainLooper)
                 lm?.requestLocationUpdates(LocationManager.NETWORK_PROVIDER, 0L, 0f, listener, mainLooper)
             } catch (_: SecurityException) { }
+        }
+    }
+
+    LaunchedEffect(focusPoint) {
+        if (focusPoint != null) {
+            mapViewRef?.controller?.setCenter(focusPoint)
+            mapViewRef?.controller?.setZoom(17.0)
         }
     }
 

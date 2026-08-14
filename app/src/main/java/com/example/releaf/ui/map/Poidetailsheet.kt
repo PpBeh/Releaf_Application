@@ -11,6 +11,7 @@ import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -25,6 +26,7 @@ import androidx.compose.material.icons.filled.Verified
 import androidx.compose.material.icons.filled.Report
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -47,6 +49,9 @@ fun PoiDetailSheet(
     photos: List<PoiPhotoDto>,
     reviewCount: Int,
     isFavorite: Boolean,
+    isProcessing: Boolean = false,
+    analyzedStatus: String? = null,
+    analyzedStatusTime: String? = null,
     onCloseClick: () -> Unit,
     onDirectionClick: () -> Unit,
     onCommentClick: () -> Unit,
@@ -119,6 +124,33 @@ fun PoiDetailSheet(
             )
         }
 
+        val status = analyzedStatus ?: poi.recent_status
+        val statusTime = analyzedStatusTime ?: poi.recent_status_time
+        if (!status.isNullOrBlank()) {
+            Spacer(modifier = Modifier.height(8.dp))
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .background(Color(0xFFFFF3E0), RoundedCornerShape(8.dp))
+                    .padding(horizontal = 12.dp, vertical = 8.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text("\u26A0", style = MaterialTheme.typography.bodyMedium)
+                Spacer(modifier = Modifier.width(8.dp))
+                Text(
+                    buildString {
+                        append("Users reported this toilet $status")
+                        val time = com.example.releaf.data.remote.TimeFormatter.formatHour(statusTime.orEmpty())
+                        if (time != null) append(" at $time")
+                        append(".")
+                    },
+                    style = MaterialTheme.typography.bodySmall,
+                    color = Color(0xFFE65100),
+                    fontWeight = FontWeight.Medium
+                )
+            }
+        }
+
         Spacer(modifier = Modifier.height(8.dp))
 
         Text(
@@ -153,21 +185,33 @@ fun PoiDetailSheet(
         Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
             Button(
                 onClick = onVerifyClick,
+                enabled = !isProcessing,
                 shape = RoundedCornerShape(50),
                 colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF4CAF50))
             ) {
-                Icon(Icons.Default.Verified, contentDescription = null)
-                Spacer(modifier = Modifier.width(6.dp))
-                Text("Verify")
+                if (isProcessing) {
+                    CircularProgressIndicator(color = Color.White, strokeWidth = 2.dp, modifier = Modifier.size(18.dp))
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Text("Updating...")
+                } else {
+                    Icon(Icons.Default.Verified, contentDescription = null)
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Text("Verify")
+                }
             }
             Button(
                 onClick = onReportNotExist,
+                enabled = !isProcessing,
                 shape = RoundedCornerShape(50),
                 colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFF44336))
             ) {
-                Icon(Icons.Default.Report, contentDescription = null)
-                Spacer(modifier = Modifier.width(6.dp))
-                Text("Not Exist")
+                if (isProcessing) {
+                    CircularProgressIndicator(color = Color.White, strokeWidth = 2.dp, modifier = Modifier.size(18.dp))
+                } else {
+                    Icon(Icons.Default.Report, contentDescription = null)
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Text("Not Exist")
+                }
             }
         }
 
@@ -220,8 +264,7 @@ fun PoiDetailSheet(
 }
 
 @Composable
-private fun PhotoTile(url: String?, modifier: Modifier = Modifier) {
-    if (url.isNullOrBlank()) {
+private fun PhotoTile(url: String?, modifier: Modifier = Modifier) {    if (url.isNullOrBlank()) {
         Column(
             modifier = modifier
                 .aspectRatio(1f)

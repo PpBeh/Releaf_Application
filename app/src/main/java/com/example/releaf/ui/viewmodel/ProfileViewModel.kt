@@ -50,6 +50,17 @@ class ProfileViewModel : ViewModel() {
         }
     }
 
+    fun uploadAvatar(userId: String, uri: android.net.Uri, context: android.content.Context) {
+        viewModelScope.launch {
+            try {
+                val url = authRepository.uploadAvatar(userId, uri, context)
+                if (url != null) {
+                    _profile.value = authRepository.getProfile(userId)
+                }
+            } catch (_: Exception) { }
+        }
+    }
+
     fun logout() {
         viewModelScope.launch {
             authRepository.logout()

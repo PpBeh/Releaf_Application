@@ -21,5 +21,6 @@ data class ReviewInsertDto(
     val poi_id: String,
     val user_id: String,
     val star_rating: Int,
-    val text: String
+    val text: String,
+    val reviewer_name: String = ""
 )

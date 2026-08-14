@@ -17,6 +17,8 @@ data class PoiDto(
     val report_count: Int = 0,
     val created_by: String? = null,
     val description: String = "",
+    val recent_status: String? = null,
+    val recent_status_time: String? = null,
     val photo_urls: List<String> = emptyList(),
     val created_at: String = ""
 )

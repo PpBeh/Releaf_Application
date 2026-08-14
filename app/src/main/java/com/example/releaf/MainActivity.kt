@@ -57,6 +57,11 @@ class MainActivity : ComponentActivity() {
             DeepLinkHolder.accessToken = params["access_token"]?.let { android.net.Uri.decode(it) }
             DeepLinkHolder.refreshToken = params["refresh_token"]?.let { android.net.Uri.decode(it) }
             DeepLinkHolder.type = params["type"]
+        } else if (data.scheme == "releaf" && data.host == "poi") {
+            val poiId = data.pathSegments.firstOrNull() ?: ""
+            if (poiId.isNotBlank()) {
+                DeepLinkHolder.pendingPoiId = poiId
+            }
         }
     }
 }

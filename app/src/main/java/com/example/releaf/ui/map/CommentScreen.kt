@@ -1,6 +1,8 @@
 package com.example.releaf.ui.map
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
@@ -17,6 +19,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.AccountCircle
 import androidx.compose.material.icons.automirrored.filled.Send
+import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.filled.ThumbDown
 import androidx.compose.material.icons.filled.ThumbUp
@@ -38,6 +41,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -57,9 +61,29 @@ fun CommentScreen(
     val isLoading by viewModel.isLoading.collectAsState()
     val userVotes by viewModel.userVotes.collectAsState()
     val errorMessage by viewModel.errorMessage.collectAsState()
+    val isProcessing by viewModel.isProcessing.collectAsState()
+    val isVoting by viewModel.isVoting.collectAsState()
     var commentText by remember { mutableStateOf("") }
     var starRating by remember { mutableIntStateOf(5) }
     val context = androidx.compose.ui.platform.LocalContext.current
+
+    var sheetUserId by remember { mutableStateOf<String?>(null) }
+    var sheetProfile by remember { mutableStateOf<com.example.releaf.data.remote.dto.ProfileDto?>(null) }
+    var sheetAchievements by remember { mutableIntStateOf(0) }
+    var sheetPoints by remember { mutableIntStateOf(0) }
+
+    LaunchedEffect(sheetUserId) {
+        val uid = sheetUserId ?: return@LaunchedEffect
+        try {
+            val authRepository = com.example.releaf.data.repository.AuthRepository()
+            sheetProfile = authRepository.getProfile(uid)
+        } catch (_: Exception) { }
+        try {
+            val rewardRepository = com.example.releaf.data.repository.RewardRepository()
+            sheetAchievements = rewardRepository.getUserAchievements(uid).size
+            sheetPoints = sheetProfile?.total_points ?: 0
+        } catch (_: Exception) { }
+    }
 
     LaunchedEffect(poiId) {
         viewModel.loadReviews(poiId, currentUserId)
@@ -139,6 +163,12 @@ fun CommentScreen(
             )
         }
 
+        if (isProcessing) {
+            androidx.compose.material3.LinearProgressIndicator(
+                modifier = Modifier.fillMaxWidth()
+            )
+        }
+
         if (isLoading && reviews.isEmpty()) {
             Column(
                 modifier = Modifier.fillMaxSize(),
@@ -153,14 +183,56 @@ fun CommentScreen(
                 contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp)
             ) {
                 items(reviews) { review ->
+                    var showEditDialog by remember { mutableStateOf(false) }
                     ReviewRowItem(
                         review = review,
                         isOwnComment = review.user_id == currentUserId,
                         userVote = userVotes[review.id],
-                        onAvatarClick = { onAvatarClick(review.user_id) },
+                        isVoting = isVoting,
+                        onAvatarClick = { sheetUserId = review.user_id },
                         onLike = { viewModel.toggleLike(review) },
-                        onDislike = { viewModel.toggleDislike(review) }
+                        onDislike = { viewModel.toggleDislike(review) },
+                        onEdit = { showEditDialog = true },
+                        onDelete = { viewModel.deleteReview(review.id) },
+                        onReport = { viewModel.reportReview(review.id) }
                     )
+                    if (showEditDialog) {
+                        var editText by remember { mutableStateOf(review.text) }
+                        androidx.compose.material3.AlertDialog(
+                            onDismissRequest = { if (!isProcessing) showEditDialog = false },
+                            title = { Text("Edit Comment") },
+                            text = {
+                                OutlinedTextField(
+                                    value = editText,
+                                    onValueChange = { editText = it },
+                                    modifier = Modifier.fillMaxWidth(),
+                                    singleLine = false,
+                                    enabled = !isProcessing
+                                )
+                            },
+                            confirmButton = {
+                                androidx.compose.material3.TextButton(
+                                    onClick = {
+                                        viewModel.updateReview(review.id, editText)
+                                        showEditDialog = false
+                                    },
+                                    enabled = !isProcessing
+                                ) {
+                                    if (isProcessing) {
+                                        CircularProgressIndicator(strokeWidth = 2.dp, modifier = Modifier.size(18.dp))
+                                    } else {
+                                        Text("Save")
+                                    }
+                                }
+                            },
+                            dismissButton = {
+                                androidx.compose.material3.TextButton(
+                                    onClick = { showEditDialog = false },
+                                    enabled = !isProcessing
+                                ) { Text("Cancel") }
+                            }
+                        )
+                    }
                     Spacer(modifier = Modifier.height(16.dp))
                 }
                 if (reviews.isEmpty() && !isLoading) {
@@ -176,6 +248,79 @@ fun CommentScreen(
             }
         }
     }
+
+    if (sheetUserId != null) {
+        androidx.compose.material3.ModalBottomSheet(
+            onDismissRequest = {
+                sheetUserId = null
+                sheetProfile = null
+            }
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 24.dp, vertical = 16.dp),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                Box(
+                    modifier = Modifier
+                        .size(72.dp)
+                        .clip(androidx.compose.foundation.shape.CircleShape)
+                        .background(MaterialTheme.colorScheme.primaryContainer),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        (sheetProfile?.name ?: "U").take(1).uppercase(),
+                        style = MaterialTheme.typography.headlineMedium,
+                        color = MaterialTheme.colorScheme.onPrimaryContainer
+                    )
+                }
+                Spacer(modifier = Modifier.height(12.dp))
+                Text(
+                    sheetProfile?.name?.ifBlank { "User" } ?: "Loading...",
+                    style = MaterialTheme.typography.titleLarge,
+                    fontWeight = FontWeight.Bold
+                )
+                Text(
+                    sheetProfile?.title?.ifBlank { "Gardener" } ?: "",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                Spacer(modifier = Modifier.height(16.dp))
+                Row(horizontalArrangement = Arrangement.spacedBy(24.dp)) {
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        Text(
+                            "$sheetPoints",
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Bold
+                        )
+                        Text("Points", style = MaterialTheme.typography.labelSmall)
+                    }
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        Text(
+                            "$sheetAchievements",
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Bold
+                        )
+                        Text("Achievements", style = MaterialTheme.typography.labelSmall)
+                    }
+                }
+                Spacer(modifier = Modifier.height(16.dp))
+                androidx.compose.material3.OutlinedButton(
+                    onClick = {
+                        val uid = sheetUserId ?: return@OutlinedButton
+                        sheetUserId = null
+                        sheetProfile = null
+                        onAvatarClick(uid)
+                    },
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Text("View Full Profile")
+                }
+                Spacer(modifier = Modifier.height(24.dp))
+            }
+        }
+    }
 }
 
 @Composable
@@ -183,10 +328,16 @@ private fun ReviewRowItem(
     review: ReviewDto,
     isOwnComment: Boolean,
     userVote: String?,
+    isVoting: Boolean = false,
     onAvatarClick: () -> Unit,
     onLike: () -> Unit,
-    onDislike: () -> Unit
+    onDislike: () -> Unit,
+    onEdit: () -> Unit,
+    onDelete: () -> Unit,
+    onReport: () -> Unit
 ) {
+    var menuExpanded by remember { mutableStateOf(false) }
+
     Column {
         Row(verticalAlignment = Alignment.CenterVertically) {
             IconButton(onClick = onAvatarClick) {
@@ -196,7 +347,7 @@ private fun ReviewRowItem(
                     modifier = Modifier.size(40.dp)
                 )
             }
-            Column {
+            Column(modifier = Modifier.weight(1f)) {
                 Text(
                     review.reviewer_name.ifBlank { "User" },
                     style = MaterialTheme.typography.labelSmall,
@@ -213,16 +364,58 @@ private fun ReviewRowItem(
                 }
                 Text(review.text, style = MaterialTheme.typography.bodyMedium)
             }
+            Box {
+                IconButton(onClick = { menuExpanded = true }, modifier = Modifier.size(32.dp)) {
+                    Icon(
+                        Icons.Default.MoreVert,
+                        contentDescription = "More options",
+                        modifier = Modifier.size(20.dp)
+                    )
+                }
+                androidx.compose.material3.DropdownMenu(
+                    expanded = menuExpanded,
+                    onDismissRequest = { menuExpanded = false }
+                ) {
+                    if (isOwnComment) {
+                        androidx.compose.material3.DropdownMenuItem(
+                            text = { Text("Edit") },
+                            onClick = {
+                                menuExpanded = false
+                                onEdit()
+                            }
+                        )
+                        androidx.compose.material3.DropdownMenuItem(
+                            text = { Text("Delete", color = Color(0xFFE53935)) },
+                            onClick = {
+                                menuExpanded = false
+                                onDelete()
+                            }
+                        )
+                    } else {
+                        androidx.compose.material3.DropdownMenuItem(
+                            text = { Text("Report", color = Color(0xFFE53935)) },
+                            onClick = {
+                                menuExpanded = false
+                                onReport()
+                            }
+                        )
+                    }
+                }
+            }
         }
         Row(
             modifier = Modifier.fillMaxWidth().padding(start = 52.dp, top = 4.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Text(review.created_at.take(10), style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Text(
+                com.example.releaf.data.remote.TimeFormatter.formatCommentTime(review.created_at),
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
             Spacer(modifier = Modifier.weight(1f))
             IconButton(
                 onClick = onLike,
-                enabled = userVote == null,
+                enabled = !isVoting,
                 modifier = Modifier.size(28.dp)
             ) {
                 Icon(
@@ -236,7 +429,7 @@ private fun ReviewRowItem(
             Spacer(modifier = Modifier.width(8.dp))
             IconButton(
                 onClick = onDislike,
-                enabled = userVote == null,
+                enabled = !isVoting,
                 modifier = Modifier.size(28.dp)
             ) {
                 Icon(

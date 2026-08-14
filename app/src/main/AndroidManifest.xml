@@ -40,6 +40,17 @@
                     android:host="login-callback"
                     android:scheme="releaf" />
             </intent-filter>
+
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+
+                <data
+                    android:host="poi"
+                    android:scheme="releaf" />
+            </intent-filter>
         </activity>
     </application>
 

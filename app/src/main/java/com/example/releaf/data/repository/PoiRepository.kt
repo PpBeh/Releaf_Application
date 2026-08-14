@@ -21,6 +21,16 @@ class PoiRepository {
             .decodeSingleOrNull()
     }
 
+    suspend fun searchPois(query: String): List<PoiDto> {
+        return try {
+            client.postgrest.from("pois")
+                .select { filter { ilike("name", "%$query%") } }
+                .decodeList()
+        } catch (_: Exception) {
+            emptyList()
+        }
+    }
+
     suspend fun createPoi(poi: PoiInsertDto): Boolean {
         return try {
             client.postgrest.from("pois").insert(poi)
@@ -124,65 +134,58 @@ class PoiRepository {
     }
 
     suspend fun verifyPoi(poiId: String, userId: String): VerifyResult {
-        val existing = client.postgrest.from("poi_verifications")
-            .select { filter { eq("poi_id", poiId); eq("user_id", userId); eq("action", "VERIFY") } }
-            .decodeList<PoiVerificationDto>()
+        return try {
+            val existing = client.postgrest.from("poi_verifications")
+                .select { filter { eq("poi_id", poiId); eq("user_id", userId); eq("action", "VERIFY") } }
+                .decodeList<PoiVerificationDto>()
 
-        if (existing.isNotEmpty()) return VerifyResult.AlreadyVerified
+            if (existing.isNotEmpty()) return VerifyResult.AlreadyVerified
 
-        client.postgrest.from("poi_verifications").insert(
-            PoiVerificationDto(poi_id = poiId, user_id = userId, action = "VERIFY")
-        )
+            client.postgrest.from("poi_verifications").insert(
+                PoiVerificationDto(poi_id = poiId, user_id = userId, action = "VERIFY")
+            )
 
-        val count = client.postgrest.from("poi_verifications")
-            .select { filter { eq("poi_id", poiId); eq("action", "VERIFY") } }
-            .decodeList<PoiVerificationDto>().size
+            kotlinx.coroutines.delay(800)
 
-        if (count >= 3) {
-            client.postgrest.from("pois").update(
-                mapOf("is_verified" to true, "verification_count" to count)
-            ) { filter { eq("id", poiId) } }
-            return VerifyResult.NowVerified
+            val updated = getPoi(poiId)
+            if (updated == null) return VerifyResult.Counted(0)
+            if (updated.is_verified) {
+                VerifyResult.NowVerified
+            } else {
+                VerifyResult.Counted(updated.verification_count)
+            }
+        } catch (_: Exception) {
+            VerifyResult.Counted(-1)
         }
-
-        client.postgrest.from("pois").update(
-            mapOf("verification_count" to count)
-        ) { filter { eq("id", poiId) } }
-
-        return VerifyResult.Counted(count)
     }
 
     suspend fun reportNotExist(poiId: String, userId: String): ReportResult {
-        val existing = client.postgrest.from("poi_verifications")
-            .select { filter { eq("poi_id", poiId); eq("user_id", userId); eq("action", "REPORT") } }
-            .decodeList<PoiVerificationDto>()
+        return try {
+            val existing = client.postgrest.from("poi_verifications")
+                .select { filter { eq("poi_id", poiId); eq("user_id", userId); eq("action", "REPORT") } }
+                .decodeList<PoiVerificationDto>()
 
-        if (existing.isNotEmpty()) return ReportResult.AlreadyReported
+            if (existing.isNotEmpty()) return ReportResult.AlreadyReported
 
-        client.postgrest.from("poi_verifications").insert(
-            PoiVerificationDto(poi_id = poiId, user_id = userId, action = "REPORT")
-        )
+            client.postgrest.from("poi_verifications").insert(
+                PoiVerificationDto(poi_id = poiId, user_id = userId, action = "REPORT")
+            )
 
-        val poi = getPoi(poiId) ?: return ReportResult.Error
-        val newReportCount = poi.report_count + 1
+            kotlinx.coroutines.delay(800)
 
-        if (poi.is_verified && newReportCount >= 5) {
-            client.postgrest.from("pois").update(
-                mapOf("is_verified" to false, "verification_count" to 0, "report_count" to newReportCount)
-            ) { filter { eq("id", poiId) } }
-            return ReportResult.NowUnverified
+            val updated = getPoi(poiId)
+            if (updated == null) return ReportResult.Removed
+
+            if (updated.report_count >= 5 && !updated.is_verified && updated.verification_count == 0) {
+                ReportResult.NowUnverified
+            } else if (!updated.is_verified && updated.report_count >= 3) {
+                ReportResult.Removed
+            } else {
+                ReportResult.Counted(updated.report_count)
+            }
+        } catch (_: Exception) {
+            ReportResult.Error
         }
-
-        if (!poi.is_verified && newReportCount >= 3) {
-            client.postgrest.from("pois").delete { filter { eq("id", poiId) } }
-            return ReportResult.Removed
-        }
-
-        client.postgrest.from("pois").update(
-            mapOf("report_count" to newReportCount)
-        ) { filter { eq("id", poiId) } }
-
-        return ReportResult.Counted(newReportCount)
     }
 
     suspend fun hasUserVerified(poiId: String, userId: String): Boolean {

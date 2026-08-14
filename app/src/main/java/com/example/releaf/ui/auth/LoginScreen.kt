@@ -35,6 +35,8 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
+import com.example.releaf.ui.components.LeafLogo
+import androidx.compose.foundation.layout.size
 
 @Composable
 fun LoginScreen(
@@ -60,6 +62,11 @@ fun LoginScreen(
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center
     ) {
+        LeafLogo(
+            modifier = Modifier.size(90.dp),
+            animated = true
+        )
+        Spacer(modifier = Modifier.height(16.dp))
         Text("Releaf", style = MaterialTheme.typography.displaySmall, fontWeight = FontWeight.Bold)
         Spacer(modifier = Modifier.height(4.dp))
         Text("Log in to keep your garden growing", style = MaterialTheme.typography.bodyMedium)

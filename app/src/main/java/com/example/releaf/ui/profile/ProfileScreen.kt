@@ -1,11 +1,13 @@
 package com.example.releaf.ui.profile
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -55,6 +57,15 @@ fun ProfileScreen(
     val profile by viewModel.profile.collectAsState()
     val achievements by viewModel.achievements.collectAsState()
     val totalAchievements by viewModel.totalAchievements.collectAsState()
+    val context = androidx.compose.ui.platform.LocalContext.current
+
+    val avatarPicker = androidx.activity.compose.rememberLauncherForActivityResult(
+        androidx.activity.result.contract.ActivityResultContracts.GetContent()
+    ) { uri ->
+        if (uri != null) {
+            viewModel.uploadAvatar(userId, uri, context)
+        }
+    }
 
     LaunchedEffect(userId) {
         viewModel.loadProfile(userId)
@@ -86,7 +97,7 @@ fun ProfileScreen(
         Box(
             modifier = Modifier
                 .fillMaxWidth()
-                .height(340.dp)
+                .height(220.dp)
                 .background(Color(0xFF1E88E5))
         ) {
             Column(
@@ -100,7 +111,27 @@ fun ProfileScreen(
                             .size(64.dp)
                             .clip(CircleShape)
                             .background(MaterialTheme.colorScheme.surface)
-                    )
+                            .clickable(enabled = isOwnProfile) { avatarPicker.launch("image/*") },
+                        contentAlignment = Alignment.Center
+                    ) {
+                        val avatarUrl = profile?.avatar_url.orEmpty()
+                        if (avatarUrl.isNotBlank()) {
+                            androidx.compose.foundation.Image(
+                                painter = coil.compose.rememberAsyncImagePainter(model = avatarUrl),
+                                contentDescription = "Avatar",
+                                modifier = Modifier
+                                    .size(64.dp)
+                                    .clip(CircleShape),
+                                contentScale = androidx.compose.ui.layout.ContentScale.Crop
+                            )
+                        } else {
+                            androidx.compose.material3.Icon(
+                                Icons.Default.Person,
+                                contentDescription = "Add photo",
+                                tint = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                    }
                     Spacer(modifier = Modifier.width(16.dp))
                     Column {
                         Text(
@@ -120,48 +151,6 @@ fun ProfileScreen(
                         }
                     }
                 }
-                Spacer(modifier = Modifier.height(16.dp))
-                Text(
-                    "Achievements (${achievements.size}/$totalAchievements)",
-                    color = Color.White,
-                    fontWeight = FontWeight.Bold,
-                    style = MaterialTheme.typography.titleSmall
-                )
-                Spacer(modifier = Modifier.height(8.dp))
-                Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                    if (achievements.isEmpty()) {
-                        repeat(3) {
-                            Box(
-                                modifier = Modifier
-                                    .size(60.dp)
-                                    .background(Color(0xFF6D4C29), RoundedCornerShape(8.dp)),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Text(
-                                    "?",
-                                    color = Color.White,
-                                    style = MaterialTheme.typography.labelSmall
-                                )
-                            }
-                        }
-                    } else {
-                        achievements.take(3).forEach { ua ->
-                            Box(
-                                modifier = Modifier
-                                    .size(60.dp)
-                                    .background(Color(0xFF6D4C29), RoundedCornerShape(8.dp)),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Text(
-                                    ua.achievement?.label?.take(10) ?: "?",
-                                    color = Color.White,
-                                    style = MaterialTheme.typography.labelSmall,
-                                    textAlign = TextAlign.Center
-                                )
-                            }
-                        }
-                    }
-                }
             }
         }
 
@@ -170,6 +159,50 @@ fun ProfileScreen(
             modifier = Modifier.padding(start = 20.dp, top = 16.dp)
         ) {
             Text("View Garden")
+        }
+
+        Text(
+            "Achievements (${achievements.size}/$totalAchievements)",
+            style = MaterialTheme.typography.titleMedium,
+            fontWeight = FontWeight.Bold,
+            modifier = Modifier.padding(start = 20.dp, top = 16.dp, bottom = 8.dp)
+        )
+
+        val achievementList = if (achievements.isEmpty()) {
+            List(6) { null }
+        } else {
+            achievements.map { it.achievement?.label ?: "?" }
+        }
+
+        Column(
+            modifier = Modifier.padding(horizontal = 16.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            achievementList.chunked(2).forEach { rowItems ->
+                Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                    rowItems.forEach { label ->
+                        Box(
+                            modifier = Modifier
+                                .weight(1f)
+                                .aspectRatio(1f)
+                                .background(Color(0xFF6D4C29), RoundedCornerShape(12.dp))
+                                .padding(8.dp),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text(
+                                label ?: "?",
+                                color = Color.White,
+                                style = MaterialTheme.typography.bodySmall,
+                                textAlign = TextAlign.Center,
+                                fontWeight = FontWeight.Medium
+                            )
+                        }
+                    }
+                    if (rowItems.size == 1) {
+                        Spacer(modifier = Modifier.weight(1f))
+                    }
+                }
+            }
         }
 
         if (isOwnProfile) {

@@ -27,6 +27,7 @@ class AuthViewModel : ViewModel() {
 
     init {
         viewModelScope.launch {
+            val startTime = System.currentTimeMillis()
             val restored = repository.restoreSession()
             _session.value = if (restored) {
                 val userId = repository.getCurrentUserId() ?: ""
@@ -34,7 +35,6 @@ class AuthViewModel : ViewModel() {
             } else {
                 SessionState.LoggedOut
             }
-            _isCheckingSession.value = false
 
             val token = DeepLinkHolder.accessToken
             val refresh = DeepLinkHolder.refreshToken
@@ -48,6 +48,13 @@ class AuthViewModel : ViewModel() {
                 }
                 DeepLinkHolder.clear()
             }
+
+            val elapsed = System.currentTimeMillis() - startTime
+            val minSplash = 2500L
+            if (elapsed < minSplash) {
+                kotlinx.coroutines.delay(minSplash - elapsed)
+            }
+            _isCheckingSession.value = false
         }
     }
 

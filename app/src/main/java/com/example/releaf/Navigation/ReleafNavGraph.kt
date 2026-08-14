@@ -11,12 +11,20 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.navArgument
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.size
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.unit.dp
 import com.example.releaf.data.repository.SessionState
+import com.example.releaf.ui.components.LeafLogo
 import com.example.releaf.ui.activity.ActivityScreen
 import com.example.releaf.ui.auth.ForgotPasswordScreen
 import com.example.releaf.ui.auth.LoginScreen
@@ -38,6 +46,7 @@ import com.example.releaf.ui.viewmodel.CommentViewModel
 import com.example.releaf.ui.viewmodel.FavouritesViewModel
 import com.example.releaf.ui.viewmodel.GardenViewModel
 import com.example.releaf.ui.viewmodel.MapViewModel
+import com.example.releaf.ui.viewmodel.NotificationsViewModel
 import com.example.releaf.ui.viewmodel.ProfileViewModel
 import com.example.releaf.ui.viewmodel.RewardsViewModel
 
@@ -52,8 +61,23 @@ fun ReleafNavGraph(
     val needsPasswordReset by authViewModel.needsPasswordReset.collectAsState()
 
     if (isChecking) {
-        Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-            CircularProgressIndicator()
+        Box(
+            modifier = Modifier.fillMaxSize(),
+            contentAlignment = Alignment.Center
+        ) {
+            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                LeafLogo(
+                    modifier = Modifier.size(120.dp),
+                    animated = true
+                )
+                Spacer(modifier = Modifier.height(16.dp))
+                Text(
+                    "Releaf",
+                    style = MaterialTheme.typography.headlineMedium,
+                    fontWeight = androidx.compose.ui.text.font.FontWeight.Bold,
+                    color = Color(0xFF2E7D32)
+                )
+            }
         }
         return
     }
@@ -183,8 +207,10 @@ fun ReleafNavGraph(
         }
         composable(Screen.Map.route) {
             val mapViewModel: MapViewModel = viewModel()
+            val notificationsViewModel: NotificationsViewModel = viewModel()
             MapScreen(
                 viewModel = mapViewModel,
+                notificationsViewModel = notificationsViewModel,
                 onDirectionClick = { poiId -> navController.navigate(Screen.Direction.createRoute(poiId)) },
                 onCommentClick = { poiId -> navController.navigate(Screen.Comment.createRoute(poiId)) },
                 currentUserId = (session as? SessionState.LoggedIn)?.userId ?: ""
@@ -248,7 +274,14 @@ fun ReleafNavGraph(
             FavouritesScreen(
                 viewModel = favouritesViewModel,
                 userId = userId,
-                onBackClick = { navController.popBackStack() }
+                onBackClick = { navController.popBackStack() },
+                onPoiClick = { poi ->
+                    com.example.releaf.data.remote.DeepLinkHolder.pendingPoiId = poi.id
+                    navController.navigate(Screen.Map.route) {
+                        popUpTo(Screen.Map.route) { inclusive = true }
+                        launchSingleTop = true
+                    }
+                }
             )
         }
         composable(Screen.Settings.route) {
