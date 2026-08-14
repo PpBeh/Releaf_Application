@@ -33,6 +33,7 @@ fun OsmMap(
     onPoiClick: (PoiDto) -> Unit,
     centerOnLocation: Boolean = false,
     focusPoint: GeoPoint? = null,
+    isDarkMode: Boolean = false,
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
@@ -159,6 +160,18 @@ fun OsmMap(
                 try {
                     view.overlays.removeIf { it is Marker || it is PoiMarkersOverlay }
                     view.overlays.add(PoiMarkersOverlay(pois, onPoiClick))
+
+                    val filter = if (isDarkMode) {
+                        val inverseMatrix = floatArrayOf(
+                            -1.0f, 0.0f, 0.0f, 0.0f, 255.0f,
+                            0.0f, -1.0f, 0.0f, 0.0f, 255.0f,
+                            0.0f, 0.0f, -1.0f, 0.0f, 255.0f,
+                            0.0f, 0.0f, 0.0f, 1.0f, 0.0f
+                        )
+                        android.graphics.ColorMatrixColorFilter(inverseMatrix)
+                    } else null
+                    view.overlayManager.tilesOverlay.setColorFilter(filter)
+
                     view.invalidate()
                 } catch (_: Exception) { }
             }

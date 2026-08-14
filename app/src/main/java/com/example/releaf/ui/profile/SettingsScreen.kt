@@ -35,9 +35,15 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.tooling.preview.Preview
+import com.example.releaf.ui.theme.AppTheme
+import com.example.releaf.ui.viewmodel.ThemeViewModel
 import androidx.compose.ui.unit.dp
 
 internal const val LOG_OUT_LABEL = "Log out"
@@ -47,8 +53,45 @@ internal data class SettingsRowData(val icon: ImageVector, val label: String)
 @Composable
 fun SettingsScreen(
     onBackClick: () -> Unit,
-    onLogoutClick: () -> Unit
+    onLogoutClick: () -> Unit,
+    themeViewModel: ThemeViewModel
 ) {
+    val currentTheme by themeViewModel.theme.collectAsState()
+    var showThemeDialog by remember { mutableStateOf(false) }
+
+    if (showThemeDialog) {
+        androidx.compose.ui.window.Dialog(onDismissRequest = { showThemeDialog = false }) {
+            androidx.compose.material3.Surface(
+                shape = androidx.compose.foundation.shape.RoundedCornerShape(16.dp),
+                color = MaterialTheme.colorScheme.surface
+            ) {
+                Column(modifier = Modifier.padding(16.dp)) {
+                    Text("Select Theme", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+                    Spacer(modifier = Modifier.height(16.dp))
+                    AppTheme.entries.forEach { theme ->
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable {
+                                    themeViewModel.setTheme(theme)
+                                    showThemeDialog = false
+                                }
+                                .padding(vertical = 12.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            androidx.compose.material3.RadioButton(
+                                selected = (currentTheme == theme),
+                                onClick = null
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text(theme.name.lowercase().replaceFirstChar { it.uppercase() })
+                        }
+                    }
+                }
+            }
+        }
+    }
+
     val rows = listOf(
         SettingsRowData(Icons.Default.Refresh, "Updates"),
         SettingsRowData(Icons.Default.Notifications, "Notification Settings"),
@@ -104,10 +147,10 @@ fun SettingsScreen(
                 SettingsRow(
                     row = row,
                     onClick = {
-                        if (row.label == LOG_OUT_LABEL) {
-                            onLogoutClick()
-                        } else {
-                            // TODO: handle this settings row
+                        when (row.label) {
+                            LOG_OUT_LABEL -> onLogoutClick()
+                            "Theme" -> showThemeDialog = true
+                            else -> { /* TODO: handle other rows */ }
                         }
                     }
                 )
@@ -132,8 +175,3 @@ internal fun SettingsRow(row: SettingsRowData, onClick: () -> Unit) {
     }
 }
 
-@Preview(showBackground = true)
-@Composable
-private fun SettingsScreenPreview() {
-    SettingsScreen(onBackClick = {}, onLogoutClick = {})
-}

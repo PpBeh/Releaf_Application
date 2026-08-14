@@ -63,6 +63,7 @@ fun PoiDetailSheet(
     actionResult: PoiActionResult?
 ) {
     val context = LocalContext.current
+    val validPhotos = photos.filter { !it.photo_url.isNullOrBlank() }
 
     Column(modifier = Modifier.padding(horizontal = 20.dp, vertical = 8.dp)) {
 
@@ -242,9 +243,14 @@ fun PoiDetailSheet(
         Spacer(modifier = Modifier.height(16.dp))
 
         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-            if (photos.isNotEmpty()) {
-                photos.take(3).forEach { photo ->
+            if (validPhotos.isNotEmpty()) {
+                validPhotos.take(3).forEach { photo ->
                     PhotoTile(url = photo.photo_url, modifier = Modifier.weight(1f))
+                }
+                if (validPhotos.size < 2) {
+                    repeat(2 - validPhotos.size) {
+                        PhotoTile(url = null, modifier = Modifier.weight(1f))
+                    }
                 }
             } else {
                 PhotoTile(url = null, modifier = Modifier.weight(1f))
@@ -254,10 +260,12 @@ fun PoiDetailSheet(
         }
         Spacer(modifier = Modifier.height(12.dp))
         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-            if (photos.size > 3) {
-                PhotoTile(url = photos[3].photo_url, modifier = Modifier.weight(1f))
+            if (validPhotos.size > 3) {
+                PhotoTile(url = validPhotos[3].photo_url, modifier = Modifier.weight(1f))
+                Spacer(modifier = Modifier.weight(2f))
+            } else {
+                Spacer(modifier = Modifier.weight(1f))
             }
-            Spacer(modifier = Modifier.weight(1f))
         }
         Spacer(modifier = Modifier.height(20.dp))
     }

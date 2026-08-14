@@ -86,7 +86,8 @@ fun MapScreen(
     notificationsViewModel: NotificationsViewModel,
     onDirectionClick: (String) -> Unit,
     onCommentClick: (String) -> Unit,
-    currentUserId: String
+    currentUserId: String,
+    isDarkMode: Boolean = false
 ) {
     val pois by viewModel.filteredPois.collectAsState()
     val selectedPoi by viewModel.selectedPoi.collectAsState()
@@ -125,13 +126,15 @@ fun MapScreen(
         }
     }
 
-    val cameraLauncher = rememberLauncherForActivityResult(
-        ActivityResultContracts.TakePicturePreview()
-    ) { bitmap -> }
+    // val cameraLauncher = rememberLauncherForActivityResult(
+    //    ActivityResultContracts.TakePicturePreview()
+    // ) { bitmap -> }
 
     val filteredSearchPois = pois.filter {
         searchQuery.isBlank() || it.name.contains(searchQuery, ignoreCase = true)
     }
+
+    var focusPoint by remember { mutableStateOf<org.osmdroid.util.GeoPoint?>(null) }
 
     LaunchedEffect(Unit) {
         viewModel.setCurrentUserId(currentUserId)
@@ -149,6 +152,19 @@ fun MapScreen(
 
     LaunchedEffect(actionResult) {
         val msg = actionResult
+        if (msg is PoiActionResult.NearestFound) {
+            val nearest = if (msg.targetCategory == "TRASH_CAN") msg.trashCan ?: msg.toilet
+                          else msg.toilet ?: msg.trashCan
+            if (nearest != null) {
+                viewModel.selectPoi(nearest)
+                focusPoint = org.osmdroid.util.GeoPoint(nearest.latitude, nearest.longitude)
+                snackbarHostState.showSnackbar(
+                    "Found nearest: ${nearest.name} (${nearest.category.lowercase().replace('_', ' ')})"
+                )
+            } else {
+                snackbarHostState.showSnackbar("No toilets or trash cans found.")
+            }
+        }
         if (msg is PoiActionResult.Message) {
             snackbarHostState.showSnackbar(
                 when (msg.message) {
@@ -171,9 +187,8 @@ fun MapScreen(
         }
     }
 
-    var showMap by remember { mutableStateOf(true) }
+    // var showMap by remember { mutableStateOf(true) }
     var centerOnLocation by remember { mutableStateOf(false) }
-    var focusPoint by remember { mutableStateOf<org.osmdroid.util.GeoPoint?>(null) }
     val searchResults by viewModel.searchResults.collectAsState()
 
     val notifications by notificationsViewModel.notifications.collectAsState()
@@ -208,6 +223,7 @@ fun MapScreen(
                 onPoiClick = { viewModel.selectPoi(it) },
                 centerOnLocation = centerOnLocation,
                 focusPoint = focusPoint,
+                isDarkMode = isDarkMode,
                 modifier = Modifier.fillMaxSize()
             )
         }
@@ -215,6 +231,7 @@ fun MapScreen(
         Column(
             modifier = Modifier
                 .fillMaxWidth()
+                .background(MaterialTheme.colorScheme.surface.copy(alpha = 0.9f))
                 .padding(12.dp)
         ) {
             Row(verticalAlignment = Alignment.CenterVertically) {
@@ -318,6 +335,40 @@ fun MapScreen(
                 Icon(Icons.Default.Add, contentDescription = "Add pin")
             }
             SmallFloatingActionButton(
+                onClick = {
+                    val lm = context.getSystemService(android.content.Context.LOCATION_SERVICE) as? android.location.LocationManager
+                    try {
+                        val loc = lm?.getLastKnownLocation(android.location.LocationManager.GPS_PROVIDER)
+                            ?: lm?.getLastKnownLocation(android.location.LocationManager.NETWORK_PROVIDER)
+                        if (loc != null) {
+                            viewModel.findNearestPois(loc.latitude, loc.longitude, "TOILET")
+                        } else {
+                            viewModel.findNearestPois(currentLat, currentLng, "TOILET")
+                        }
+                    } catch (_: SecurityException) { }
+                },
+                containerColor = MaterialTheme.colorScheme.primaryContainer
+            ) {
+                Icon(Icons.Default.Wc, contentDescription = "Nearest Toilet")
+            }
+            SmallFloatingActionButton(
+                onClick = {
+                    val lm = context.getSystemService(android.content.Context.LOCATION_SERVICE) as? android.location.LocationManager
+                    try {
+                        val loc = lm?.getLastKnownLocation(android.location.LocationManager.GPS_PROVIDER)
+                            ?: lm?.getLastKnownLocation(android.location.LocationManager.NETWORK_PROVIDER)
+                        if (loc != null) {
+                            viewModel.findNearestPois(loc.latitude, loc.longitude, "TRASH_CAN")
+                        } else {
+                            viewModel.findNearestPois(currentLat, currentLng, "TRASH_CAN")
+                        }
+                    } catch (_: SecurityException) { }
+                },
+                containerColor = MaterialTheme.colorScheme.secondaryContainer
+            ) {
+                Icon(Icons.Default.Delete, contentDescription = "Nearest Trash Can")
+            }
+            SmallFloatingActionButton(
                 onClick = { centerOnLocation = !centerOnLocation },
                 containerColor = MaterialTheme.colorScheme.surface
             ) {
@@ -340,18 +391,7 @@ fun MapScreen(
                 analyzedStatus = analyzedStatus,
                 analyzedStatusTime = analyzedStatusTime,
                 onCloseClick = { viewModel.clearSelection() },
-                onDirectionClick = {
-                    val uri = Uri.parse("google.navigation:q=${poi.latitude},${poi.longitude}&mode=w")
-                    val navIntent = Intent(Intent.ACTION_VIEW, uri).apply {
-                        setPackage("com.google.android.apps.maps")
-                    }
-                    try {
-                        context.startActivity(navIntent)
-                    } catch (_: Exception) {
-                        val fallback = Uri.parse("geo:${poi.latitude},${poi.longitude}?q=${poi.latitude},${poi.longitude}(${poi.name})")
-                        context.startActivity(Intent(Intent.ACTION_VIEW, fallback))
-                    }
-                },
+                onDirectionClick = { onDirectionClick(poi.id) },
                 onCommentClick = { onCommentClick(poi.id) },
                 onVerifyClick = {
                     val lm = context.getSystemService(android.content.Context.LOCATION_SERVICE) as? LocationManager

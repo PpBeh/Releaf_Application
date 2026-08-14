@@ -44,20 +44,61 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import com.example.releaf.ui.theme.AppTheme
 import com.example.releaf.ui.viewmodel.ProfileViewModel
+import com.example.releaf.ui.viewmodel.ThemeViewModel
 
 @Composable
 fun ProfileScreen(
     userId: String,
     currentUserId: String,
     viewModel: ProfileViewModel,
+    themeViewModel: ThemeViewModel,
     onFavouritesClick: () -> Unit,
     onLogoutClick: () -> Unit
 ) {
     val profile by viewModel.profile.collectAsState()
     val achievements by viewModel.achievements.collectAsState()
     val totalAchievements by viewModel.totalAchievements.collectAsState()
+    val currentTheme by themeViewModel.theme.collectAsState()
     val context = androidx.compose.ui.platform.LocalContext.current
+    var showThemeDialog by remember { mutableStateOf(false) }
+
+    if (showThemeDialog) {
+        androidx.compose.ui.window.Dialog(onDismissRequest = { showThemeDialog = false }) {
+            androidx.compose.material3.Surface(
+                shape = RoundedCornerShape(16.dp),
+                color = MaterialTheme.colorScheme.surface
+            ) {
+                Column(modifier = Modifier.padding(16.dp)) {
+                    Text("Select Theme", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+                    Spacer(modifier = Modifier.height(16.dp))
+                    AppTheme.entries.forEach { theme ->
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable {
+                                    themeViewModel.setTheme(theme)
+                                    showThemeDialog = false
+                                }
+                                .padding(vertical = 12.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            androidx.compose.material3.RadioButton(
+                                selected = (currentTheme == theme),
+                                onClick = null
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text(theme.name.lowercase().replaceFirstChar { it.uppercase() })
+                        }
+                    }
+                }
+            }
+        }
+    }
 
     val avatarPicker = androidx.activity.compose.rememberLauncherForActivityResult(
         androidx.activity.result.contract.ActivityResultContracts.GetContent()
@@ -220,6 +261,7 @@ fun ProfileScreen(
                         when (row.label) {
                             LOG_OUT_LABEL -> onLogoutClick()
                             "Favourite Toilets" -> onFavouritesClick()
+                            "Theme" -> showThemeDialog = true
                         }
                     }
                 )

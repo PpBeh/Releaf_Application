@@ -49,11 +49,13 @@ import com.example.releaf.ui.viewmodel.MapViewModel
 import com.example.releaf.ui.viewmodel.NotificationsViewModel
 import com.example.releaf.ui.viewmodel.ProfileViewModel
 import com.example.releaf.ui.viewmodel.RewardsViewModel
+import com.example.releaf.ui.viewmodel.ThemeViewModel
 
 @Composable
 fun ReleafNavGraph(
     navController: NavHostController,
-    authViewModel: AuthViewModel
+    authViewModel: AuthViewModel,
+    themeViewModel: ThemeViewModel
 ) {
     val session by authViewModel.session.collectAsState()
     val authUiState by authViewModel.uiState.collectAsState()
@@ -208,12 +210,19 @@ fun ReleafNavGraph(
         composable(Screen.Map.route) {
             val mapViewModel: MapViewModel = viewModel()
             val notificationsViewModel: NotificationsViewModel = viewModel()
+            val appTheme by themeViewModel.theme.collectAsState()
+            val isDarkMode = when (appTheme) {
+                com.example.releaf.ui.theme.AppTheme.LIGHT -> false
+                com.example.releaf.ui.theme.AppTheme.DARK -> true
+                com.example.releaf.ui.theme.AppTheme.SYSTEM -> androidx.compose.foundation.isSystemInDarkTheme()
+            }
             MapScreen(
                 viewModel = mapViewModel,
                 notificationsViewModel = notificationsViewModel,
                 onDirectionClick = { poiId -> navController.navigate(Screen.Direction.createRoute(poiId)) },
                 onCommentClick = { poiId -> navController.navigate(Screen.Comment.createRoute(poiId)) },
-                currentUserId = (session as? SessionState.LoggedIn)?.userId ?: ""
+                currentUserId = (session as? SessionState.LoggedIn)?.userId ?: "",
+                isDarkMode = isDarkMode
             )
         }
         composable(
@@ -261,6 +270,7 @@ fun ReleafNavGraph(
                 userId = actualUserId,
                 currentUserId = currentUserId,
                 viewModel = profileViewModel,
+                themeViewModel = themeViewModel,
                 onFavouritesClick = { navController.navigate(Screen.Favourites.route) },
                 onLogoutClick = {
                     authViewModel.logout()
@@ -290,7 +300,8 @@ fun ReleafNavGraph(
                 onLogoutClick = {
                     authViewModel.logout()
                     navController.logout()
-                }
+                },
+                themeViewModel = themeViewModel
             )
         }
     }

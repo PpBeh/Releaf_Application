@@ -12,6 +12,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.FilterChipDefaults
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
@@ -76,8 +77,10 @@ private fun ToggleChip(label: String, enabled: Boolean, onClick: () -> Unit) {
         onClick = onClick,
         label = { Text(label) },
         colors = FilterChipDefaults.filterChipColors(
-            containerColor = if (enabled) Color(0xFF2196F3) else Color(0xFFBDBDBD),
-            labelColor = if (enabled) Color.White else Color(0xFF424242)
+            selectedContainerColor = MaterialTheme.colorScheme.primary,
+            selectedLabelColor = MaterialTheme.colorScheme.onPrimary,
+            containerColor = MaterialTheme.colorScheme.surfaceVariant,
+            labelColor = MaterialTheme.colorScheme.onSurfaceVariant
         )
     )
 }
@@ -97,13 +100,15 @@ private fun CleanlinessToggleChip(
                 modifier = Modifier
                     .size(10.dp)
                     .clip(CircleShape)
-                    .background(if (enabled) dotColor else Color(0xFFBDBDBD))
+                    .background(if (enabled) dotColor else MaterialTheme.colorScheme.outline)
             )
         },
         label = { Text(label) },
         colors = FilterChipDefaults.filterChipColors(
-            containerColor = if (enabled) Color.White else Color(0xFFBDBDBD),
-            labelColor = if (enabled) Color.Black else Color(0xFF424242)
+            selectedContainerColor = MaterialTheme.colorScheme.secondaryContainer,
+            selectedLabelColor = MaterialTheme.colorScheme.onSecondaryContainer,
+            containerColor = MaterialTheme.colorScheme.surfaceVariant,
+            labelColor = MaterialTheme.colorScheme.onSurfaceVariant
         )
     )
 }

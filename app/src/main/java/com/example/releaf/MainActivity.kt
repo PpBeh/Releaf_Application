@@ -8,6 +8,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Scaffold
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -17,8 +18,10 @@ import com.example.releaf.data.remote.DeepLinkHolder
 import com.example.releaf.navigation.ReleafNavGraph
 import com.example.releaf.navigation.Screen
 import com.example.releaf.ui.components.BottomNavBar
+import com.example.releaf.ui.theme.AppTheme
 import com.example.releaf.ui.theme.ReleafTheme
 import com.example.releaf.ui.viewmodel.AuthViewModel
+import com.example.releaf.ui.viewmodel.ThemeViewModel
 import org.osmdroid.config.Configuration
 
 class MainActivity : ComponentActivity() {
@@ -34,8 +37,10 @@ class MainActivity : ComponentActivity() {
         }
         handleDeepLink(intent)
         setContent {
-            ReleafTheme {
-                ReleafApp()
+            val themeViewModel: ThemeViewModel = viewModel()
+            val appTheme by themeViewModel.theme.collectAsState()
+            ReleafTheme(appTheme = appTheme) {
+                ReleafApp(themeViewModel = themeViewModel)
             }
         }
     }
@@ -67,7 +72,7 @@ class MainActivity : ComponentActivity() {
 }
 
 @Composable
-fun ReleafApp() {
+fun ReleafApp(themeViewModel: ThemeViewModel) {
     val navController = rememberNavController()
     val authViewModel: AuthViewModel = viewModel()
 
@@ -83,7 +88,11 @@ fun ReleafApp() {
         }
     ) { innerPadding ->
         Box(modifier = Modifier.padding(innerPadding)) {
-            ReleafNavGraph(navController = navController, authViewModel = authViewModel)
+            ReleafNavGraph(
+                navController = navController,
+                authViewModel = authViewModel,
+                themeViewModel = themeViewModel
+            )
         }
     }
 }

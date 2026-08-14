@@ -6,6 +6,7 @@ import com.example.releaf.data.remote.dto.PoiDto
 import com.example.releaf.data.remote.dto.PoiInsertDto
 import com.example.releaf.data.remote.dto.PoiPhotoDto
 import com.example.releaf.data.repository.PoiRepository
+import com.example.releaf.data.repository.ReviewRepository
 import com.example.releaf.data.repository.ReportResult
 import com.example.releaf.data.repository.VerifyResult
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -15,6 +16,7 @@ import kotlinx.coroutines.launch
 
 class MapViewModel : ViewModel() {
     private val repository = PoiRepository()
+    private val reviewRepository = ReviewRepository()
 
     private val _pois = MutableStateFlow<List<PoiDto>>(emptyList())
     val pois: StateFlow<List<PoiDto>> = _pois.asStateFlow()
@@ -47,6 +49,18 @@ class MapViewModel : ViewModel() {
     private val _actionResult = MutableStateFlow<PoiActionResult?>(null)
     val actionResult: StateFlow<PoiActionResult?> = _actionResult.asStateFlow()
 
+    private val _isProcessing = MutableStateFlow(false)
+    val isProcessing: StateFlow<Boolean> = _isProcessing.asStateFlow()
+
+    private val _analyzedStatus = MutableStateFlow<String?>(null)
+    val analyzedStatus: StateFlow<String?> = _analyzedStatus.asStateFlow()
+
+    private val _analyzedStatusTime = MutableStateFlow<String?>(null)
+    val analyzedStatusTime: StateFlow<String?> = _analyzedStatusTime.asStateFlow()
+
+    private val _searchResults = MutableStateFlow<List<PoiDto>>(emptyList())
+    val searchResults: StateFlow<List<PoiDto>> = _searchResults.asStateFlow()
+
     init {
     }
 
@@ -67,6 +81,9 @@ class MapViewModel : ViewModel() {
                 _photos.value = repository.getPoiPhotos(poi.id)
                 _reviewCount.value = repository.getReviewCount(poi.id)
                 _isFavorite.value = repository.isFavorite(poi.id, currentUserId)
+                val statusPair = reviewRepository.getLatestAnalyzedStatus(poi.id)
+                _analyzedStatus.value = statusPair.first
+                _analyzedStatusTime.value = statusPair.second
             } catch (_: Exception) { }
         }
     }
@@ -87,6 +104,7 @@ class MapViewModel : ViewModel() {
 
     fun uploadPhoto(poiId: String, uri: android.net.Uri, context: android.content.Context) {
         viewModelScope.launch {
+            _isProcessing.value = true
             try {
                 val success = repository.uploadPoiPhoto(poiId, currentUserId, uri, context)
                 if (success) {
@@ -98,6 +116,7 @@ class MapViewModel : ViewModel() {
             } catch (_: Exception) {
                 _actionResult.value = PoiActionResult.Message("photo_failed")
             }
+            _isProcessing.value = false
         }
     }
 
@@ -106,6 +125,8 @@ class MapViewModel : ViewModel() {
         _photos.value = emptyList()
         _reviewCount.value = 0
         _isFavorite.value = false
+        _analyzedStatus.value = null
+        _analyzedStatusTime.value = null
     }
 
     fun toggleCategory(category: String) {
@@ -183,14 +204,6 @@ class MapViewModel : ViewModel() {
 
     fun verifyPoi(poiId: String, userId: String, userLat: Double = 0.0, userLng: Double = 0.0) {
         viewModelScope.launch {
-            val poi = try { repository.getPoi(poiId) } catch (_: Exception) { null }
-            if (poi != null && userLat != 0.0 && userLng != 0.0) {
-                val distance = haversine(userLat, userLng, poi.latitude, poi.longitude)
-                if (distance > 300.0) {
-                    _actionResult.value = PoiActionResult.Message("too_far_${distance.toInt()}")
-                    return@launch
-                }
-            }
             when (val result = repository.verifyPoi(poiId, userId)) {
                 is VerifyResult.AlreadyVerified -> _actionResult.value = PoiActionResult.Message("already_verified")
                 is VerifyResult.NowVerified -> {
@@ -207,14 +220,6 @@ class MapViewModel : ViewModel() {
 
     fun reportNotExist(poiId: String, userId: String, userLat: Double = 0.0, userLng: Double = 0.0) {
         viewModelScope.launch {
-            val poi = try { repository.getPoi(poiId) } catch (_: Exception) { null }
-            if (poi != null && userLat != 0.0 && userLng != 0.0) {
-                val distance = haversine(userLat, userLng, poi.latitude, poi.longitude)
-                if (distance > 300.0) {
-                    _actionResult.value = PoiActionResult.Message("too_far_${distance.toInt()}")
-                    return@launch
-                }
-            }
             when (val result = repository.reportNotExist(poiId, userId)) {
                 is ReportResult.AlreadyReported -> _actionResult.value = PoiActionResult.Message("already_reported")
                 is ReportResult.NowUnverified -> {
@@ -247,6 +252,61 @@ class MapViewModel : ViewModel() {
         _actionResult.value = null
     }
 
+    fun onSearchQueryChanged(query: String) {
+        viewModelScope.launch {
+            if (query.isBlank()) {
+                _searchResults.value = emptyList()
+            } else {
+                _searchResults.value = repository.searchPois(query)
+            }
+        }
+    }
+
+    fun clearSearch() {
+        _searchResults.value = emptyList()
+    }
+
+    fun findNearestPois(userLat: Double, userLng: Double, targetCategory: String? = null) {
+        val all = _pois.value
+        val toilet = if (targetCategory == null || targetCategory == "TOILET") {
+            all.filter { it.category == "TOILET" }
+                .minByOrNull { haversine(userLat, userLng, it.latitude, it.longitude) }
+        } else null
+
+        val trashCan = if (targetCategory == null || targetCategory == "TRASH_CAN") {
+            all.filter { it.category == "TRASH_CAN" }
+                .minByOrNull { haversine(userLat, userLng, it.latitude, it.longitude) }
+        } else null
+
+        _actionResult.value = PoiActionResult.NearestFound(toilet, trashCan, targetCategory)
+    }
+
+    fun openPoiFromDeepLink(poiId: String) {
+        viewModelScope.launch {
+            try {
+                val poi = repository.getPoi(poiId)
+                if (poi != null) {
+                    selectPoi(poi)
+                }
+            } catch (_: Exception) { }
+        }
+    }
+
+    fun refreshPoiDetails(poiId: String) {
+        viewModelScope.launch {
+            try {
+                val poi = repository.getPoi(poiId)
+                if (poi != null && _selectedPoi.value?.id == poiId) {
+                    _selectedPoi.value = poi
+                    _reviewCount.value = repository.getReviewCount(poiId)
+                    val statusPair = reviewRepository.getLatestAnalyzedStatus(poiId)
+                    _analyzedStatus.value = statusPair.first
+                    _analyzedStatusTime.value = statusPair.second
+                }
+            } catch (_: Exception) { }
+        }
+    }
+
     private fun haversine(lat1: Double, lon1: Double, lat2: Double, lon2: Double): Double {
         val r = 6371000.0
         val dLat = Math.toRadians(lat2 - lat1)
@@ -262,4 +322,5 @@ class MapViewModel : ViewModel() {
 sealed class PoiActionResult {
     data class Message(val message: String) : PoiActionResult()
     data class Status(val hasVerified: Boolean, val hasReported: Boolean) : PoiActionResult()
+    data class NearestFound(val toilet: PoiDto?, val trashCan: PoiDto?, val targetCategory: String? = null) : PoiActionResult()
 }
