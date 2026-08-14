@@ -34,12 +34,6 @@ class MapViewModel : ViewModel() {
     private val _isFavorite = MutableStateFlow(false)
     val isFavorite: StateFlow<Boolean> = _isFavorite.asStateFlow()
 
-    private val _analyzedStatus = MutableStateFlow<String?>(null)
-    val analyzedStatus: StateFlow<String?> = _analyzedStatus.asStateFlow()
-
-    private val _analyzedStatusTime = MutableStateFlow<String?>(null)
-    val analyzedStatusTime: StateFlow<String?> = _analyzedStatusTime.asStateFlow()
-
     private val _enabledCategories = MutableStateFlow(setOf("TOILET", "TRASH_CAN"))
     private val _enabledCleanliness = MutableStateFlow(setOf("CLEAN", "AVERAGE", "DIRTY"))
     private val _excludedPaid = MutableStateFlow<Boolean?>(null)
@@ -52,35 +46,6 @@ class MapViewModel : ViewModel() {
 
     private val _actionResult = MutableStateFlow<PoiActionResult?>(null)
     val actionResult: StateFlow<PoiActionResult?> = _actionResult.asStateFlow()
-
-    private val _isProcessing = MutableStateFlow(false)
-    val isProcessing: StateFlow<Boolean> = _isProcessing.asStateFlow()
-
-    private val _searchResults = MutableStateFlow<List<PoiDto>>(emptyList())
-    val searchResults: StateFlow<List<PoiDto>> = _searchResults.asStateFlow()
-
-    private var searchJob: kotlinx.coroutines.Job? = null
-
-    fun onSearchQueryChanged(query: String) {
-        searchJob?.cancel()
-        if (query.isBlank()) {
-            _searchResults.value = emptyList()
-            return
-        }
-        searchJob = viewModelScope.launch {
-            kotlinx.coroutines.delay(500)
-            try {
-                _searchResults.value = repository.searchPois(query)
-            } catch (_: Exception) {
-                _searchResults.value = emptyList()
-            }
-        }
-    }
-
-    fun clearSearch() {
-        searchJob?.cancel()
-        _searchResults.value = emptyList()
-    }
 
     init {
     }
@@ -97,41 +62,19 @@ class MapViewModel : ViewModel() {
 
     fun selectPoi(poi: PoiDto) {
         _selectedPoi.value = poi
-        _analyzedStatus.value = null
-        _analyzedStatusTime.value = null
         viewModelScope.launch {
-            refreshPoiDetails(poi.id)
+            try {
+                _photos.value = repository.getPoiPhotos(poi.id)
+                _reviewCount.value = repository.getReviewCount(poi.id)
+                _isFavorite.value = repository.isFavorite(poi.id, currentUserId)
+            } catch (_: Exception) { }
         }
-    }
-
-    suspend fun refreshPoiDetails(poiId: String) {
-        try {
-            _photos.value = repository.getPoiPhotos(poiId)
-            _reviewCount.value = repository.getReviewCount(poiId)
-            _isFavorite.value = repository.isFavorite(poiId, currentUserId)
-            val reviewRepository = com.example.releaf.data.repository.ReviewRepository()
-            val (status, time) = reviewRepository.getLatestAnalyzedStatus(poiId)
-            _analyzedStatus.value = status
-            _analyzedStatusTime.value = time
-            repository.getPoi(poiId)?.let { _selectedPoi.value = it }
-        } catch (_: Exception) { }
     }
 
     private var currentUserId = ""
 
     fun setCurrentUserId(userId: String) {
         currentUserId = userId
-    }
-
-    fun openPoiFromDeepLink(poiId: String) {
-        viewModelScope.launch {
-            try {
-                val poi = repository.getPoi(poiId)
-                if (poi != null) {
-                    selectPoi(poi)
-                }
-            } catch (_: Exception) { }
-        }
     }
 
     fun toggleFavorite(poiId: String) {
@@ -163,8 +106,6 @@ class MapViewModel : ViewModel() {
         _photos.value = emptyList()
         _reviewCount.value = 0
         _isFavorite.value = false
-        _analyzedStatus.value = null
-        _analyzedStatusTime.value = null
     }
 
     fun toggleCategory(category: String) {
@@ -242,88 +183,56 @@ class MapViewModel : ViewModel() {
 
     fun verifyPoi(poiId: String, userId: String, userLat: Double = 0.0, userLng: Double = 0.0) {
         viewModelScope.launch {
-            try {
-                _isProcessing.value = true
-                val poi = try { repository.getPoi(poiId) } catch (_: Exception) { null }
-                if (poi != null && userLat != 0.0 && userLng != 0.0) {
-                    val distance = haversine(userLat, userLng, poi.latitude, poi.longitude)
-                    if (distance > 300.0) {
-                        _actionResult.value = PoiActionResult.Message("too_far_${distance.toInt()}")
-                        _isProcessing.value = false
-                        return@launch
-                    }
+            val poi = try { repository.getPoi(poiId) } catch (_: Exception) { null }
+            if (poi != null && userLat != 0.0 && userLng != 0.0) {
+                val distance = haversine(userLat, userLng, poi.latitude, poi.longitude)
+                if (distance > 300.0) {
+                    _actionResult.value = PoiActionResult.Message("too_far_${distance.toInt()}")
+                    return@launch
                 }
-                val result = try {
-                    repository.verifyPoi(poiId, userId)
-                } catch (_: Exception) {
-                    VerifyResult.Counted(-1)
+            }
+            when (val result = repository.verifyPoi(poiId, userId)) {
+                is VerifyResult.AlreadyVerified -> _actionResult.value = PoiActionResult.Message("already_verified")
+                is VerifyResult.NowVerified -> {
+                    _actionResult.value = PoiActionResult.Message("now_verified")
+                    loadPois()
                 }
-                when (result) {
-                    is VerifyResult.AlreadyVerified -> _actionResult.value = PoiActionResult.Message("already_verified")
-                    is VerifyResult.NowVerified -> {
-                        _actionResult.value = PoiActionResult.Message("now_verified")
-                    }
-                    is VerifyResult.Counted -> {
-                        _actionResult.value = PoiActionResult.Message("verification_counted")
-                    }
+                is VerifyResult.Counted -> {
+                    _actionResult.value = PoiActionResult.Message("verification_counted")
+                    loadPois()
                 }
-                kotlinx.coroutines.delay(1000)
-                refreshSelectedPoi(poiId)
-                loadPois()
-            } catch (_: Exception) { } finally {
-                _isProcessing.value = false
             }
         }
     }
 
     fun reportNotExist(poiId: String, userId: String, userLat: Double = 0.0, userLng: Double = 0.0) {
         viewModelScope.launch {
-            try {
-                _isProcessing.value = true
-                val poi = try { repository.getPoi(poiId) } catch (_: Exception) { null }
-                if (poi != null && userLat != 0.0 && userLng != 0.0) {
-                    val distance = haversine(userLat, userLng, poi.latitude, poi.longitude)
-                    if (distance > 300.0) {
-                        _actionResult.value = PoiActionResult.Message("too_far_${distance.toInt()}")
-                        _isProcessing.value = false
-                        return@launch
-                    }
+            val poi = try { repository.getPoi(poiId) } catch (_: Exception) { null }
+            if (poi != null && userLat != 0.0 && userLng != 0.0) {
+                val distance = haversine(userLat, userLng, poi.latitude, poi.longitude)
+                if (distance > 300.0) {
+                    _actionResult.value = PoiActionResult.Message("too_far_${distance.toInt()}")
+                    return@launch
                 }
-                val result = try {
-                    repository.reportNotExist(poiId, userId)
-                } catch (_: Exception) {
-                    ReportResult.Error
+            }
+            when (val result = repository.reportNotExist(poiId, userId)) {
+                is ReportResult.AlreadyReported -> _actionResult.value = PoiActionResult.Message("already_reported")
+                is ReportResult.NowUnverified -> {
+                    _actionResult.value = PoiActionResult.Message("now_unverified")
+                    loadPois()
                 }
-                when (result) {
-                    is ReportResult.AlreadyReported -> _actionResult.value = PoiActionResult.Message("already_reported")
-                    is ReportResult.NowUnverified -> {
-                        _actionResult.value = PoiActionResult.Message("now_unverified")
-                    }
-                    is ReportResult.Removed -> {
-                        _actionResult.value = PoiActionResult.Message("removed")
-                        _selectedPoi.value = null
-                    }
-                    is ReportResult.Counted -> {
-                        _actionResult.value = PoiActionResult.Message("report_counted")
-                    }
-                    is ReportResult.Error -> _actionResult.value = PoiActionResult.Message("error")
+                is ReportResult.Removed -> {
+                    _actionResult.value = PoiActionResult.Message("removed")
+                    _selectedPoi.value = null
+                    loadPois()
                 }
-                kotlinx.coroutines.delay(1000)
-                refreshSelectedPoi(poiId)
-                loadPois()
-            } catch (_: Exception) { } finally {
-                _isProcessing.value = false
+                is ReportResult.Counted -> {
+                    _actionResult.value = PoiActionResult.Message("report_counted")
+                    loadPois()
+                }
+                is ReportResult.Error -> _actionResult.value = PoiActionResult.Message("error")
             }
         }
-    }
-
-    private suspend fun refreshSelectedPoi(poiId: String) {
-        try {
-            val updated = repository.getPoi(poiId)
-            if (updated != null) {
-                _selectedPoi.value = updated
-            }
-        } catch (_: Exception) { }
     }
 
     fun checkVerificationStatus(poiId: String, userId: String) {

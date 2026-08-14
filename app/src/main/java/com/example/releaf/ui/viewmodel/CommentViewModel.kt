@@ -4,7 +4,6 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.releaf.data.remote.dto.ReviewDto
 import com.example.releaf.data.remote.dto.ReviewInsertDto
-import com.example.releaf.data.repository.AuthRepository
 import com.example.releaf.data.repository.PoiRepository
 import com.example.releaf.data.repository.ReviewRepository
 import com.example.releaf.data.repository.VoteResult
@@ -16,7 +15,6 @@ import kotlinx.coroutines.launch
 class CommentViewModel : ViewModel() {
     private val repository = ReviewRepository()
     private val poiRepository = PoiRepository()
-    private val authRepository = AuthRepository()
 
     private val _reviews = MutableStateFlow<List<ReviewDto>>(emptyList())
     val reviews: StateFlow<List<ReviewDto>> = _reviews.asStateFlow()
@@ -29,12 +27,6 @@ class CommentViewModel : ViewModel() {
 
     private val _errorMessage = MutableStateFlow<String?>(null)
     val errorMessage: StateFlow<String?> = _errorMessage.asStateFlow()
-
-    private val _isProcessing = MutableStateFlow(false)
-    val isProcessing: StateFlow<Boolean> = _isProcessing.asStateFlow()
-
-    private val _isVoting = MutableStateFlow(false)
-    val isVoting: StateFlow<Boolean> = _isVoting.asStateFlow()
 
     private var currentPoiId = ""
     private var currentUserId = ""
@@ -84,62 +76,14 @@ class CommentViewModel : ViewModel() {
                         return@launch
                     }
                 }
-                val reviewerName = try {
-                    authRepository.getProfile(userId)?.name?.ifBlank { "User" } ?: "User"
-                } catch (_: Exception) {
-                    "User"
-                }
                 repository.addReview(
-                    ReviewInsertDto(
-                        poi_id = poiId,
-                        user_id = userId,
-                        star_rating = starRating,
-                        text = text,
-                        reviewer_name = reviewerName
-                    )
+                    ReviewInsertDto(poi_id = poiId, user_id = userId, star_rating = starRating, text = text)
                 )
-                repository.analyzeReviewAndUpdatePoi(poiId, text, starRating)
-                kotlinx.coroutines.delay(1500)
                 _reviews.value = repository.getReviews(poiId)
                 repository.updatePoiStats(poiId)
                 _errorMessage.value = null
             } catch (_: Exception) { }
             _isLoading.value = false
-        }
-    }
-
-    fun updateReview(reviewId: String, newText: String) {
-        viewModelScope.launch {
-            _isProcessing.value = true
-            try {
-                repository.updateReview(reviewId, newText)
-                kotlinx.coroutines.delay(1000)
-                _reviews.value = repository.getReviews(currentPoiId)
-                repository.updatePoiStats(currentPoiId)
-            } catch (_: Exception) { }
-            _isProcessing.value = false
-        }
-    }
-
-    fun deleteReview(reviewId: String) {
-        viewModelScope.launch {
-            _isProcessing.value = true
-            try {
-                repository.deleteReview(reviewId)
-                kotlinx.coroutines.delay(1000)
-                _reviews.value = repository.getReviews(currentPoiId)
-                repository.updatePoiStats(currentPoiId)
-            } catch (_: Exception) { }
-            _isProcessing.value = false
-        }
-    }
-
-    fun reportReview(reviewId: String) {
-        viewModelScope.launch {
-            try {
-                repository.reportReview(reviewId, currentUserId)
-                _errorMessage.value = "Comment reported. Thank you."
-            } catch (_: Exception) { }
         }
     }
 
@@ -155,48 +99,34 @@ class CommentViewModel : ViewModel() {
     }
 
     fun toggleLike(review: ReviewDto) {
-        if (_isVoting.value) return
+        if (_userVotes.value.containsKey(review.id)) return
+
         viewModelScope.launch {
-            _isVoting.value = true
             try {
                 val result = repository.vote(review.id, currentUserId, "LIKE", review)
-                val votes = _userVotes.value.toMutableMap()
-                when (result) {
-                    is VoteResult.Success -> votes[review.id] = "LIKE"
-                    is VoteResult.Unvoted -> votes.remove(review.id)
-                    is VoteResult.AlreadyVoted -> { }
+                if (result == VoteResult.Success) {
+                    val votes = _userVotes.value.toMutableMap()
+                    votes[review.id] = "LIKE"
+                    _userVotes.value = votes
+                    _reviews.value = repository.getReviews(currentPoiId)
                 }
-                _userVotes.value = votes
-                _reviews.value = repository.getReviews(currentPoiId)
-                _errorMessage.value = null
-            } catch (e: Exception) {
-                _errorMessage.value = "Like failed: ${e.message}"
-            } finally {
-                _isVoting.value = false
-            }
+            } catch (_: Exception) { }
         }
     }
 
     fun toggleDislike(review: ReviewDto) {
-        if (_isVoting.value) return
+        if (_userVotes.value.containsKey(review.id)) return
+
         viewModelScope.launch {
-            _isVoting.value = true
             try {
                 val result = repository.vote(review.id, currentUserId, "DISLIKE", review)
-                val votes = _userVotes.value.toMutableMap()
-                when (result) {
-                    is VoteResult.Success -> votes[review.id] = "DISLIKE"
-                    is VoteResult.Unvoted -> votes.remove(review.id)
-                    is VoteResult.AlreadyVoted -> { }
+                if (result == VoteResult.Success) {
+                    val votes = _userVotes.value.toMutableMap()
+                    votes[review.id] = "DISLIKE"
+                    _userVotes.value = votes
+                    _reviews.value = repository.getReviews(currentPoiId)
                 }
-                _userVotes.value = votes
-                _reviews.value = repository.getReviews(currentPoiId)
-                _errorMessage.value = null
-            } catch (e: Exception) {
-                _errorMessage.value = "Dislike failed: ${e.message}"
-            } finally {
-                _isVoting.value = false
-            }
+            } catch (_: Exception) { }
         }
     }
 }
