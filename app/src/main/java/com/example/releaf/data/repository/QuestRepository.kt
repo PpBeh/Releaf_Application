@@ -44,4 +44,29 @@ class QuestRepository {
             UserQuestDto(user_id = userId, quest_id = questId, status = "IN_PROGRESS")
         )
     }
+
+    suspend fun incrementQuestsByType(userId: String, questType: String) {
+        try {
+            val quests = client.postgrest.from("quests")
+                .select { filter { eq("quest_type", questType) } }
+                .decodeList<QuestDto>()
+
+            val userQuests = try {
+                getUserQuests(userId)
+            } catch (_: Exception) {
+                emptyList()
+            }
+
+            for (quest in quests) {
+                val userQuest = userQuests.find { it.quest_id == quest.id } ?: continue
+                if (userQuest.status == "CLAIMED" || userQuest.status == "CLAIMABLE") continue
+
+                val newProgress = userQuest.progress_current + 1
+                val newStatus = if (newProgress >= quest.progress_target) "CLAIMABLE" else "IN_PROGRESS"
+                try {
+                    updateUserQuest(quest.id, userId, UserQuestUpdateDto(newProgress, newStatus))
+                } catch (_: Exception) { }
+            }
+        } catch (_: Exception) { }
+    }
 }

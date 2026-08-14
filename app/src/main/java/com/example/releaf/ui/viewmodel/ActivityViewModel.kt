@@ -26,7 +26,9 @@ class ActivityViewModel(application: Application) : AndroidViewModel(application
             try {
                 val today = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(Date())
                 val lastRefresh = prefs.getString("last_refresh_$userId", "")
-                
+
+                repository.incrementQuestsByType(userId, "CHECK_IN")
+
                 val userQuests = repository.getUserQuests(userId)
                 
                 if (today != lastRefresh) {

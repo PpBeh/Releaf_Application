@@ -109,6 +109,7 @@ class MapViewModel : ViewModel() {
                 val success = repository.uploadPoiPhoto(poiId, currentUserId, uri, context)
                 if (success) {
                     _photos.value = repository.getPoiPhotos(poiId)
+                    com.example.releaf.data.repository.QuestRepository().incrementQuestsByType(currentUserId, "PHOTO")
                     _actionResult.value = PoiActionResult.Message("photo_uploaded")
                 } else {
                     _actionResult.value = PoiActionResult.Message("photo_failed")
@@ -207,10 +208,12 @@ class MapViewModel : ViewModel() {
             when (val result = repository.verifyPoi(poiId, userId)) {
                 is VerifyResult.AlreadyVerified -> _actionResult.value = PoiActionResult.Message("already_verified")
                 is VerifyResult.NowVerified -> {
+                    com.example.releaf.data.repository.QuestRepository().incrementQuestsByType(userId, "VERIFY")
                     _actionResult.value = PoiActionResult.Message("now_verified")
                     loadPois()
                 }
                 is VerifyResult.Counted -> {
+                    com.example.releaf.data.repository.QuestRepository().incrementQuestsByType(userId, "VERIFY")
                     _actionResult.value = PoiActionResult.Message("verification_counted")
                     loadPois()
                 }

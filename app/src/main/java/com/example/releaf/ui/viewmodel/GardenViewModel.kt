@@ -82,6 +82,7 @@ class GardenViewModel : ViewModel() {
                 )
                 repository.updateGarden(userId, update)
                 repository.updatePlantSlot(growingSlot.id, "FULLY_GROWN")
+                com.example.releaf.data.repository.QuestRepository().incrementQuestsByType(userId, "FERTILIZE")
 
                 // Also update global total points
                 val profile = authRepository.getProfile(userId)
@@ -109,6 +110,7 @@ class GardenViewModel : ViewModel() {
                 )
                 repository.updateGarden(userId, update)
                 repository.updatePlantSlot(slotId, "EMPTY_POT")
+                com.example.releaf.data.repository.QuestRepository().incrementQuestsByType(userId, "HARVEST")
 
                 // Also update global total points
                 val profile = authRepository.getProfile(userId)

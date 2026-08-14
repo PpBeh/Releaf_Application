@@ -79,13 +79,7 @@ fun ActivityScreen(
                         onActionClick = {
                             when (userQuest.status) {
                                 "CLAIMABLE" -> viewModel.claimQuest(userQuest.quest_id, userId)
-                                "IN_PROGRESS" -> viewModel.updateQuestProgress(
-                                    userQuest.quest_id,
-                                    userId,
-                                    userQuest.progress_current + 1,
-                                    userQuest.quest?.progress_target ?: 10,
-                                    userQuest.status
-                                )
+                                "IN_PROGRESS" -> { }
                             }
                         }
                     )
@@ -164,13 +158,13 @@ private fun QuestCard(userQuest: UserQuestDto, onActionClick: () -> Unit) {
                             disabledContentColor = Color.White
                         ),
                         shape = RoundedCornerShape(50),
-                        enabled = userQuest.status != "CLAIMED"
+                        enabled = userQuest.status == "CLAIMABLE"
                     ) {
                         Text(
                             when (userQuest.status) {
                                 "CLAIMABLE" -> "CLAIM REWARD"
                                 "CLAIMED" -> "COMPLETED"
-                                else -> "GO"
+                                else -> "${userQuest.progress_current}/${userQuest.quest?.progress_target ?: 1}"
                             },
                             fontWeight = FontWeight.Bold
                         )

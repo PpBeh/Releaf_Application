@@ -74,6 +74,7 @@ class CommentViewModel : ViewModel() {
                 repository.addReview(
                     ReviewInsertDto(poi_id = poiId, user_id = userId, star_rating = starRating, text = text)
                 )
+                com.example.releaf.data.repository.QuestRepository().incrementQuestsByType(userId, "REVIEW")
                 _reviews.value = repository.getReviews(poiId)
                 repository.updatePoiStats(poiId)
                 _errorMessage.value = null
