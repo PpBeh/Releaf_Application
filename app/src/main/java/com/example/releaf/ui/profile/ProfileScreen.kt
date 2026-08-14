@@ -139,7 +139,7 @@ fun ProfileScreen(
             modifier = Modifier
                 .fillMaxWidth()
                 .height(220.dp)
-                .background(Color(0xFF1E88E5))
+                .background(MaterialTheme.colorScheme.primary)
         ) {
             Column(
                 modifier = Modifier

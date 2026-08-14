@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
@@ -43,7 +44,11 @@ fun ActivityScreen(
         viewModel.loadQuests(userId)
     }
 
-    Column(modifier = Modifier.fillMaxSize()) {
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(MaterialTheme.colorScheme.background)
+    ) {
         Box(
             modifier = Modifier
                 .padding(16.dp)
@@ -57,7 +62,11 @@ fun ActivityScreen(
                 modifier = Modifier.fillMaxSize(),
                 contentAlignment = Alignment.Center
             ) {
-                Text("No quests available", style = MaterialTheme.typography.bodyLarge)
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    androidx.compose.material3.CircularProgressIndicator()
+                    Spacer(modifier = Modifier.height(16.dp))
+                    Text("Loading daily quests...", style = MaterialTheme.typography.bodyLarge)
+                }
             }
         } else {
             LazyColumn(
@@ -89,38 +98,83 @@ fun ActivityScreen(
 @Composable
 private fun QuestCard(userQuest: UserQuestDto, onActionClick: () -> Unit) {
     val quest = userQuest.quest ?: return
+    val cardColor = when (quest.difficulty) {
+        "HARD" -> Color(0xFFE53935)
+        "MEDIUM" -> Color(0xFFFB8C00)
+        else -> Color(0xFF43A047)
+    }
+    
     Card(
         shape = RoundedCornerShape(20.dp),
-        colors = CardDefaults.cardColors(containerColor = Color(0xFF6B8FD1))
+        colors = CardDefaults.cardColors(containerColor = cardColor),
+        modifier = Modifier.fillMaxWidth()
     ) {
         Column(modifier = Modifier.padding(20.dp)) {
-            Text(quest.title, style = MaterialTheme.typography.headlineSmall, color = Color.White, fontWeight = FontWeight.Bold)
-            Text(quest.description, color = Color.White)
-            Row(
-                modifier = Modifier.fillMaxWidth().padding(top = 12.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Column {
-                    Text("Reward:", color = Color.White, style = MaterialTheme.typography.labelMedium)
-                    Text("${quest.reward_label} x${quest.reward_count}", color = Color.White)
-                }
-                Spacer(modifier = Modifier.weight(1f))
-                if (userQuest.status == "IN_PROGRESS") {
-                    Text("${userQuest.progress_current}/${quest.progress_target}", color = Color.White)
-                    Spacer(modifier = Modifier.width(8.dp))
-                }
-                Button(
-                    onClick = onActionClick,
-                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF4CAF50)),
-                    shape = RoundedCornerShape(50)
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(
+                    quest.title, 
+                    style = MaterialTheme.typography.titleLarge, 
+                    color = Color.White, 
+                    fontWeight = FontWeight.Bold, 
+                    modifier = Modifier.weight(1f)
+                )
+                Box(
+                    modifier = Modifier
+                        .background(Color.White.copy(alpha = 0.2f), RoundedCornerShape(8.dp))
+                        .padding(horizontal = 8.dp, vertical = 4.dp)
                 ) {
-                    Text(
-                        when (userQuest.status) {
-                            "CLAIMABLE" -> "Claim"
-                            "CLAIMED" -> "Done"
-                            else -> "Go"
+                    Text(quest.difficulty, color = Color.White, style = MaterialTheme.typography.labelSmall)
+                }
+            }
+            Spacer(modifier = Modifier.height(4.dp))
+            Text(quest.description, color = Color.White, style = MaterialTheme.typography.bodyMedium)
+            
+            Row(
+                modifier = Modifier.fillMaxWidth().padding(top = 16.dp),
+                verticalAlignment = Alignment.Bottom
+            ) {
+                Column(modifier = Modifier.weight(1f)) {
+                    Text("Reward", color = Color.White.copy(alpha = 0.8f), style = MaterialTheme.typography.labelMedium)
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        if (quest.reward_label == "Gems") {
+                            Text("\uD83D\uDC8E", style = MaterialTheme.typography.bodyLarge)
+                            Spacer(modifier = Modifier.width(4.dp))
                         }
-                    )
+                        Text("${quest.reward_count} ${quest.reward_label}", color = Color.White, fontWeight = FontWeight.Bold, style = MaterialTheme.typography.bodyLarge)
+                    }
+                }
+                
+                Column(horizontalAlignment = Alignment.End) {
+                    if (userQuest.status == "IN_PROGRESS") {
+                        Text(
+                            "${userQuest.progress_current}/${quest.progress_target}", 
+                            color = Color.White, 
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Bold
+                        )
+                        Spacer(modifier = Modifier.height(4.dp))
+                    }
+                    
+                    Button(
+                        onClick = onActionClick,
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = Color.White, 
+                            contentColor = cardColor,
+                            disabledContainerColor = Color.White.copy(alpha = 0.3f),
+                            disabledContentColor = Color.White
+                        ),
+                        shape = RoundedCornerShape(50),
+                        enabled = userQuest.status != "CLAIMED"
+                    ) {
+                        Text(
+                            when (userQuest.status) {
+                                "CLAIMABLE" -> "CLAIM REWARD"
+                                "CLAIMED" -> "COMPLETED"
+                                else -> "GO"
+                            },
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
                 }
             }
         }

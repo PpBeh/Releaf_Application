@@ -13,6 +13,7 @@ data class GardenDto(
     val fertilize_uses_left: Int = 1,
     val fertilize_uses_max: Int = 1,
     val current_points: Int = 0,
+    val current_gems: Int = 0,
     val points_target: Int = 100,
     val updated_at: String = ""
 )
@@ -33,5 +34,6 @@ data class GardenUpdateDto(
     val exp_target: Int,
     val grow_uses_left: Int,
     val fertilize_uses_left: Int,
-    val current_points: Int
+    val current_points: Int,
+    val current_gems: Int = 0
 )

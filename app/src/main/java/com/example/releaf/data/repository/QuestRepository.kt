@@ -13,9 +13,15 @@ class QuestRepository {
         return client.postgrest.from("quests").select().decodeList()
     }
 
+    suspend fun getQuestsByDifficulty(difficulty: String): List<QuestDto> {
+        return client.postgrest.from("quests")
+            .select { filter { eq("difficulty", difficulty) } }
+            .decodeList()
+    }
+
     suspend fun getUserQuests(userId: String): List<UserQuestDto> {
         return client.postgrest.from("user_quests")
-            .select {
+            .select(io.github.jan.supabase.postgrest.query.Columns.raw("*, quest:quests(*)")) {
                 filter { eq("user_id", userId) }
             }
             .decodeList()

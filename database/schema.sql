@@ -99,6 +99,7 @@ CREATE TABLE IF NOT EXISTS public.gardens (
     fertilize_uses_left INT DEFAULT 1,
     fertilize_uses_max INT DEFAULT 1,
     current_points INT DEFAULT 0,
+    current_gems INT DEFAULT 0,
     points_target INT DEFAULT 100,
     updated_at TIMESTAMPTZ DEFAULT NOW()
 );
@@ -126,6 +127,7 @@ CREATE TABLE IF NOT EXISTS public.quests (
     reward_label TEXT DEFAULT 'Points',
     reward_count INT DEFAULT 10,
     progress_target INT DEFAULT 10,
+    difficulty TEXT DEFAULT 'EASY',
     created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
@@ -188,11 +190,25 @@ CREATE TABLE IF NOT EXISTS public.user_achievements (
 -- ============================================
 -- SEED DATA: Sample quests
 -- ============================================
-INSERT INTO public.quests (title, description, reward_label, reward_count, progress_target)
+INSERT INTO public.quests (title, description, reward_label, reward_count, progress_target, difficulty)
 VALUES
-    ('First Review', 'Write your first toilet review', 'Points', 50, 1),
-    ('Explorer', 'Visit 5 different toilets', 'Points', 100, 5),
-    ('Gardener', 'Grow 3 plants to full bloom', 'Points', 200, 3)
+    -- EASY QUESTS (50-100 Points, 1-2 Gems)
+    ('Morning Check-in', 'Open the Releaf app today', 'Points', 50, 1, 'EASY'),
+    ('First Review', 'Write your first toilet review', 'Points', 80, 1, 'EASY'),
+    ('Toilet Scout', 'Verify a toilet location', 'Points', 60, 1, 'EASY'),
+    ('Cleanliness Watch', 'Rate the cleanliness of 1 toilet', 'Gems', 1, 1, 'EASY'),
+
+    -- MEDIUM QUESTS (150-250 Points, 3-5 Gems)
+    ('Active Contributor', 'Write 3 reviews for different toilets', 'Points', 200, 3, 'MEDIUM'),
+    ('Local Guide', 'Verify 3 toilet locations', 'Points', 180, 3, 'MEDIUM'),
+    ('Photographer', 'Upload 2 photos of facilities', 'Gems', 3, 2, 'MEDIUM'),
+    ('Garden Helper', 'Fertilize 2 plants in your garden', 'Points', 220, 2, 'MEDIUM'),
+
+    -- HARD QUESTS (400-600 Points, 10-15 Gems)
+    ('Releaf Master', 'Visit and review 5 different locations', 'Points', 500, 5, 'HARD'),
+    ('Expert Scout', 'Verify 10 facilities in a day', 'Gems', 12, 10, 'HARD'),
+    ('Master Gardener', 'Harvest 5 fully grown plants', 'Points', 600, 5, 'HARD'),
+    ('Community Pillar', 'Get 10 likes on your reviews', 'Gems', 15, 10, 'HARD')
 ON CONFLICT DO NOTHING;
 
 -- ============================================

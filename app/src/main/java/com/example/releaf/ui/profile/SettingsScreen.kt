@@ -108,7 +108,7 @@ fun SettingsScreen(
             modifier = Modifier
                 .fillMaxWidth()
                 .height(180.dp)
-                .background(Color(0xFF1E88E5))
+                .background(MaterialTheme.colorScheme.primary)
         ) {
             IconButton(onClick = onBackClick, modifier = Modifier.padding(8.dp)) {
                 Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back", tint = Color.White)

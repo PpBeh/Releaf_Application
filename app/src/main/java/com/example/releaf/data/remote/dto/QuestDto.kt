@@ -10,6 +10,7 @@ data class QuestDto(
     val reward_label: String,
     val reward_count: Int,
     val progress_target: Int,
+    val difficulty: String = "EASY", // "EASY", "MEDIUM", "HARD"
     val created_at: String = ""
 )
 

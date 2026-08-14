@@ -38,12 +38,14 @@ class GardenViewModel : ViewModel() {
 
                 val newExp = g.current_exp + 50
                 val newPoints = g.current_points + 10
+                val newGems = g.current_gems + 1
                 val update = GardenUpdateDto(
                     current_exp = newExp,
                     exp_target = g.exp_target,
                     grow_uses_left = g.grow_uses_left - 1,
                     fertilize_uses_left = g.fertilize_uses_left,
-                    current_points = newPoints
+                    current_points = newPoints,
+                    current_gems = newGems
                 )
                 repository.updateGarden(userId, update)
                 repository.updatePlantSlot(emptySlot.id, "GROWING")
@@ -66,7 +68,8 @@ class GardenViewModel : ViewModel() {
                     exp_target = g.exp_target,
                     grow_uses_left = g.grow_uses_left,
                     fertilize_uses_left = g.fertilize_uses_left - 1,
-                    current_points = newPoints
+                    current_points = newPoints,
+                    current_gems = g.current_gems
                 )
                 repository.updateGarden(userId, update)
                 repository.updatePlantSlot(growingSlot.id, "FULLY_GROWN")
@@ -85,7 +88,8 @@ class GardenViewModel : ViewModel() {
                     exp_target = g.exp_target,
                     grow_uses_left = g.grow_uses_left,
                     fertilize_uses_left = g.fertilize_uses_left,
-                    current_points = newPoints
+                    current_points = newPoints,
+                    current_gems = g.current_gems
                 )
                 repository.updateGarden(userId, update)
                 repository.updatePlantSlot(slotId, "EMPTY_POT")

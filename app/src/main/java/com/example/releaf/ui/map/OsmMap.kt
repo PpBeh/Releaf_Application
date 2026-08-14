@@ -162,13 +162,14 @@ fun OsmMap(
                     view.overlays.add(PoiMarkersOverlay(pois, onPoiClick))
 
                     val filter = if (isDarkMode) {
-                        val inverseMatrix = floatArrayOf(
-                            -1.0f, 0.0f, 0.0f, 0.0f, 255.0f,
-                            0.0f, -1.0f, 0.0f, 0.0f, 255.0f,
-                            0.0f, 0.0f, -1.0f, 0.0f, 255.0f,
-                            0.0f, 0.0f, 0.0f, 1.0f, 0.0f
+                        // Google Maps style Dark Mode Matrix
+                        val matrix = floatArrayOf(
+                            -0.7f, 0f, 0f, 0f, 210f, // Red: Navy/Grey base
+                            0f, -0.7f, 0f, 0f, 210f, // Green: Navy/Grey base
+                            0f, 0f, -0.6f, 0f, 230f, // Blue: Slightly bluer water/bg
+                            0f, 0f, 0f, 1.0f, 0f
                         )
-                        android.graphics.ColorMatrixColorFilter(inverseMatrix)
+                        android.graphics.ColorMatrixColorFilter(matrix)
                     } else null
                     view.overlayManager.tilesOverlay.setColorFilter(filter)
 
