@@ -153,6 +153,14 @@ class AuthRepository {
             .update(update) { filter { eq("id", userId) } }
     }
 
+    suspend fun updateTotalPoints(userId: String, newTotal: Int) {
+        try {
+            client.postgrest.from("profiles").update(
+                mapOf("total_points" to newTotal)
+            ) { filter { eq("id", userId) } }
+        } catch (_: Exception) { }
+    }
+
     suspend fun getProfile(userId: String): ProfileDto? {
         return client.postgrest.from("profiles")
             .select { filter { eq("id", userId) } }

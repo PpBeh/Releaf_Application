@@ -56,9 +56,42 @@ class ActivityViewModel(application: Application) : AndroidViewModel(application
         }
     }
 
+    private val gardenRepository = com.example.releaf.data.repository.GardenRepository()
+    private val authRepository = com.example.releaf.data.repository.AuthRepository()
+
     fun claimQuest(questId: String, userId: String) {
         viewModelScope.launch {
-            repository.claimQuest(questId, userId)
+            val userQuest = repository.claimQuest(questId, userId)
+            val quest = userQuest?.quest
+            if (quest != null) {
+                try {
+                    val garden = gardenRepository.getGarden(userId)
+                    if (garden != null) {
+                        val newPoints = if (quest.reward_label == "Points") garden.current_points + quest.reward_count else garden.current_points
+                        val newGems = if (quest.reward_label == "Gems") garden.current_gems + quest.reward_count else garden.current_gems
+                        
+                        gardenRepository.updateGarden(
+                            userId,
+                            com.example.releaf.data.remote.dto.GardenUpdateDto(
+                                current_exp = garden.current_exp,
+                                exp_target = garden.exp_target,
+                                grow_uses_left = garden.grow_uses_left,
+                                fertilize_uses_left = garden.fertilize_uses_left,
+                                current_points = newPoints,
+                                current_gems = newGems
+                            )
+                        )
+
+                        // Also update global total points if it was points reward
+                        if (quest.reward_label == "Points") {
+                            val profile = authRepository.getProfile(userId)
+                            if (profile != null) {
+                                authRepository.updateTotalPoints(userId, profile.total_points + quest.reward_count)
+                            }
+                        }
+                    }
+                } catch (_: Exception) { }
+            }
             loadQuests(userId)
         }
     }

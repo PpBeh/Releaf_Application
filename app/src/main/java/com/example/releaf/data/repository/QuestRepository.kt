@@ -34,8 +34,9 @@ class QuestRepository {
             }
     }
 
-    suspend fun claimQuest(questId: String, userId: String) {
+    suspend fun claimQuest(questId: String, userId: String): UserQuestDto? {
         updateUserQuest(questId, userId, UserQuestUpdateDto(progress_current = 0, status = "CLAIMED"))
+        return getUserQuests(userId).find { it.quest_id == questId }
     }
 
     suspend fun assignQuestToUser(userId: String, questId: String) {

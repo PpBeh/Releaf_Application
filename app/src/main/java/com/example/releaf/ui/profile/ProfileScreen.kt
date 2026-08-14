@@ -29,6 +29,7 @@ import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.filled.Palette
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.material.icons.filled.Star
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
@@ -187,6 +188,11 @@ fun ProfileScreen(
                             style = MaterialTheme.typography.bodyMedium
                         )
                         if (isOwnProfile) {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Icon(Icons.Default.Star, contentDescription = null, tint = Color(0xFFFFC107), modifier = Modifier.size(14.dp))
+                                Spacer(modifier = Modifier.width(4.dp))
+                                Text("${profile?.total_points ?: 0} Total Points", color = Color.White, style = MaterialTheme.typography.bodySmall, fontWeight = FontWeight.Bold)
+                            }
                             Text(phone, color = Color.White, style = MaterialTheme.typography.bodySmall)
                             Text(email, color = Color.White, style = MaterialTheme.typography.bodySmall)
                         }

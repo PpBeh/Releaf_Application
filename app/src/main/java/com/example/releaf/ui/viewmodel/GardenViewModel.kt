@@ -29,6 +29,8 @@ class GardenViewModel : ViewModel() {
         }
     }
 
+    private val authRepository = com.example.releaf.data.repository.AuthRepository()
+
     fun growPlant(userId: String) {
         viewModelScope.launch {
             try {
@@ -49,6 +51,13 @@ class GardenViewModel : ViewModel() {
                 )
                 repository.updateGarden(userId, update)
                 repository.updatePlantSlot(emptySlot.id, "GROWING")
+                
+                // Also update global total points
+                val profile = authRepository.getProfile(userId)
+                if (profile != null) {
+                    authRepository.updateTotalPoints(userId, profile.total_points + 10)
+                }
+                
                 loadGarden(userId)
             } catch (_: Exception) { }
         }
@@ -73,6 +82,13 @@ class GardenViewModel : ViewModel() {
                 )
                 repository.updateGarden(userId, update)
                 repository.updatePlantSlot(growingSlot.id, "FULLY_GROWN")
+
+                // Also update global total points
+                val profile = authRepository.getProfile(userId)
+                if (profile != null) {
+                    authRepository.updateTotalPoints(userId, profile.total_points + 20)
+                }
+
                 loadGarden(userId)
             } catch (_: Exception) { }
         }
@@ -93,6 +109,13 @@ class GardenViewModel : ViewModel() {
                 )
                 repository.updateGarden(userId, update)
                 repository.updatePlantSlot(slotId, "EMPTY_POT")
+
+                // Also update global total points
+                val profile = authRepository.getProfile(userId)
+                if (profile != null) {
+                    authRepository.updateTotalPoints(userId, profile.total_points + 50)
+                }
+
                 loadGarden(userId)
             } catch (_: Exception) { }
         }
