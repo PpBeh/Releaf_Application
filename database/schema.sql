@@ -308,3 +308,24 @@ CREATE POLICY "Anyone can read achievements" ON public.achievements FOR SELECT T
 ALTER TABLE public.user_achievements ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "Users can read own achievements" ON public.user_achievements FOR SELECT TO authenticated USING (auth.uid() = user_id);
 CREATE POLICY "Users can create own achievements" ON public.user_achievements FOR INSERT TO authenticated WITH CHECK (auth.uid() = user_id);
+
+-- ============================================
+-- TIMESTAMP TRIGGERS (auto-update updated_at)
+-- ============================================
+CREATE OR REPLACE FUNCTION public.update_timestamp()
+RETURNS TRIGGER AS $$
+BEGIN
+    NEW.updated_at = NOW();
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+DROP TRIGGER IF EXISTS update_gardens_timestamp ON public.gardens;
+CREATE TRIGGER update_gardens_timestamp
+BEFORE UPDATE ON public.gardens
+FOR EACH ROW EXECUTE FUNCTION public.update_timestamp();
+
+DROP TRIGGER IF EXISTS update_user_quests_timestamp ON public.user_quests;
+CREATE TRIGGER update_user_quests_timestamp
+BEFORE UPDATE ON public.user_quests
+FOR EACH ROW EXECUTE FUNCTION public.update_timestamp();
