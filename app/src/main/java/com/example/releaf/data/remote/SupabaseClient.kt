@@ -6,6 +6,7 @@ import io.github.jan.supabase.auth.Auth
 import io.github.jan.supabase.postgrest.Postgrest
 import io.github.jan.supabase.realtime.Realtime
 import io.github.jan.supabase.storage.Storage
+import kotlinx.coroutines.flow.asSharedFlow
 
 object SupabaseModule {
     private var _client: SupabaseClient? = null
@@ -25,6 +26,13 @@ object SupabaseModule {
             }
             return _client!!
         }
+
+    private val _refreshEvent = kotlinx.coroutines.flow.MutableSharedFlow<Unit>(replay = 0)
+    val refreshEvent = _refreshEvent.asSharedFlow()
+
+    suspend fun triggerRefresh() {
+        _refreshEvent.emit(Unit)
+    }
 }
 
 object Config {

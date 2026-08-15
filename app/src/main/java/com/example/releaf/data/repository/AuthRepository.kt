@@ -158,7 +158,9 @@ class AuthRepository {
             client.postgrest.from("profiles").update(
                 mapOf("total_points" to newTotal)
             ) { filter { eq("id", userId) } }
-        } catch (_: Exception) { }
+        } catch (e: Exception) {
+            android.util.Log.e("AuthRepository", "Error updating points", e)
+        }
     }
 
     suspend fun getProfile(userId: String): ProfileDto? {

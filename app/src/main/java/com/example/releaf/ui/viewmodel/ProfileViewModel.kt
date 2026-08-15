@@ -25,7 +25,20 @@ class ProfileViewModel : ViewModel() {
     private val _totalAchievements = MutableStateFlow(0)
     val totalAchievements: StateFlow<Int> = _totalAchievements.asStateFlow()
 
+    private var currentUserId = ""
+
+    init {
+        viewModelScope.launch {
+            com.example.releaf.data.remote.SupabaseModule.refreshEvent.collect {
+                if (currentUserId.isNotBlank()) {
+                    loadProfile(currentUserId)
+                }
+            }
+        }
+    }
+
     fun loadProfile(userId: String) {
+        currentUserId = userId
         viewModelScope.launch {
             try {
                 if (userId.isNotBlank()) {

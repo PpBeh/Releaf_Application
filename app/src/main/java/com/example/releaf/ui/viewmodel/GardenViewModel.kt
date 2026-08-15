@@ -20,7 +20,20 @@ class GardenViewModel : ViewModel() {
     private val _plantSlots = MutableStateFlow<List<PlantSlotDto>>(emptyList())
     val plantSlots: StateFlow<List<PlantSlotDto>> = _plantSlots.asStateFlow()
 
+    private var currentUserId = ""
+
+    init {
+        viewModelScope.launch {
+            com.example.releaf.data.remote.SupabaseModule.refreshEvent.collect {
+                if (currentUserId.isNotBlank()) {
+                    loadGarden(currentUserId)
+                }
+            }
+        }
+    }
+
     fun loadGarden(userId: String) {
+        currentUserId = userId
         viewModelScope.launch {
             try {
                 _garden.value = repository.getGarden(userId)
@@ -57,9 +70,11 @@ class GardenViewModel : ViewModel() {
                 if (profile != null) {
                     authRepository.updateTotalPoints(userId, profile.total_points + 10)
                 }
-                
+                com.example.releaf.data.remote.SupabaseModule.triggerRefresh()
                 loadGarden(userId)
-            } catch (_: Exception) { }
+            } catch (e: Exception) {
+                android.util.Log.e("GardenViewModel", "Operation failed", e)
+            }
         }
     }
 
@@ -88,9 +103,11 @@ class GardenViewModel : ViewModel() {
                 if (profile != null) {
                     authRepository.updateTotalPoints(userId, profile.total_points + 20)
                 }
-
+                com.example.releaf.data.remote.SupabaseModule.triggerRefresh()
                 loadGarden(userId)
-            } catch (_: Exception) { }
+            } catch (e: Exception) {
+                android.util.Log.e("GardenViewModel", "Operation failed", e)
+            }
         }
     }
 
@@ -115,9 +132,11 @@ class GardenViewModel : ViewModel() {
                 if (profile != null) {
                     authRepository.updateTotalPoints(userId, profile.total_points + 50)
                 }
-
+                com.example.releaf.data.remote.SupabaseModule.triggerRefresh()
                 loadGarden(userId)
-            } catch (_: Exception) { }
+            } catch (e: Exception) {
+                android.util.Log.e("GardenViewModel", "Operation failed", e)
+            }
         }
     }
 }

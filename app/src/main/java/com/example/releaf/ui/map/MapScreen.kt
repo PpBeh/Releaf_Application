@@ -391,7 +391,18 @@ fun MapScreen(
                 analyzedStatus = analyzedStatus,
                 analyzedStatusTime = analyzedStatusTime,
                 onCloseClick = { viewModel.clearSelection() },
-                onDirectionClick = { onDirectionClick(poi.id) },
+                onDirectionClick = {
+                    val uri = Uri.parse("google.navigation:q=${poi.latitude},${poi.longitude}&mode=w")
+                    val navIntent = Intent(Intent.ACTION_VIEW, uri).apply {
+                        setPackage("com.google.android.apps.maps")
+                    }
+                    try {
+                        context.startActivity(navIntent)
+                    } catch (_: Exception) {
+                        val fallback = Uri.parse("geo:${poi.latitude},${poi.longitude}?q=${poi.latitude},${poi.longitude}(${poi.name})")
+                        context.startActivity(Intent(Intent.ACTION_VIEW, fallback))
+                    }
+                },
                 onCommentClick = { onCommentClick(poi.id) },
                 onVerifyClick = {
                     val lm = context.getSystemService(android.content.Context.LOCATION_SERVICE) as? LocationManager

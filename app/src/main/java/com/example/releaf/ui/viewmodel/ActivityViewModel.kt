@@ -49,10 +49,13 @@ class ActivityViewModel(application: Application) : AndroidViewModel(application
                     prefs.edit().putString("last_refresh_$userId", today).apply()
                 }
 
-                _userQuests.value = repository.getUserQuests(userId).filter { 
-                    it.updated_at.startsWith(today) || it.status != "CLAIMED" 
+                val quests = repository.getUserQuests(userId)
+                _userQuests.value = quests.filter { 
+                    (it.updated_at ?: "").startsWith(today) || it.status != "CLAIMED" 
                 }
-            } catch (_: Exception) { }
+            } catch (e: Exception) {
+                android.util.Log.e("ActivityViewModel", "Error loading quests", e)
+            }
         }
     }
 
@@ -61,14 +64,19 @@ class ActivityViewModel(application: Application) : AndroidViewModel(application
 
     fun claimQuest(questId: String, userId: String) {
         viewModelScope.launch {
-            val userQuest = repository.claimQuest(questId, userId)
-            val quest = userQuest?.quest
-            if (quest != null) {
-                try {
+            // Update local state immediately for responsiveness
+            _userQuests.value = _userQuests.value.map { 
+                if (it.quest_id == questId) it.copy(status = "CLAIMED") else it 
+            }
+            
+            try {
+                val userQuest = repository.claimQuest(questId, userId)
+                val quest = userQuest?.quest
+                if (quest != null) {
                     val garden = gardenRepository.getGarden(userId)
                     if (garden != null) {
-                        val newPoints = if (quest.reward_label == "Points") garden.current_points + quest.reward_count else garden.current_points
-                        val newGems = if (quest.reward_label == "Gems") garden.current_gems + quest.reward_count else garden.current_gems
+                        val newPoints = if (quest.reward_label.equals("Points", ignoreCase = true)) garden.current_points + quest.reward_count else garden.current_points
+                        val newGems = if (quest.reward_label.equals("Gems", ignoreCase = true)) garden.current_gems + quest.reward_count else garden.current_gems
                         
                         gardenRepository.updateGarden(
                             userId,
@@ -82,15 +90,17 @@ class ActivityViewModel(application: Application) : AndroidViewModel(application
                             )
                         )
 
-                        // Also update global total points if it was points reward
-                        if (quest.reward_label == "Points") {
+                        if (quest.reward_label.equals("Points", ignoreCase = true)) {
                             val profile = authRepository.getProfile(userId)
                             if (profile != null) {
                                 authRepository.updateTotalPoints(userId, profile.total_points + quest.reward_count)
                             }
                         }
                     }
-                } catch (_: Exception) { }
+                    com.example.releaf.data.remote.SupabaseModule.triggerRefresh()
+                }
+            } catch (e: Exception) {
+                android.util.Log.e("ActivityViewModel", "Error claiming quest", e)
             }
             loadQuests(userId)
         }

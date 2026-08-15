@@ -1,6 +1,7 @@
 package com.example.releaf.ui.activity
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -11,14 +12,18 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -39,9 +44,12 @@ fun ActivityScreen(
     userId: String
 ) {
     val userQuests by viewModel.userQuests.collectAsState()
+    val gardenViewModel: com.example.releaf.ui.viewmodel.GardenViewModel = androidx.lifecycle.viewmodel.compose.viewModel()
+    val garden by gardenViewModel.garden.collectAsState()
 
     LaunchedEffect(userId) {
         viewModel.loadQuests(userId)
+        gardenViewModel.loadGarden(userId)
     }
 
     Column(
@@ -49,13 +57,46 @@ fun ActivityScreen(
             .fillMaxSize()
             .background(MaterialTheme.colorScheme.background)
     ) {
-        Box(
+        Row(
             modifier = Modifier
-                .padding(16.dp)
-                .background(MaterialTheme.colorScheme.surface, RoundedCornerShape(24.dp))
-                .padding(horizontal = 24.dp, vertical = 16.dp)
+                .fillMaxWidth()
+                .padding(16.dp),
+            verticalAlignment = Alignment.CenterVertically
         ) {
-            Text("Activity", style = MaterialTheme.typography.headlineLarge)
+            Box(
+                modifier = Modifier
+                    .background(MaterialTheme.colorScheme.surface, RoundedCornerShape(24.dp))
+                    .padding(horizontal = 20.dp, vertical = 12.dp)
+                    .weight(1f)
+                    .clickable { 
+                        viewModel.loadQuests(userId)
+                        gardenViewModel.loadGarden(userId)
+                    }
+            ) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text("Activity", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Icon(Icons.Default.Refresh, contentDescription = "Refresh", modifier = Modifier.size(16.dp))
+                }
+            }
+            
+            Spacer(modifier = Modifier.width(12.dp))
+            
+            // Live currency display in Activity tab
+            Row(
+                modifier = Modifier
+                    .background(MaterialTheme.colorScheme.surfaceVariant, RoundedCornerShape(20.dp))
+                    .padding(horizontal = 12.dp, vertical = 8.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text("\uD83E\uDE99", style = MaterialTheme.typography.bodyMedium)
+                Spacer(modifier = Modifier.width(4.dp))
+                Text("${garden?.current_points ?: 0}", fontWeight = FontWeight.Bold)
+                Spacer(modifier = Modifier.width(8.dp))
+                Text("\uD83D\uDC8E", style = MaterialTheme.typography.bodyMedium)
+                Spacer(modifier = Modifier.width(4.dp))
+                Text("${garden?.current_gems ?: 0}", fontWeight = FontWeight.Bold)
+            }
         }
         if (userQuests.isEmpty()) {
             Box(
