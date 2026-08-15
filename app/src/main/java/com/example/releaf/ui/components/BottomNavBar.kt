@@ -25,9 +25,11 @@ import androidx.navigation.NavHostController
 import androidx.navigation.compose.currentBackStackEntryAsState
 import com.example.releaf.navigation.Screen
 import com.example.releaf.navigation.toggleGardenSection
+import com.example.releaf.ui.theme.string
+import com.example.releaf.ui.viewmodel.ThemeViewModel
 
 @Composable
-fun BottomNavBar(navController: NavHostController) {
+fun BottomNavBar(navController: NavHostController, themeViewModel: ThemeViewModel) {
     val navBackStackEntry by navController.currentBackStackEntryAsState()
     val currentRoute = navBackStackEntry?.destination?.route
     val onGardenSection = currentRoute == Screen.Garden.route || currentRoute == Screen.GardenPlot.route
@@ -39,14 +41,14 @@ fun BottomNavBar(navController: NavHostController) {
             NavigationBarItem(
                 selected = onGardenSection,
                 onClick = { navController.toggleGardenSection() },
-                icon = { Icon(Icons.Default.Yard, contentDescription = "Garden") },
-                label = { Text("Garden") }
+                icon = { Icon(Icons.Default.Yard, contentDescription = string("garden", themeViewModel)) },
+                label = { Text(string("garden", themeViewModel)) }
             )
             NavigationBarItem(
                 selected = currentRoute == Screen.Activity.route,
                 onClick = { navController.navigate(Screen.Activity.route) { launchSingleTop = true } },
-                icon = { Icon(Icons.Default.MonitorHeart, contentDescription = "Activity") },
-                label = { Text("Activity") }
+                icon = { Icon(Icons.Default.MonitorHeart, contentDescription = string("activity", themeViewModel)) },
+                label = { Text(string("activity", themeViewModel)) }
             )
             // Reserved middle slot — the real Map button floats above this space
             NavigationBarItem(
@@ -65,8 +67,8 @@ fun BottomNavBar(navController: NavHostController) {
             NavigationBarItem(
                 selected = currentRoute == Screen.Profile.route,
                 onClick = { navController.navigate(Screen.Profile.createRoute()) { launchSingleTop = true } },
-                icon = { Icon(Icons.Default.Person, contentDescription = "Profile") },
-                label = { Text("Profile") }
+                icon = { Icon(Icons.Default.Person, contentDescription = string("profile", themeViewModel)) },
+                label = { Text(string("profile", themeViewModel)) }
             )
         }
 
@@ -82,7 +84,7 @@ fun BottomNavBar(navController: NavHostController) {
             containerColor = Color(0xFF2196F3),
             contentColor = Color.White
         ) {
-            Icon(Icons.Default.Map, contentDescription = "Map")
+            Icon(Icons.Default.Map, contentDescription = string("map", themeViewModel))
         }
     }
 }

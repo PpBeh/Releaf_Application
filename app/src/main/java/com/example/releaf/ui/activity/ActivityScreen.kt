@@ -36,12 +36,15 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.example.releaf.data.remote.dto.UserQuestDto
+import com.example.releaf.ui.theme.string
 import com.example.releaf.ui.viewmodel.ActivityViewModel
+import com.example.releaf.ui.viewmodel.ThemeViewModel
 
 @Composable
 fun ActivityScreen(
     viewModel: ActivityViewModel,
-    userId: String
+    userId: String,
+    themeViewModel: ThemeViewModel
 ) {
     val userQuests by viewModel.userQuests.collectAsState()
     val gardenViewModel: com.example.releaf.ui.viewmodel.GardenViewModel = androidx.lifecycle.viewmodel.compose.viewModel()
@@ -74,7 +77,7 @@ fun ActivityScreen(
                     }
             ) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text("Activity", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
+                    Text(string("activity", themeViewModel), style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
                     Spacer(modifier = Modifier.width(8.dp))
                     Icon(Icons.Default.Refresh, contentDescription = "Refresh", modifier = Modifier.size(16.dp))
                 }
@@ -117,6 +120,7 @@ fun ActivityScreen(
                 items(userQuests) { userQuest ->
                     QuestCard(
                         userQuest = userQuest,
+                        themeViewModel = themeViewModel,
                         onActionClick = {
                             when (userQuest.status) {
                                 "CLAIMABLE" -> viewModel.claimQuest(userQuest.quest_id, userId)
@@ -131,7 +135,11 @@ fun ActivityScreen(
 }
 
 @Composable
-private fun QuestCard(userQuest: UserQuestDto, onActionClick: () -> Unit) {
+private fun QuestCard(
+    userQuest: UserQuestDto, 
+    themeViewModel: ThemeViewModel,
+    onActionClick: () -> Unit
+) {
     val quest = userQuest.quest ?: return
     val cardColor = when (quest.difficulty) {
         "HARD" -> Color(0xFFE53935)
@@ -169,13 +177,19 @@ private fun QuestCard(userQuest: UserQuestDto, onActionClick: () -> Unit) {
                 verticalAlignment = Alignment.Bottom
             ) {
                 Column(modifier = Modifier.weight(1f)) {
-                    Text("Reward", color = Color.White.copy(alpha = 0.8f), style = MaterialTheme.typography.labelMedium)
+                    Text(
+                        string("reward", themeViewModel), 
+                        color = Color.White.copy(alpha = 0.8f), 
+                        style = MaterialTheme.typography.labelMedium
+                    )
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         if (quest.reward_label == "Gems") {
                             Text("\uD83D\uDC8E", style = MaterialTheme.typography.bodyLarge)
                             Spacer(modifier = Modifier.width(4.dp))
                         }
-                        Text("${quest.reward_count} ${quest.reward_label}", color = Color.White, fontWeight = FontWeight.Bold, style = MaterialTheme.typography.bodyLarge)
+                        val rewardLabel = if (quest.reward_label == "Gems") string("gems", themeViewModel) 
+                                          else string("points", themeViewModel)
+                        Text("${quest.reward_count} $rewardLabel", color = Color.White, fontWeight = FontWeight.Bold, style = MaterialTheme.typography.bodyLarge)
                     }
                 }
                 

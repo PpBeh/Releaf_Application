@@ -166,7 +166,7 @@ fun PoiDetailSheet(
             Button(
                 onClick = onDirectionClick,
                 shape = RoundedCornerShape(50),
-                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF2962FF))
+                colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
             ) {
                 Icon(Icons.Default.Directions, contentDescription = null)
                 Spacer(modifier = Modifier.width(6.dp))
@@ -175,7 +175,7 @@ fun PoiDetailSheet(
             Button(
                 onClick = onCommentClick,
                 shape = RoundedCornerShape(50),
-                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF2E7D32))
+                colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
             ) {
                 Text("Comment")
             }

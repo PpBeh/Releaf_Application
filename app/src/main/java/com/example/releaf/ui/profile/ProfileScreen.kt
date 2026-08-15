@@ -30,6 +30,7 @@ import androidx.compose.material.icons.filled.Palette
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Star
+import androidx.compose.material.icons.filled.Translate
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
@@ -49,6 +50,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import com.example.releaf.ui.theme.AppTheme
+import com.example.releaf.ui.theme.string
 import com.example.releaf.ui.viewmodel.ProfileViewModel
 import com.example.releaf.ui.viewmodel.ThemeViewModel
 
@@ -65,8 +67,43 @@ fun ProfileScreen(
     val achievements by viewModel.achievements.collectAsState()
     val totalAchievements by viewModel.totalAchievements.collectAsState()
     val currentTheme by themeViewModel.theme.collectAsState()
+    val currentLang by themeViewModel.language.collectAsState()
     val context = androidx.compose.ui.platform.LocalContext.current
     var showThemeDialog by remember { mutableStateOf(false) }
+    var showLangDialog by remember { mutableStateOf(false) }
+
+    if (showLangDialog) {
+        androidx.compose.ui.window.Dialog(onDismissRequest = { showLangDialog = false }) {
+            androidx.compose.material3.Surface(
+                shape = RoundedCornerShape(16.dp),
+                color = MaterialTheme.colorScheme.surface
+            ) {
+                Column(modifier = Modifier.padding(16.dp)) {
+                    Text(string("select_language", themeViewModel), style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+                    Spacer(modifier = Modifier.height(16.dp))
+                    com.example.releaf.ui.viewmodel.AppLanguage.entries.forEach { lang ->
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable {
+                                    themeViewModel.setLanguage(lang)
+                                    showLangDialog = false
+                                }
+                                .padding(vertical = 12.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            androidx.compose.material3.RadioButton(
+                                selected = (currentLang == lang),
+                                onClick = null
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text(lang.name.lowercase().replaceFirstChar { it.uppercase() })
+                        }
+                    }
+                }
+            }
+        }
+    }
 
     if (showThemeDialog) {
         androidx.compose.ui.window.Dialog(onDismissRequest = { showThemeDialog = false }) {
@@ -120,15 +157,16 @@ fun ProfileScreen(
     val isOwnProfile = userId == currentUserId
 
     val settingsRows = listOf(
-        SettingsRowData(Icons.Default.Favorite, "Favourite Toilets"),
+        SettingsRowData(Icons.Default.Favorite, string("favourite_toilets", themeViewModel), "fav"),
         SettingsRowData(Icons.Default.Refresh, "Updates"),
         SettingsRowData(Icons.Default.Notifications, "Notification Settings"),
-        SettingsRowData(Icons.Default.Palette, "Theme"),
+        SettingsRowData(Icons.Default.Palette, string("theme", themeViewModel), "theme"),
+        SettingsRowData(Icons.Default.Translate, string("language", themeViewModel), "language"),
         SettingsRowData(Icons.Default.Block, "Permission"),
         SettingsRowData(Icons.Default.Delete, "Clear Cache"),
         SettingsRowData(Icons.Default.Person, "Account"),
         SettingsRowData(Icons.Default.Info, "About Us"),
-        SettingsRowData(Icons.AutoMirrored.Filled.Logout, LOG_OUT_LABEL)
+        SettingsRowData(Icons.AutoMirrored.Filled.Logout, string("logout", themeViewModel), "logout")
     )
 
     Column(
@@ -264,10 +302,11 @@ fun ProfileScreen(
                 SettingsRow(
                     row = row,
                     onClick = {
-                        when (row.label) {
-                            LOG_OUT_LABEL -> onLogoutClick()
-                            "Favourite Toilets" -> onFavouritesClick()
-                            "Theme" -> showThemeDialog = true
+                        when (row.key) {
+                            "logout" -> onLogoutClick()
+                            "fav" -> onFavouritesClick()
+                            "theme" -> showThemeDialog = true
+                            "language" -> showLangDialog = true
                         }
                     }
                 )

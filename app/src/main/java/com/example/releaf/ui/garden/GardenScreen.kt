@@ -34,12 +34,15 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.example.releaf.ui.theme.string
 import com.example.releaf.ui.viewmodel.GardenViewModel
+import com.example.releaf.ui.viewmodel.ThemeViewModel
 
 @Composable
 fun GardenScreen(
     viewModel: GardenViewModel,
     userId: String,
+    themeViewModel: ThemeViewModel,
     onHouseClick: () -> Unit
 ) {
     val garden by viewModel.garden.collectAsState()
@@ -80,7 +83,7 @@ fun GardenScreen(
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Column {
-                            Text("Garden Status", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.primary)
+                            Text(string("garden", themeViewModel) + " Status", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.primary)
                             Text("Level ${ (currentExp / 1000) + 1 }", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
                         }
                         
@@ -151,7 +154,7 @@ fun GardenScreen(
                             )
                             Spacer(modifier = Modifier.height(12.dp))
                             Text(
-                                "My Garden Plot",
+                                string("garden_plot", themeViewModel),
                                 style = MaterialTheme.typography.titleLarge,
                                 fontWeight = FontWeight.ExtraBold,
                                 color = MaterialTheme.colorScheme.onPrimaryContainer

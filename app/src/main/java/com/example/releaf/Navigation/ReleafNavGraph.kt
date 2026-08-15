@@ -187,6 +187,7 @@ fun ReleafNavGraph(
             GardenScreen(
                 viewModel = gardenViewModel,
                 userId = userId,
+                themeViewModel = themeViewModel,
                 onHouseClick = { navController.navigateToGardenSection(toPlot = true) }
             )
         }
@@ -196,6 +197,7 @@ fun ReleafNavGraph(
             GardenPlotScreen(
                 viewModel = gardenViewModel,
                 userId = userId,
+                themeViewModel = themeViewModel,
                 onBackClick = { navController.navigateToGardenSection(toPlot = false) }
             )
         }
@@ -204,7 +206,8 @@ fun ReleafNavGraph(
             val userId = (session as? SessionState.LoggedIn)?.userId ?: return@composable
             ActivityScreen(
                 viewModel = activityViewModel,
-                userId = userId
+                userId = userId,
+                themeViewModel = themeViewModel
             )
         }
         composable(Screen.Map.route) {
@@ -222,7 +225,8 @@ fun ReleafNavGraph(
                 onDirectionClick = { poiId -> navController.navigate(Screen.Direction.createRoute(poiId)) },
                 onCommentClick = { poiId -> navController.navigate(Screen.Comment.createRoute(poiId)) },
                 currentUserId = (session as? SessionState.LoggedIn)?.userId ?: "",
-                isDarkMode = isDarkMode
+                isDarkMode = isDarkMode,
+                themeViewModel = themeViewModel
             )
         }
         composable(
@@ -255,7 +259,8 @@ fun ReleafNavGraph(
             val userId = (session as? SessionState.LoggedIn)?.userId ?: return@composable
             RewardsScreen(
                 viewModel = rewardsViewModel,
-                userId = userId
+                userId = userId,
+                themeViewModel = themeViewModel
             )
         }
         composable(
@@ -284,6 +289,7 @@ fun ReleafNavGraph(
             FavouritesScreen(
                 viewModel = favouritesViewModel,
                 userId = userId,
+                themeViewModel = themeViewModel,
                 onBackClick = { navController.popBackStack() },
                 onPoiClick = { poi ->
                     com.example.releaf.data.remote.DeepLinkHolder.pendingPoiId = poi.id

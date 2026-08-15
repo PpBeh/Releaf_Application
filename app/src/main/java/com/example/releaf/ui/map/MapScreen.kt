@@ -20,6 +20,10 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.asPaddingValues
+import androidx.compose.foundation.layout.statusBars
+import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -79,6 +83,10 @@ import coil.compose.rememberAsyncImagePainter
 import com.example.releaf.data.remote.dto.PoiDto
 import kotlinx.coroutines.launch
 
+import com.example.releaf.ui.theme.AppStrings
+import com.example.releaf.ui.theme.string
+import com.example.releaf.ui.viewmodel.ThemeViewModel
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun MapScreen(
@@ -87,7 +95,8 @@ fun MapScreen(
     onDirectionClick: (String) -> Unit,
     onCommentClick: (String) -> Unit,
     currentUserId: String,
-    isDarkMode: Boolean = false
+    isDarkMode: Boolean = false,
+    themeViewModel: ThemeViewModel
 ) {
     val pois by viewModel.filteredPois.collectAsState()
     val selectedPoi by viewModel.selectedPoi.collectAsState()
@@ -159,20 +168,20 @@ fun MapScreen(
                 viewModel.selectPoi(nearest)
                 focusPoint = org.osmdroid.util.GeoPoint(nearest.latitude, nearest.longitude)
                 snackbarHostState.showSnackbar(
-                    "Found nearest: ${nearest.name} (${nearest.category.lowercase().replace('_', ' ')})"
+                    "${AppStrings.get("found_nearest", themeViewModel.language.value)}: ${nearest.name}"
                 )
             } else {
-                snackbarHostState.showSnackbar("No toilets or trash cans found.")
+                snackbarHostState.showSnackbar(AppStrings.get("none_found", themeViewModel.language.value))
             }
         }
         if (msg is PoiActionResult.Message) {
             snackbarHostState.showSnackbar(
                 when (msg.message) {
-                    "created" -> "POI created!"
-                    "create_failed" -> "Failed to create POI"
-                    "too_close" -> "A POI already exists within 5m of this location."
-                    "photo_uploaded" -> "Photo uploaded!"
-                    "photo_failed" -> "Photo upload failed"
+                    "created" -> AppStrings.get("poi_created", themeViewModel.language.value)
+                    "create_failed" -> AppStrings.get("create_failed", themeViewModel.language.value)
+                    "too_close" -> AppStrings.get("too_close", themeViewModel.language.value)
+                    "photo_uploaded" -> AppStrings.get("photo_uploaded", themeViewModel.language.value)
+                    "photo_failed" -> AppStrings.get("photo_failed", themeViewModel.language.value)
                     else -> msg.message.take(100)
                 }
             )
@@ -216,166 +225,183 @@ fun MapScreen(
     Scaffold(
         snackbarHost = { SnackbarHost(snackbarHostState) }
     ) { padding ->
-        Box(modifier = Modifier.fillMaxSize().padding(padding)) {
-        Box(modifier = Modifier.fillMaxSize().graphicsLayer { alpha = mapAlphaAnim }) {
-            OsmMap(
-                pois = filteredSearchPois,
-                onPoiClick = { viewModel.selectPoi(it) },
-                centerOnLocation = centerOnLocation,
-                focusPoint = focusPoint,
-                isDarkMode = isDarkMode,
-                modifier = Modifier.fillMaxSize()
-            )
-        }
-
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .background(MaterialTheme.colorScheme.surface.copy(alpha = 0.9f))
-                .padding(12.dp)
-        ) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                OutlinedTextField(
-                    value = searchQuery,
-                    onValueChange = {
-                        searchQuery = it
-                        viewModel.onSearchQueryChanged(it)
-                    },
-                    modifier = Modifier.fillMaxWidth(),
-                    placeholder = { Text("Search toilets and trash cans...") },
-                    leadingIcon = { Icon(Icons.Default.Search, contentDescription = null) },
-                    singleLine = true
+        Box(modifier = Modifier.fillMaxSize()) {
+            Box(modifier = Modifier
+                .fillMaxSize()
+                .padding(bottom = padding.calculateBottomPadding())
+                .graphicsLayer { alpha = mapAlphaAnim }
+            ) {
+                OsmMap(
+                    pois = filteredSearchPois,
+                    onPoiClick = { viewModel.selectPoi(it) },
+                    centerOnLocation = centerOnLocation,
+                    focusPoint = focusPoint,
+                    isDarkMode = isDarkMode,
+                    modifier = Modifier.fillMaxSize()
                 )
             }
 
-            if (searchResults.isNotEmpty() && searchQuery.isNotBlank()) {
-                Card(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(top = 8.dp),
-                    elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .background(MaterialTheme.colorScheme.surface.copy(alpha = 0.95f))
+                    .padding(top = androidx.compose.foundation.layout.WindowInsets.Companion.statusBars.asPaddingValues().calculateTopPadding())
+                    .padding(bottom = 12.dp)
+            ) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp)
                 ) {
-                    Column {
-                        searchResults.take(5).forEach { result ->
-                            Row(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .clickable {
-                                        viewModel.clearSearch()
-                                        searchQuery = ""
-                                        viewModel.selectPoi(result)
-                                        focusPoint = org.osmdroid.util.GeoPoint(result.latitude, result.longitude)
-                                    }
-                                    .padding(horizontal = 16.dp, vertical = 12.dp),
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Icon(
-                                    if (result.category == "TOILET") Icons.Default.Wc else Icons.Default.Delete,
-                                    contentDescription = null,
-                                    tint = MaterialTheme.colorScheme.onSurfaceVariant
-                                )
-                                Spacer(modifier = Modifier.width(12.dp))
-                                Column {
-                                    Text(result.name, style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Bold)
-                                    Text(
-                                        "${result.cleanliness} | ${if (result.is_paid) "Paid" else "Free"} | ${if (result.is_verified) "Verified" else "Unverified"}",
-                                        style = MaterialTheme.typography.labelSmall,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    OutlinedTextField(
+                        value = searchQuery,
+                        onValueChange = {
+                            searchQuery = it
+                            viewModel.onSearchQueryChanged(it)
+                        },
+                        modifier = Modifier.fillMaxWidth(),
+                        placeholder = { Text(string("search_placeholder", themeViewModel)) },
+                        leadingIcon = { Icon(Icons.Default.Search, contentDescription = null) },
+                        singleLine = true,
+                        shape = RoundedCornerShape(12.dp)
+                    )
+                }
+
+                if (searchResults.isNotEmpty() && searchQuery.isNotBlank()) {
+                    Card(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 12.dp),
+                        elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
+                    ) {
+                        Column {
+                            searchResults.take(5).forEach { result ->
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .clickable {
+                                            viewModel.clearSearch()
+                                            searchQuery = ""
+                                            viewModel.selectPoi(result)
+                                            focusPoint = org.osmdroid.util.GeoPoint(result.latitude, result.longitude)
+                                        }
+                                        .padding(horizontal = 16.dp, vertical = 12.dp),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Icon(
+                                        if (result.category == "TOILET") Icons.Default.Wc else Icons.Default.Delete,
+                                        contentDescription = null,
+                                        tint = MaterialTheme.colorScheme.onSurfaceVariant
                                     )
+                                    Spacer(modifier = Modifier.width(12.dp))
+                                    Column {
+                                        Text(result.name, style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Bold)
+                                        Text(
+                                            "${result.cleanliness} | ${if (result.is_paid) "Paid" else "Free"} | ${if (result.is_verified) "Verified" else "Unverified"}",
+                                            style = MaterialTheme.typography.labelSmall,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                                        )
+                                    }
                                 }
                             }
                         }
                     }
                 }
-            }
 
-            Spacer(modifier = Modifier.height(8.dp))
+                Spacer(modifier = Modifier.height(8.dp))
 
-            MapFilterBar(
-                enabledCategories = enabledCategories,
-                onToggleCategory = { viewModel.toggleCategory(it) },
-                onResetCategories = { viewModel.resetCategories() },
-                enabledCleanliness = enabledCleanliness,
-                onToggleCleanliness = { viewModel.toggleCleanliness(it) },
-                onResetCleanliness = { viewModel.resetCleanliness() },
-                excludedPaid = excludedPaid,
-                onTogglePaid = { viewModel.togglePaid(it) },
-                showUnverified = showUnverified,
-                onToggleUnverified = { viewModel.toggleUnverified() }
-            )
-        }
-
-        BadgedBox(
-            badge = {
-                val unread = unreadCount
-                if (unread > 0) {
-                    Badge { Text("$unread") }
+                Box(modifier = Modifier.padding(horizontal = 12.dp)) {
+                    MapFilterBar(
+                        enabledCategories = enabledCategories,
+                        onToggleCategory = { viewModel.toggleCategory(it) },
+                        onResetCategories = { viewModel.resetCategories() },
+                        enabledCleanliness = enabledCleanliness,
+                        onToggleCleanliness = { viewModel.toggleCleanliness(it) },
+                        onResetCleanliness = { viewModel.resetCleanliness() },
+                        excludedPaid = excludedPaid,
+                        onTogglePaid = { viewModel.togglePaid(it) },
+                        showUnverified = showUnverified,
+                        onToggleUnverified = { viewModel.toggleUnverified() }
+                    )
                 }
-            },
-            modifier = Modifier
-                .align(Alignment.BottomStart)
-                .padding(16.dp)
-        ) {
-            FloatingActionButton(
-                onClick = { showNotifications = true },
-                containerColor = MaterialTheme.colorScheme.surface
-            ) {
-                Icon(Icons.Default.Notifications, contentDescription = "Notifications")
             }
-        }
 
-        Column(
-            modifier = Modifier
-                .align(Alignment.BottomEnd)
-                .padding(16.dp),
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(12.dp)
-        ) {
-            FloatingActionButton(onClick = { showAddPoiDialog = true }) {
-                Icon(Icons.Default.Add, contentDescription = "Add pin")
-            }
-            SmallFloatingActionButton(
-                onClick = {
-                    val lm = context.getSystemService(android.content.Context.LOCATION_SERVICE) as? android.location.LocationManager
-                    try {
-                        val loc = lm?.getLastKnownLocation(android.location.LocationManager.GPS_PROVIDER)
-                            ?: lm?.getLastKnownLocation(android.location.LocationManager.NETWORK_PROVIDER)
-                        if (loc != null) {
-                            viewModel.findNearestPois(loc.latitude, loc.longitude, "TOILET")
-                        } else {
-                            viewModel.findNearestPois(currentLat, currentLng, "TOILET")
-                        }
-                    } catch (_: SecurityException) { }
+            BadgedBox(
+                badge = {
+                    val unread = unreadCount
+                    if (unread > 0) {
+                        Badge { Text("$unread") }
+                    }
                 },
-                containerColor = MaterialTheme.colorScheme.primaryContainer
+                modifier = Modifier
+                    .align(Alignment.BottomStart)
+                    .padding(start = 16.dp, bottom = padding.calculateBottomPadding() + 16.dp)
             ) {
-                Icon(Icons.Default.Wc, contentDescription = "Nearest Toilet")
+                FloatingActionButton(
+                    onClick = { showNotifications = true },
+                    containerColor = MaterialTheme.colorScheme.surface
+                ) {
+                    Icon(Icons.Default.Notifications, contentDescription = "Notifications")
+                }
             }
-            SmallFloatingActionButton(
-                onClick = {
-                    val lm = context.getSystemService(android.content.Context.LOCATION_SERVICE) as? android.location.LocationManager
-                    try {
-                        val loc = lm?.getLastKnownLocation(android.location.LocationManager.GPS_PROVIDER)
-                            ?: lm?.getLastKnownLocation(android.location.LocationManager.NETWORK_PROVIDER)
-                        if (loc != null) {
-                            viewModel.findNearestPois(loc.latitude, loc.longitude, "TRASH_CAN")
-                        } else {
-                            viewModel.findNearestPois(currentLat, currentLng, "TRASH_CAN")
-                        }
-                    } catch (_: SecurityException) { }
-                },
-                containerColor = MaterialTheme.colorScheme.secondaryContainer
+
+            Column(
+                modifier = Modifier
+                    .align(Alignment.BottomEnd)
+                    .padding(end = 16.dp, bottom = padding.calculateBottomPadding() + 16.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
-                Icon(Icons.Default.Delete, contentDescription = "Nearest Trash Can")
-            }
-            SmallFloatingActionButton(
-                onClick = { centerOnLocation = !centerOnLocation },
-                containerColor = MaterialTheme.colorScheme.surface
-            ) {
-                Icon(Icons.Default.MyLocation, contentDescription = "My location")
+                FloatingActionButton(
+                    onClick = { showAddPoiDialog = true },
+                    containerColor = MaterialTheme.colorScheme.primary,
+                    contentColor = MaterialTheme.colorScheme.onPrimary
+                ) {
+                    Icon(Icons.Default.Add, contentDescription = "Add pin")
+                }
+                SmallFloatingActionButton(
+                    onClick = {
+                        val lm = context.getSystemService(android.content.Context.LOCATION_SERVICE) as? android.location.LocationManager
+                        try {
+                            val loc = lm?.getLastKnownLocation(android.location.LocationManager.GPS_PROVIDER)
+                                ?: lm?.getLastKnownLocation(android.location.LocationManager.NETWORK_PROVIDER)
+                            if (loc != null) {
+                                viewModel.findNearestPois(loc.latitude, loc.longitude, "TOILET")
+                            } else {
+                                viewModel.findNearestPois(currentLat, currentLng, "TOILET")
+                            }
+                        } catch (_: SecurityException) { }
+                    },
+                    containerColor = MaterialTheme.colorScheme.primary,
+                    contentColor = MaterialTheme.colorScheme.onPrimary
+                ) {
+                    Icon(Icons.Default.Wc, contentDescription = string("nearest_toilet", themeViewModel))
+                }
+                SmallFloatingActionButton(
+                    onClick = {
+                        val lm = context.getSystemService(android.content.Context.LOCATION_SERVICE) as? android.location.LocationManager
+                        try {
+                            val loc = lm?.getLastKnownLocation(android.location.LocationManager.GPS_PROVIDER)
+                                ?: lm?.getLastKnownLocation(android.location.LocationManager.NETWORK_PROVIDER)
+                            if (loc != null) {
+                                viewModel.findNearestPois(loc.latitude, loc.longitude, "TRASH_CAN")
+                            } else {
+                                viewModel.findNearestPois(currentLat, currentLng, "TRASH_CAN")
+                            }
+                        } catch (_: SecurityException) { }
+                    },
+                    containerColor = MaterialTheme.colorScheme.primary,
+                    contentColor = MaterialTheme.colorScheme.onPrimary
+                ) {
+                    Icon(Icons.Default.Delete, contentDescription = string("nearest_trash_can", themeViewModel))
+                }
+                SmallFloatingActionButton(
+                    onClick = { centerOnLocation = !centerOnLocation },
+                    containerColor = MaterialTheme.colorScheme.surface
+                ) {
+                    Icon(Icons.Default.MyLocation, contentDescription = string("my_location", themeViewModel))
+                }
             }
         }
-    }
 
     selectedPoi?.let { poi ->
         ModalBottomSheet(

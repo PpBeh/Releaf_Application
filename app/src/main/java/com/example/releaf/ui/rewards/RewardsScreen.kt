@@ -19,12 +19,15 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
+import com.example.releaf.ui.theme.string
 import com.example.releaf.ui.viewmodel.RewardsViewModel
+import com.example.releaf.ui.viewmodel.ThemeViewModel
 
 @Composable
 fun RewardsScreen(
     viewModel: RewardsViewModel,
-    userId: String
+    userId: String,
+    themeViewModel: ThemeViewModel
 ) {
     val tiers by viewModel.tiers.collectAsState()
     val userRewards by viewModel.userRewards.collectAsState()
@@ -39,18 +42,18 @@ fun RewardsScreen(
             .fillMaxSize()
             .padding(16.dp)
     ) {
-        Text("$userPoints points", style = MaterialTheme.typography.titleLarge)
+        Text("$userPoints ${string("points", themeViewModel)}", style = MaterialTheme.typography.titleLarge)
         Spacer(modifier = Modifier.height(16.dp))
         Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
             if (tiers.isEmpty()) {
                 val fallbackTiers = listOf(500 to true, 2000 to false, 10000 to false)
                 fallbackTiers.forEach { (target, unlocked) ->
-                    TierBox(points = userPoints, target = target, unlocked = unlocked)
+                    TierBox(points = userPoints, target = target, unlocked = unlocked, themeViewModel = themeViewModel)
                 }
             } else {
                 tiers.forEach { tier ->
                     val unlocked = userRewards.any { it.tier_id == tier.id }
-                    TierBox(points = userPoints, target = tier.target_points, unlocked = unlocked)
+                    TierBox(points = userPoints, target = tier.target_points, unlocked = unlocked, themeViewModel = themeViewModel)
                 }
             }
         }
@@ -58,7 +61,7 @@ fun RewardsScreen(
 }
 
 @Composable
-private fun TierBox(points: Int, target: Int, unlocked: Boolean) {
+private fun TierBox(points: Int, target: Int, unlocked: Boolean, themeViewModel: ThemeViewModel) {
     Box(
         modifier = Modifier
             .fillMaxWidth()
@@ -69,6 +72,6 @@ private fun TierBox(points: Int, target: Int, unlocked: Boolean) {
             )
             .padding(16.dp)
     ) {
-        Text("$points/$target ${if (unlocked) "Unlocked" else "Locked"}")
+        Text("$points/$target ${if (unlocked) string("unlocked", themeViewModel) else string("locked", themeViewModel)}")
     }
 }

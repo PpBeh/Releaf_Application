@@ -38,13 +38,16 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.example.releaf.data.remote.dto.PoiDto
+import com.example.releaf.ui.theme.string
 import com.example.releaf.ui.viewmodel.FavouritesViewModel
+import com.example.releaf.ui.viewmodel.ThemeViewModel
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun FavouritesScreen(
     viewModel: FavouritesViewModel,
     userId: String,
+    themeViewModel: ThemeViewModel,
     onBackClick: () -> Unit,
     onPoiClick: (PoiDto) -> Unit
 ) {
@@ -56,7 +59,7 @@ fun FavouritesScreen(
 
     Column(modifier = Modifier.fillMaxSize()) {
         TopAppBar(
-            title = { Text("Favourite Toilets") },
+            title = { Text(string("favourite_toilets", themeViewModel)) },
             navigationIcon = {
                 IconButton(onClick = onBackClick) {
                     Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")

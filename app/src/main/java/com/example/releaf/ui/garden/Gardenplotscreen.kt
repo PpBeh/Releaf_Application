@@ -47,12 +47,15 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.example.releaf.data.remote.dto.PlantSlotDto
+import com.example.releaf.ui.theme.string
 import com.example.releaf.ui.viewmodel.GardenViewModel
+import com.example.releaf.ui.viewmodel.ThemeViewModel
 
 @Composable
 fun GardenPlotScreen(
     viewModel: GardenViewModel,
     userId: String,
+    themeViewModel: ThemeViewModel,
     onBackClick: () -> Unit
 ) {
     val garden by viewModel.garden.collectAsState()
@@ -96,7 +99,7 @@ fun GardenPlotScreen(
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.SpaceBetween
                 ) {
-                    Text("Points", style = MaterialTheme.typography.labelSmall)
+                    Text(string("points", themeViewModel), style = MaterialTheme.typography.labelSmall)
                     Text("$currentPoints / $pointsTarget", fontWeight = FontWeight.Bold)
                 }
             }
@@ -117,7 +120,7 @@ fun GardenPlotScreen(
         }
 
         Text(
-            "My Garden Plot",
+            string("garden_plot", themeViewModel),
             modifier = Modifier.padding(start = 24.dp, top = 16.dp, bottom = 8.dp),
             style = MaterialTheme.typography.titleLarge,
             fontWeight = FontWeight.Bold
@@ -133,6 +136,7 @@ fun GardenPlotScreen(
             items(slots) { slot ->
                 PlantPotTile(
                     slot = slot,
+                    themeViewModel = themeViewModel,
                     onClick = {
                         if (slot.state == "FULLY_GROWN") {
                             viewModel.harvestSlot(slot.id, userId)
@@ -175,7 +179,7 @@ fun GardenPlotScreen(
 }
 
 @Composable
-private fun PlantPotTile(slot: PlantSlotDto, onClick: () -> Unit) {
+private fun PlantPotTile(slot: PlantSlotDto, themeViewModel: ThemeViewModel, onClick: () -> Unit) {
     androidx.compose.material3.ElevatedCard(
         modifier = Modifier
             .aspectRatio(1f)
@@ -209,7 +213,7 @@ private fun PlantPotTile(slot: PlantSlotDto, onClick: () -> Unit) {
                             )
                     )
                     Spacer(modifier = Modifier.height(4.dp))
-                    Text("Empty Pot", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Text(string("empty_pot", themeViewModel), style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
             } else if (slot.state == "LOCKED") {
                 Text(emoji, style = MaterialTheme.typography.displayMedium, color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f))
@@ -224,10 +228,10 @@ private fun PlantPotTile(slot: PlantSlotDto, onClick: () -> Unit) {
                             modifier = Modifier.height(28.dp),
                             colors = androidx.compose.material3.ButtonDefaults.buttonColors(containerColor = Color(0xFFFFC107))
                         ) {
-                            Text("HARVEST", style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold, color = Color.Black)
+                            Text(string("harvest", themeViewModel).uppercase(), style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold, color = Color.Black)
                         }
                     } else if (slot.state == "GROWING") {
-                        Text("Growing...", style = MaterialTheme.typography.labelSmall, color = Color(0xFF4CAF50), fontWeight = FontWeight.Bold)
+                        Text(string("growing", themeViewModel), style = MaterialTheme.typography.labelSmall, color = Color(0xFF4CAF50), fontWeight = FontWeight.Bold)
                     }
                 }
             }

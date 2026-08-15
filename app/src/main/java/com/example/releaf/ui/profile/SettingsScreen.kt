@@ -26,6 +26,7 @@ import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.filled.Palette
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.material.icons.filled.Translate
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -43,12 +44,14 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import com.example.releaf.ui.theme.AppTheme
+import com.example.releaf.ui.theme.string
+import com.example.releaf.ui.viewmodel.AppLanguage
 import com.example.releaf.ui.viewmodel.ThemeViewModel
 import androidx.compose.ui.unit.dp
 
 internal const val LOG_OUT_LABEL = "Log out"
 
-internal data class SettingsRowData(val icon: ImageVector, val label: String)
+internal data class SettingsRowData(val icon: ImageVector, val label: String, val key: String = "")
 
 @Composable
 fun SettingsScreen(
@@ -57,7 +60,42 @@ fun SettingsScreen(
     themeViewModel: ThemeViewModel
 ) {
     val currentTheme by themeViewModel.theme.collectAsState()
+    val currentLang by themeViewModel.language.collectAsState()
     var showThemeDialog by remember { mutableStateOf(false) }
+    var showLangDialog by remember { mutableStateOf(false) }
+
+    if (showLangDialog) {
+        androidx.compose.ui.window.Dialog(onDismissRequest = { showLangDialog = false }) {
+            androidx.compose.material3.Surface(
+                shape = androidx.compose.foundation.shape.RoundedCornerShape(16.dp),
+                color = MaterialTheme.colorScheme.surface
+            ) {
+                Column(modifier = Modifier.padding(16.dp)) {
+                    Text("Select Language", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+                    Spacer(modifier = Modifier.height(16.dp))
+                    AppLanguage.entries.forEach { lang ->
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable {
+                                    themeViewModel.setLanguage(lang)
+                                    showLangDialog = false
+                                }
+                                .padding(vertical = 12.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            androidx.compose.material3.RadioButton(
+                                selected = (currentLang == lang),
+                                onClick = null
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text(lang.name.lowercase().replaceFirstChar { it.uppercase() })
+                        }
+                    }
+                }
+            }
+        }
+    }
 
     if (showThemeDialog) {
         androidx.compose.ui.window.Dialog(onDismissRequest = { showThemeDialog = false }) {
@@ -95,12 +133,13 @@ fun SettingsScreen(
     val rows = listOf(
         SettingsRowData(Icons.Default.Refresh, "Updates"),
         SettingsRowData(Icons.Default.Notifications, "Notification Settings"),
-        SettingsRowData(Icons.Default.Palette, "Theme"),
+        SettingsRowData(Icons.Default.Palette, string("theme", themeViewModel), "theme"),
+        SettingsRowData(Icons.Default.Translate, string("language", themeViewModel), "language"),
         SettingsRowData(Icons.Default.Block, "Permission"),
         SettingsRowData(Icons.Default.Delete, "Clear Cache"),
         SettingsRowData(Icons.Default.Person, "Account"),
         SettingsRowData(Icons.Default.Info, "About Us"),
-        SettingsRowData(Icons.AutoMirrored.Filled.Logout, LOG_OUT_LABEL)
+        SettingsRowData(Icons.AutoMirrored.Filled.Logout, string("logout", themeViewModel), "logout")
     )
 
     Column(modifier = Modifier.fillMaxSize()) {
@@ -147,9 +186,10 @@ fun SettingsScreen(
                 SettingsRow(
                     row = row,
                     onClick = {
-                        when (row.label) {
-                            LOG_OUT_LABEL -> onLogoutClick()
-                            "Theme" -> showThemeDialog = true
+                        when (row.key) {
+                            "logout" -> onLogoutClick()
+                            "theme" -> showThemeDialog = true
+                            "language" -> showLangDialog = true
                             else -> { /* TODO: handle other rows */ }
                         }
                     }

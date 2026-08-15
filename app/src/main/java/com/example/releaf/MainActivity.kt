@@ -83,7 +83,7 @@ fun ReleafApp(themeViewModel: ThemeViewModel) {
     Scaffold(
         bottomBar = {
             if (showBottomBar) {
-                BottomNavBar(navController = navController)
+                BottomNavBar(navController = navController, themeViewModel = themeViewModel)
             }
         }
     ) { innerPadding ->
