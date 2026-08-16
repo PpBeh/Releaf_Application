@@ -269,7 +269,10 @@ class MapViewModel : ViewModel() {
         _searchResults.value = emptyList()
     }
 
+    private var nearestRequestId = 0L
+
     fun findNearestPois(userLat: Double, userLng: Double, targetCategory: String? = null) {
+        nearestRequestId++
         val all = _pois.value
         val toilet = if (targetCategory == null || targetCategory == "TOILET") {
             all.filter { it.category == "TOILET" }
@@ -281,7 +284,7 @@ class MapViewModel : ViewModel() {
                 .minByOrNull { haversine(userLat, userLng, it.latitude, it.longitude) }
         } else null
 
-        _actionResult.value = PoiActionResult.NearestFound(toilet, trashCan, targetCategory)
+        _actionResult.value = PoiActionResult.NearestFound(toilet, trashCan, targetCategory, nearestRequestId)
     }
 
     fun openPoiFromDeepLink(poiId: String) {
@@ -325,5 +328,5 @@ class MapViewModel : ViewModel() {
 sealed class PoiActionResult {
     data class Message(val message: String) : PoiActionResult()
     data class Status(val hasVerified: Boolean, val hasReported: Boolean) : PoiActionResult()
-    data class NearestFound(val toilet: PoiDto?, val trashCan: PoiDto?, val targetCategory: String? = null) : PoiActionResult()
+    data class NearestFound(val toilet: PoiDto?, val trashCan: PoiDto?, val targetCategory: String? = null, val requestId: Long = 0L) : PoiActionResult()
 }

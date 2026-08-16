@@ -13,6 +13,16 @@ class QuestRepository {
         return client.postgrest.from("quests").select().decodeList()
     }
 
+    suspend fun getQuest(questId: String): QuestDto? {
+        return try {
+            client.postgrest.from("quests")
+                .select { filter { eq("id", questId) } }
+                .decodeSingleOrNull()
+        } catch (_: Exception) {
+            null
+        }
+    }
+
     suspend fun getQuestsByDifficulty(difficulty: String): List<QuestDto> {
         return client.postgrest.from("quests")
             .select { filter { eq("difficulty", difficulty) } }

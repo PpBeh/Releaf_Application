@@ -73,13 +73,21 @@ class ActivityViewModel(application: Application) : AndroidViewModel(application
             
             try {
                 val userQuest = repository.claimQuest(questId, userId)
-                val quest = userQuest?.quest
+                val quest = repository.getQuest(questId) ?: userQuest?.quest
                 if (quest != null) {
                     val garden = gardenRepository.getGarden(userId)
+                    val newPoints = if (quest.reward_label.equals("Points", ignoreCase = true)) {
+                        (garden?.current_points ?: 0) + quest.reward_count
+                    } else {
+                        garden?.current_points ?: 0
+                    }
+                    val newGems = if (quest.reward_label.equals("Gems", ignoreCase = true)) {
+                        (garden?.current_gems ?: 0) + quest.reward_count
+                    } else {
+                        garden?.current_gems ?: 0
+                    }
+
                     if (garden != null) {
-                        val newPoints = if (quest.reward_label.equals("Points", ignoreCase = true)) garden.current_points + quest.reward_count else garden.current_points
-                        val newGems = if (quest.reward_label.equals("Gems", ignoreCase = true)) garden.current_gems + quest.reward_count else garden.current_gems
-                        
                         gardenRepository.updateGarden(
                             userId,
                             com.example.releaf.data.remote.dto.GardenUpdateDto(
@@ -91,12 +99,12 @@ class ActivityViewModel(application: Application) : AndroidViewModel(application
                                 current_gems = newGems
                             )
                         )
+                    }
 
-                        if (quest.reward_label.equals("Points", ignoreCase = true)) {
-                            val profile = authRepository.getProfile(userId)
-                            if (profile != null) {
-                                authRepository.updateTotalPoints(userId, profile.total_points + quest.reward_count)
-                            }
+                    if (quest.reward_label.equals("Points", ignoreCase = true)) {
+                        val profile = authRepository.getProfile(userId)
+                        if (profile != null) {
+                            authRepository.updateTotalPoints(userId, profile.total_points + quest.reward_count)
                         }
                     }
                     com.example.releaf.data.remote.SupabaseModule.triggerRefresh()

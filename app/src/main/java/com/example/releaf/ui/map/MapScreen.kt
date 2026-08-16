@@ -245,7 +245,7 @@ fun MapScreen(
                 modifier = Modifier
                     .fillMaxWidth()
                     .background(MaterialTheme.colorScheme.surface.copy(alpha = 0.95f))
-                    .padding(top = androidx.compose.foundation.layout.WindowInsets.Companion.statusBars.asPaddingValues().calculateTopPadding())
+                    .padding(top = 4.dp)
                     .padding(bottom = 12.dp)
             ) {
                 Row(
@@ -360,16 +360,9 @@ fun MapScreen(
                 }
                 SmallFloatingActionButton(
                     onClick = {
-                        val lm = context.getSystemService(android.content.Context.LOCATION_SERVICE) as? android.location.LocationManager
-                        try {
-                            val loc = lm?.getLastKnownLocation(android.location.LocationManager.GPS_PROVIDER)
-                                ?: lm?.getLastKnownLocation(android.location.LocationManager.NETWORK_PROVIDER)
-                            if (loc != null) {
-                                viewModel.findNearestPois(loc.latitude, loc.longitude, "TOILET")
-                            } else {
-                                viewModel.findNearestPois(currentLat, currentLng, "TOILET")
-                            }
-                        } catch (_: SecurityException) { }
+                        fetchFreshLocation(context) { lat, lng ->
+                            viewModel.findNearestPois(lat, lng, "TOILET")
+                        }
                     },
                     containerColor = MaterialTheme.colorScheme.primary,
                     contentColor = MaterialTheme.colorScheme.onPrimary
@@ -378,16 +371,9 @@ fun MapScreen(
                 }
                 SmallFloatingActionButton(
                     onClick = {
-                        val lm = context.getSystemService(android.content.Context.LOCATION_SERVICE) as? android.location.LocationManager
-                        try {
-                            val loc = lm?.getLastKnownLocation(android.location.LocationManager.GPS_PROVIDER)
-                                ?: lm?.getLastKnownLocation(android.location.LocationManager.NETWORK_PROVIDER)
-                            if (loc != null) {
-                                viewModel.findNearestPois(loc.latitude, loc.longitude, "TRASH_CAN")
-                            } else {
-                                viewModel.findNearestPois(currentLat, currentLng, "TRASH_CAN")
-                            }
-                        } catch (_: SecurityException) { }
+                        fetchFreshLocation(context) { lat, lng ->
+                            viewModel.findNearestPois(lat, lng, "TRASH_CAN")
+                        }
                     },
                     containerColor = MaterialTheme.colorScheme.primary,
                     contentColor = MaterialTheme.colorScheme.onPrimary
@@ -711,4 +697,49 @@ private fun AddPoiDialog(
             Button(onClick = onDismiss) { Text("Cancel") }
         }
     )
+}
+
+private fun fetchFreshLocation(
+    context: android.content.Context,
+    onResult: (lat: Double, lng: Double) -> Unit
+) {
+    val lm = context.getSystemService(android.content.Context.LOCATION_SERVICE) as? android.location.LocationManager
+    val mainLooper = android.os.Looper.getMainLooper()
+    val now = System.currentTimeMillis()
+    val freshThreshold = 2 * 60 * 1000L
+
+    val gps = try {
+        lm?.getLastKnownLocation(android.location.LocationManager.GPS_PROVIDER)
+    } catch (_: SecurityException) { null }
+    val network = try {
+        lm?.getLastKnownLocation(android.location.LocationManager.NETWORK_PROVIDER)
+    } catch (_: SecurityException) { null }
+
+    val fresh = listOfNotNull(gps, network)
+        .filter { now - it.time < freshThreshold }
+        .maxByOrNull { it.time }
+
+    if (fresh != null) {
+        onResult(fresh.latitude, fresh.longitude)
+        return
+    }
+
+    val listener = object : android.location.LocationListener {
+        override fun onLocationChanged(location: android.location.Location) {
+            onResult(location.latitude, location.longitude)
+            try {
+                lm?.removeUpdates(this)
+            } catch (_: Exception) { }
+        }
+
+        @Deprecated("Deprecated in Java")
+        override fun onStatusChanged(provider: String?, status: Int, extras: android.os.Bundle?) {}
+        override fun onProviderEnabled(provider: String) {}
+        override fun onProviderDisabled(provider: String) {}
+    }
+
+    try {
+        lm?.requestLocationUpdates(android.location.LocationManager.GPS_PROVIDER, 0L, 0f, listener, mainLooper)
+        lm?.requestLocationUpdates(android.location.LocationManager.NETWORK_PROVIDER, 0L, 0f, listener, mainLooper)
+    } catch (_: SecurityException) { }
 }

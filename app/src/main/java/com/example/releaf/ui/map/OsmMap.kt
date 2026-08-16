@@ -62,33 +62,14 @@ fun OsmMap(
         if (hasLocationPermission && mapViewRef != null) {
             val map = mapViewRef ?: return@LaunchedEffect
             val lm = context.getSystemService(android.content.Context.LOCATION_SERVICE) as? LocationManager
-            try {
-                val loc = lm?.getLastKnownLocation(LocationManager.GPS_PROVIDER)
-                    ?: lm?.getLastKnownLocation(LocationManager.NETWORK_PROVIDER)
-                if (loc != null) {
-                    userLocation = GeoPoint(loc.latitude, loc.longitude)
-                    map.controller.animateTo(userLocation)
-                }
-            } catch (_: SecurityException) { }
-            try {
-                val overlay = MyLocationNewOverlay(GpsMyLocationProvider(context), map)
-                overlay.enableMyLocation()
-                map.overlays.add(overlay)
-                locationOverlay = overlay
-            } catch (_: Exception) { }
-        }
-    }
-
-    LaunchedEffect(centerOnLocation) {
-        if (centerOnLocation && hasLocationPermission) {
-            val lm = context.getSystemService(android.content.Context.LOCATION_SERVICE) as? LocationManager
             val mainLooper = android.os.Looper.getMainLooper()
+            val now = System.currentTimeMillis()
+            val freshThreshold = 2 * 60 * 1000L
 
             val listener = object : android.location.LocationListener {
                 override fun onLocationChanged(location: android.location.Location) {
                     userLocation = GeoPoint(location.latitude, location.longitude)
-                    mapViewRef?.controller?.setCenter(userLocation)
-                    mapViewRef?.controller?.setZoom(16.0)
+                    mapViewRef?.let { centerPlain(it, userLocation) }
                     try {
                         lm?.removeUpdates(this)
                     } catch (_: Exception) { }
@@ -101,9 +82,6 @@ fun OsmMap(
             }
 
             try {
-                val now = System.currentTimeMillis()
-                val freshThreshold = 2 * 60 * 1000L
-
                 val gps = lm?.getLastKnownLocation(LocationManager.GPS_PROVIDER)
                 val network = lm?.getLastKnownLocation(LocationManager.NETWORK_PROVIDER)
 
@@ -113,20 +91,76 @@ fun OsmMap(
 
                 if (fresh != null) {
                     userLocation = GeoPoint(fresh.latitude, fresh.longitude)
-                    mapViewRef?.controller?.setCenter(userLocation)
-                    mapViewRef?.controller?.setZoom(16.0)
+                    centerPlain(map, userLocation)
+                } else {
+                    lm?.requestLocationUpdates(LocationManager.GPS_PROVIDER, 0L, 0f, listener, mainLooper)
+                    lm?.requestLocationUpdates(LocationManager.NETWORK_PROVIDER, 0L, 0f, listener, mainLooper)
                 }
-
-                lm?.requestLocationUpdates(LocationManager.GPS_PROVIDER, 0L, 0f, listener, mainLooper)
-                lm?.requestLocationUpdates(LocationManager.NETWORK_PROVIDER, 0L, 0f, listener, mainLooper)
             } catch (_: SecurityException) { }
+            try {
+                val overlay = MyLocationNewOverlay(GpsMyLocationProvider(context), map)
+                overlay.enableMyLocation()
+                map.overlays.add(overlay)
+                locationOverlay = overlay
+            } catch (_: Exception) { }
         }
+    }
+
+    var locationListenerRef by remember { mutableStateOf<android.location.LocationListener?>(null) }
+
+    LaunchedEffect(centerOnLocation) {
+        val lm = context.getSystemService(android.content.Context.LOCATION_SERVICE) as? LocationManager
+        if (!centerOnLocation || !hasLocationPermission) {
+            locationListenerRef?.let {
+                try { lm?.removeUpdates(it) } catch (_: Exception) { }
+            }
+            locationListenerRef = null
+            return@LaunchedEffect
+        }
+
+        val mainLooper = android.os.Looper.getMainLooper()
+
+        val listener = object : android.location.LocationListener {
+            override fun onLocationChanged(location: android.location.Location) {
+                userLocation = GeoPoint(location.latitude, location.longitude)
+                mapViewRef?.let { centerPlain(it, userLocation) }
+                try {
+                    lm?.removeUpdates(this)
+                } catch (_: Exception) { }
+            }
+
+            @Deprecated("Deprecated in Java")
+            override fun onStatusChanged(provider: String?, status: Int, extras: android.os.Bundle?) {}
+            override fun onProviderEnabled(provider: String) {}
+            override fun onProviderDisabled(provider: String) {}
+        }
+        locationListenerRef = listener
+
+        try {
+            val now = System.currentTimeMillis()
+            val freshThreshold = 2 * 60 * 1000L
+
+            val gps = lm?.getLastKnownLocation(LocationManager.GPS_PROVIDER)
+            val network = lm?.getLastKnownLocation(LocationManager.NETWORK_PROVIDER)
+
+            val fresh = listOfNotNull(gps, network)
+                .filter { now - it.time < freshThreshold }
+                .maxByOrNull { it.time }
+
+            if (fresh != null) {
+                userLocation = GeoPoint(fresh.latitude, fresh.longitude)
+                mapViewRef?.let { centerPlain(it, userLocation) }
+            }
+
+            lm?.requestLocationUpdates(LocationManager.GPS_PROVIDER, 0L, 0f, listener, mainLooper)
+            lm?.requestLocationUpdates(LocationManager.NETWORK_PROVIDER, 0L, 0f, listener, mainLooper)
+        } catch (_: SecurityException) { }
     }
 
     LaunchedEffect(focusPoint) {
         if (focusPoint != null) {
             mapViewRef?.controller?.setCenter(focusPoint)
-            mapViewRef?.controller?.setZoom(17.0)
+            mapViewRef?.controller?.setZoom(19.0)
         }
     }
 
@@ -142,7 +176,7 @@ fun OsmMap(
                     minZoomLevel = 3.0
                     maxZoomLevel = 20.0
                     zoomController.setVisibility(org.osmdroid.views.CustomZoomButtonsController.Visibility.NEVER)
-                    controller.setZoom(16.0)
+                    controller.setZoom(19.0)
                     controller.setCenter(userLocation)
                     mapViewRef = this
                 }
@@ -178,6 +212,15 @@ fun OsmMap(
             }
         }
     )
+}
+
+private fun centerPlain(mapView: MapView, point: GeoPoint) {
+    mapView.post {
+        try {
+            mapView.controller.setCenter(point)
+            mapView.controller.setZoom(19.0)
+        } catch (_: Exception) { }
+    }
 }
 
 private fun createMarkerIcon(category: String, verified: Boolean): android.graphics.drawable.Drawable {

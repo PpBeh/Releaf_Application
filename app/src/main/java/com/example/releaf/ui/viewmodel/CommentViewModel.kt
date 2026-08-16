@@ -116,36 +116,36 @@ class CommentViewModel : ViewModel() {
     }
 
     fun toggleLike(review: ReviewDto) {
-        if (_userVotes.value.containsKey(review.id)) return
-
         viewModelScope.launch {
             _isVoting.value = true
             try {
                 val result = repository.vote(review.id, currentUserId, "LIKE", review)
-                if (result == VoteResult.Success) {
-                    val votes = _userVotes.value.toMutableMap()
-                    votes[review.id] = "LIKE"
-                    _userVotes.value = votes
-                    _reviews.value = repository.getReviews(currentPoiId)
+                val votes = _userVotes.value.toMutableMap()
+                when (result) {
+                    is VoteResult.Success -> votes[review.id] = "LIKE"
+                    is VoteResult.Unvoted -> votes.remove(review.id)
+                    is VoteResult.AlreadyVoted -> { }
                 }
+                _userVotes.value = votes
+                _reviews.value = repository.getReviews(currentPoiId)
             } catch (_: Exception) { }
             _isVoting.value = false
         }
     }
 
     fun toggleDislike(review: ReviewDto) {
-        if (_userVotes.value.containsKey(review.id)) return
-
         viewModelScope.launch {
             _isVoting.value = true
             try {
                 val result = repository.vote(review.id, currentUserId, "DISLIKE", review)
-                if (result == VoteResult.Success) {
-                    val votes = _userVotes.value.toMutableMap()
-                    votes[review.id] = "DISLIKE"
-                    _userVotes.value = votes
-                    _reviews.value = repository.getReviews(currentPoiId)
+                val votes = _userVotes.value.toMutableMap()
+                when (result) {
+                    is VoteResult.Success -> votes[review.id] = "DISLIKE"
+                    is VoteResult.Unvoted -> votes.remove(review.id)
+                    is VoteResult.AlreadyVoted -> { }
                 }
+                _userVotes.value = votes
+                _reviews.value = repository.getReviews(currentPoiId)
             } catch (_: Exception) { }
             _isVoting.value = false
         }
