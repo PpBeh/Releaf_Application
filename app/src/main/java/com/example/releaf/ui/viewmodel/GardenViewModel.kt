@@ -4,7 +4,6 @@ import android.content.Context
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.releaf.data.remote.dto.GardenDto
-import com.example.releaf.data.remote.dto.GardenUpdateDto
 import com.example.releaf.data.remote.dto.PlantSlotDto
 import com.example.releaf.data.repository.AuthRepository
 import com.example.releaf.data.repository.GardenRepository
@@ -16,6 +15,7 @@ import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
+import kotlin.math.max
 
 class GardenViewModel : ViewModel() {
     private val repository = GardenRepository()
@@ -67,13 +67,8 @@ class GardenViewModel : ViewModel() {
         }
     }
 
-    fun getTreeStage(): Int {
-        return getTreeStage(_currentExp.value)
-    }
-
-    fun getMaxUsesByExp(exp: Int): Int {
-        return getTreeStage(exp)
-    }
+    fun getTreeStage(): Int = getTreeStage(_currentExp.value)
+    fun getMaxUsesByExp(exp: Int): Int = getTreeStage(exp)
 
     fun loadGarden(userId: String, context: Context? = null) {
         currentUserId = userId
@@ -83,27 +78,50 @@ class GardenViewModel : ViewModel() {
                 _garden.value = g
                 _plantSlots.value = repository.getPlantSlots(userId)
 
-                if (g != null) {
-                    _currentExp.value = g.current_exp
-                    _currentGems.value = g.current_gems
-                }
-
-                val exp = _currentExp.value
-                val maxAllowed = getMaxUsesByExp(exp)
+                val remoteExp = g?.current_exp ?: 0
+                val remoteGems = g?.current_gems ?: 0
                 val today = getTodayDateString()
 
                 if (context != null) {
-                    val prefs = context.getSharedPreferences("garden_daily_prefs", Context.MODE_PRIVATE)
+                    val prefs = context.getSharedPreferences("garden_prefs", Context.MODE_PRIVATE)
+                    val localExp = prefs.getInt("tree_exp_${userId}", 0)
+
+                    val actualExp = max(localExp, remoteExp)
+
+                    _currentExp.value = actualExp
+                    _currentGems.value = remoteGems
+
+                    if (remoteExp > localExp) {
+                        prefs.edit().putInt("tree_exp_${userId}", remoteExp).apply()
+                    }
+
+                    // 计算剩余次数
+                    val maxAllowed = getMaxUsesByExp(actualExp)
                     val waterUsed = prefs.getInt("water_${userId}_$today", 0)
                     val fertilizeUsed = prefs.getInt("fertilize_${userId}_$today", 0)
+
                     _waterUsesLeft.value = (maxAllowed - waterUsed).coerceAtLeast(0)
                     _fertilizeUsesLeft.value = (maxAllowed - fertilizeUsed).coerceAtLeast(0)
                 } else {
+                    _currentExp.value = remoteExp
+                    _currentGems.value = remoteGems
+                    val maxAllowed = getMaxUsesByExp(remoteExp)
                     _waterUsesLeft.value = (g?.grow_uses_left ?: maxAllowed).coerceAtLeast(0)
                     _fertilizeUsesLeft.value = (g?.fertilize_uses_left ?: maxAllowed).coerceAtLeast(0)
                 }
             } catch (e: Exception) {
-                e.printStackTrace()
+                if (context != null) {
+                    val prefs = context.getSharedPreferences("garden_prefs", Context.MODE_PRIVATE)
+                    val localExp = prefs.getInt("tree_exp_${userId}", 0)
+                    _currentExp.value = localExp
+
+                    val maxAllowed = getMaxUsesByExp(localExp)
+                    val today = getTodayDateString()
+                    val waterUsed = prefs.getInt("water_${userId}_$today", 0)
+                    val fertilizeUsed = prefs.getInt("fertilize_${userId}_$today", 0)
+                    _waterUsesLeft.value = (maxAllowed - waterUsed).coerceAtLeast(0)
+                    _fertilizeUsesLeft.value = (maxAllowed - fertilizeUsed).coerceAtLeast(0)
+                }
             }
         }
     }
@@ -117,7 +135,7 @@ class GardenViewModel : ViewModel() {
         var waterUsed = 0
 
         if (context != null) {
-            prefs = context.getSharedPreferences("garden_daily_prefs", Context.MODE_PRIVATE)
+            prefs = context.getSharedPreferences("garden_prefs", Context.MODE_PRIVATE)
             waterUsed = prefs.getInt("water_${userId}_$today", 0)
             if (waterUsed >= maxAllowed) {
                 _statusMessage.value = "You've reached today's watering limit. Come back tomorrow!"
@@ -125,43 +143,20 @@ class GardenViewModel : ViewModel() {
             }
         }
 
+        val newExp = exp + 50
+        _currentExp.value = newExp
+
         if (prefs != null) {
-            prefs.edit().putInt("water_${userId}_$today", waterUsed + 1).apply()
+            prefs.edit()
+                .putInt("water_${userId}_$today", waterUsed + 1)
+                .putInt("tree_exp_${userId}", newExp)
+                .apply()
             _waterUsesLeft.value = (maxAllowed - (waterUsed + 1)).coerceAtLeast(0)
         }
-        _currentExp.value += 50
+
         _statusMessage.value = "Watering completed! (+50 EXP)"
 
-        viewModelScope.launch {
-            try {
-                val g = _garden.value ?: return@launch
-
-                val newPoints = g.current_points + 10
-                val update = GardenUpdateDto(
-                    current_exp = _currentExp.value,
-                    exp_target = g.exp_target,
-                    grow_uses_left = _waterUsesLeft.value,
-                    fertilize_uses_left = _fertilizeUsesLeft.value,
-                    current_points = newPoints,
-                    current_gems = _currentGems.value
-                )
-                repository.updateGarden(userId, update)
-
-                val emptySlot = _plantSlots.value.firstOrNull { it.state == "EMPTY_POT" }
-                if (emptySlot != null) {
-                    repository.updatePlantSlot(emptySlot.id, "GROWING")
-                }
-
-                val profile = authRepository.getProfile(userId)
-                if (profile != null) {
-                    authRepository.updateTotalPoints(userId, profile.total_points + 10)
-                }
-
-                com.example.releaf.data.remote.SupabaseModule.triggerRefresh()
-            } catch (e: Exception) {
-                e.printStackTrace()
-            }
-        }
+        syncToCloud(userId, newExp, "WATER")
     }
 
     fun growPlant(userId: String, context: Context? = null) {
@@ -177,7 +172,7 @@ class GardenViewModel : ViewModel() {
         var fertilizeUsed = 0
 
         if (context != null) {
-            prefs = context.getSharedPreferences("garden_daily_prefs", Context.MODE_PRIVATE)
+            prefs = context.getSharedPreferences("garden_prefs", Context.MODE_PRIVATE)
             fertilizeUsed = prefs.getInt("fertilize_${userId}_$today", 0)
             if (fertilizeUsed >= maxAllowed) {
                 _statusMessage.value = "You've reached today's fertilizing limit. Come back tomorrow!"
@@ -185,37 +180,55 @@ class GardenViewModel : ViewModel() {
             }
         }
 
+        val newExp = exp + 50
+        _currentExp.value = newExp
+
         if (prefs != null) {
-            prefs.edit().putInt("fertilize_${userId}_$today", fertilizeUsed + 1).apply()
+            prefs.edit()
+                .putInt("fertilize_${userId}_$today", fertilizeUsed + 1)
+                .putInt("tree_exp_${userId}", newExp)
+                .apply()
             _fertilizeUsesLeft.value = (maxAllowed - (fertilizeUsed + 1)).coerceAtLeast(0)
         }
-        _currentExp.value += 50
+
         _statusMessage.value = "Fertilizing completed! (+50 EXP)"
 
+        syncToCloud(userId, newExp, "FERTILIZE")
+    }
+
+    private fun syncToCloud(userId: String, newExp: Int, actionType: String) {
         viewModelScope.launch {
             try {
-                val g = _garden.value ?: return@launch
+                val g = _garden.value
 
-                val newPoints = g.current_points + 20
-                val update = GardenUpdateDto(
-                    current_exp = _currentExp.value,
-                    exp_target = g.exp_target,
-                    grow_uses_left = _waterUsesLeft.value,
-                    fertilize_uses_left = _fertilizeUsesLeft.value,
-                    current_points = newPoints,
-                    current_gems = _currentGems.value
+                val pointsToAdd = if (actionType == "WATER") 10 else 20
+                val newPoints = (g?.current_points ?: 0) + pointsToAdd
+                val newGems = (g?.current_gems ?: 0) + if (actionType == "WATER") 1 else 0
+
+                repository.upsertGardenExp(
+                    userId = userId,
+                    newExp = newExp,
+                    newPoints = newPoints,
+                    newGems = newGems,
+                    expTarget = g?.exp_target ?: 2000,
+                    waterUsesLeft = _waterUsesLeft.value,
+                    fertilizeUsesLeft = _fertilizeUsesLeft.value
                 )
-                repository.updateGarden(userId, update)
 
-                val growingSlot = _plantSlots.value.firstOrNull { it.state == "GROWING" }
-                if (growingSlot != null) {
-                    repository.updatePlantSlot(growingSlot.id, "FULLY_GROWN")
+                val targetState = if (actionType == "WATER") "EMPTY_POT" else "GROWING"
+                val newState = if (actionType == "WATER") "GROWING" else "FULLY_GROWN"
+                val slot = _plantSlots.value.firstOrNull { it.state == targetState }
+                if (slot != null) {
+                    repository.updatePlantSlot(slot.id, newState)
                 }
-                questRepository.incrementQuestsByType(userId, "FERTILIZE")
+
+                if (actionType == "FERTILIZE") {
+                    questRepository.incrementQuestsByType(userId, "FERTILIZE")
+                }
 
                 val profile = authRepository.getProfile(userId)
                 if (profile != null) {
-                    authRepository.updateTotalPoints(userId, profile.total_points + 20)
+                    authRepository.updateTotalPoints(userId, profile.total_points + pointsToAdd)
                 }
 
                 com.example.releaf.data.remote.SupabaseModule.triggerRefresh()
@@ -229,19 +242,20 @@ class GardenViewModel : ViewModel() {
         viewModelScope.launch {
             try {
                 val g = _garden.value ?: return@launch
-                val update = GardenUpdateDto(
-                    current_exp = g.current_exp,
-                    exp_target = g.exp_target,
-                    grow_uses_left = g.grow_uses_left,
-                    fertilize_uses_left = g.fertilize_uses_left,
-                    current_points = g.current_points + 50,
-                    current_gems = g.current_gems
+
+                repository.upsertGardenExp(
+                    userId = userId,
+                    newExp = _currentExp.value,
+                    newPoints = g.current_points + 50,
+                    newGems = g.current_gems,
+                    expTarget = g.exp_target,
+                    waterUsesLeft = _waterUsesLeft.value,
+                    fertilizeUsesLeft = _fertilizeUsesLeft.value
                 )
-                repository.updateGarden(userId, update)
                 repository.updatePlantSlot(slotId, "EMPTY_POT")
+                questRepository.incrementQuestsByType(userId, "HARVEST")
 
                 com.example.releaf.data.remote.SupabaseModule.triggerRefresh()
-                loadGarden(userId)
             } catch (e: Exception) {
                 e.printStackTrace()
             }

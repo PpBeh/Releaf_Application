@@ -5,6 +5,18 @@ import com.example.releaf.data.remote.dto.GardenDto
 import com.example.releaf.data.remote.dto.GardenUpdateDto
 import com.example.releaf.data.remote.dto.PlantSlotDto
 import io.github.jan.supabase.postgrest.postgrest
+import kotlinx.serialization.Serializable
+
+@Serializable
+data class GardenUpsertDto(
+    val user_id: String,
+    val current_exp: Int,
+    val exp_target: Int,
+    val grow_uses_left: Int,
+    val fertilize_uses_left: Int,
+    val current_points: Int,
+    val current_gems: Int
+)
 
 class GardenRepository {
     private val client = SupabaseModule.client
@@ -31,5 +43,29 @@ class GardenRepository {
         plantType?.let { update["plant_type"] = it }
         client.postgrest.from("plant_slots")
             .update(update) { filter { eq("id", slotId) } }
+    }
+
+    suspend fun upsertGardenExp(
+        userId: String,
+        newExp: Int,
+        newPoints: Int,
+        newGems: Int,
+        expTarget: Int,
+        waterUsesLeft: Int,
+        fertilizeUsesLeft: Int
+    ) {
+        val upsertData = GardenUpsertDto(
+            user_id = userId,
+            current_exp = newExp,
+            exp_target = expTarget,
+            grow_uses_left = waterUsesLeft,
+            fertilize_uses_left = fertilizeUsesLeft,
+            current_points = newPoints,
+            current_gems = newGems
+        )
+
+        client.postgrest.from("gardens").upsert(upsertData) {
+            onConflict = "user_id"
+        }
     }
 }
