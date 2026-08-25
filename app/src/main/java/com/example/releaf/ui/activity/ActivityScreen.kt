@@ -24,6 +24,7 @@ import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
+import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -32,7 +33,9 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.example.releaf.data.remote.dto.UserQuestDto
@@ -46,14 +49,24 @@ fun ActivityScreen(
     userId: String,
     themeViewModel: ThemeViewModel
 ) {
+    val context = LocalContext.current
     val userQuests by viewModel.userQuests.collectAsState()
+
     val gardenViewModel: com.example.releaf.ui.viewmodel.GardenViewModel = androidx.lifecycle.viewmodel.compose.viewModel()
-    val garden by gardenViewModel.garden.collectAsState()
+    val currentExp by gardenViewModel.currentExp.collectAsState()
 
     LaunchedEffect(userId) {
         viewModel.loadQuests(userId)
-        gardenViewModel.loadGarden(userId)
+        gardenViewModel.loadGarden(userId, context)
     }
+
+    val treeStage = gardenViewModel.getTreeStage(currentExp)
+    val nextTargetExp = when (treeStage) {
+        1 -> 2000
+        2 -> 5000
+        else -> 10000
+    }
+    val expProgress = (currentExp.toFloat() / nextTargetExp.toFloat()).coerceIn(0f, 1f)
 
     Column(
         modifier = Modifier
@@ -70,10 +83,9 @@ fun ActivityScreen(
                 modifier = Modifier
                     .background(MaterialTheme.colorScheme.surface, RoundedCornerShape(24.dp))
                     .padding(horizontal = 20.dp, vertical = 12.dp)
-                    .weight(1f)
-                    .clickable { 
+                    .clickable {
                         viewModel.loadQuests(userId)
-                        gardenViewModel.loadGarden(userId)
+                        gardenViewModel.loadGarden(userId, context)
                     }
             ) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
@@ -82,23 +94,35 @@ fun ActivityScreen(
                     Icon(Icons.Default.Refresh, contentDescription = "Refresh", modifier = Modifier.size(16.dp))
                 }
             }
-            
+
             Spacer(modifier = Modifier.width(12.dp))
-            
-            // Live currency display in Activity tab
-            Row(
+
+            Column(
                 modifier = Modifier
+                    .weight(1f)
                     .background(MaterialTheme.colorScheme.surfaceVariant, RoundedCornerShape(20.dp))
-                    .padding(horizontal = 12.dp, vertical = 8.dp),
-                verticalAlignment = Alignment.CenterVertically
+                    .padding(horizontal = 16.dp, vertical = 8.dp),
+                horizontalAlignment = Alignment.CenterHorizontally
             ) {
-                Text("\uD83E\uDE99", style = MaterialTheme.typography.bodyMedium)
-                Spacer(modifier = Modifier.width(4.dp))
-                Text("${garden?.current_points ?: 0}", fontWeight = FontWeight.Bold)
-                Spacer(modifier = Modifier.width(8.dp))
-                Text("\uD83D\uDC8E", style = MaterialTheme.typography.bodyMedium)
-                Spacer(modifier = Modifier.width(4.dp))
-                Text("${garden?.current_gems ?: 0}", fontWeight = FontWeight.Bold)
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text("🌟", style = MaterialTheme.typography.bodyMedium)
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Text(
+                        "$currentExp / $nextTargetExp",
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.primary
+                    )
+                }
+                Spacer(modifier = Modifier.height(4.dp))
+                LinearProgressIndicator(
+                    progress = { expProgress },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(6.dp)
+                        .clip(RoundedCornerShape(3.dp)),
+                    color = Color(0xFF4CAF50),
+                    trackColor = MaterialTheme.colorScheme.outlineVariant
+                )
             }
         }
         if (userQuests.isEmpty()) {
@@ -136,7 +160,7 @@ fun ActivityScreen(
 
 @Composable
 private fun QuestCard(
-    userQuest: UserQuestDto, 
+    userQuest: UserQuestDto,
     themeViewModel: ThemeViewModel,
     onActionClick: () -> Unit
 ) {
@@ -146,7 +170,7 @@ private fun QuestCard(
         "MEDIUM" -> Color(0xFFFB8C00)
         else -> Color(0xFF43A047)
     }
-    
+
     Card(
         shape = RoundedCornerShape(20.dp),
         colors = CardDefaults.cardColors(containerColor = cardColor),
@@ -155,10 +179,10 @@ private fun QuestCard(
         Column(modifier = Modifier.padding(20.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text(
-                    quest.title, 
-                    style = MaterialTheme.typography.titleLarge, 
-                    color = Color.White, 
-                    fontWeight = FontWeight.Bold, 
+                    quest.title,
+                    style = MaterialTheme.typography.titleLarge,
+                    color = Color.White,
+                    fontWeight = FontWeight.Bold,
                     modifier = Modifier.weight(1f)
                 )
                 Box(
@@ -171,43 +195,44 @@ private fun QuestCard(
             }
             Spacer(modifier = Modifier.height(4.dp))
             Text(quest.description, color = Color.White, style = MaterialTheme.typography.bodyMedium)
-            
+
             Row(
                 modifier = Modifier.fillMaxWidth().padding(top = 16.dp),
                 verticalAlignment = Alignment.Bottom
             ) {
                 Column(modifier = Modifier.weight(1f)) {
                     Text(
-                        string("reward", themeViewModel), 
-                        color = Color.White.copy(alpha = 0.8f), 
+                        string("reward", themeViewModel),
+                        color = Color.White.copy(alpha = 0.8f),
                         style = MaterialTheme.typography.labelMedium
                     )
                     Row(verticalAlignment = Alignment.CenterVertically) {
-                        if (quest.reward_label == "Gems") {
-                            Text("\uD83D\uDC8E", style = MaterialTheme.typography.bodyLarge)
-                            Spacer(modifier = Modifier.width(4.dp))
-                        }
-                        val rewardLabel = if (quest.reward_label == "Gems") string("gems", themeViewModel) 
-                                          else string("points", themeViewModel)
-                        Text("${quest.reward_count} $rewardLabel", color = Color.White, fontWeight = FontWeight.Bold, style = MaterialTheme.typography.bodyLarge)
+                        Text("🌟", style = MaterialTheme.typography.bodyLarge)
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text(
+                            "+ ${quest.reward_count} Points",
+                            color = Color.White,
+                            fontWeight = FontWeight.Bold,
+                            style = MaterialTheme.typography.bodyLarge
+                        )
                     }
                 }
-                
+
                 Column(horizontalAlignment = Alignment.End) {
                     if (userQuest.status == "IN_PROGRESS") {
                         Text(
-                            "${userQuest.progress_current}/${quest.progress_target}", 
-                            color = Color.White, 
+                            "${userQuest.progress_current}/${quest.progress_target}",
+                            color = Color.White,
                             style = MaterialTheme.typography.titleMedium,
                             fontWeight = FontWeight.Bold
                         )
                         Spacer(modifier = Modifier.height(4.dp))
                     }
-                    
+
                     Button(
                         onClick = onActionClick,
                         colors = ButtonDefaults.buttonColors(
-                            containerColor = Color.White, 
+                            containerColor = Color.White,
                             contentColor = cardColor,
                             disabledContainerColor = Color.White.copy(alpha = 0.3f),
                             disabledContentColor = Color.White

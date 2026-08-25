@@ -90,22 +90,6 @@ fun GardenScreen(
                                 fontWeight = FontWeight.Bold
                             )
                         }
-
-                        Box(
-                            modifier = Modifier
-                                .background(Color(0xFFE91E63), RoundedCornerShape(12.dp))
-                                .padding(horizontal = 12.dp, vertical = 6.dp)
-                        ) {
-                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                Text("\uD83D\uDC8E", style = MaterialTheme.typography.bodySmall)
-                                Spacer(modifier = Modifier.width(4.dp))
-                                Text(
-                                    text = "$currentGems",
-                                    color = Color.White,
-                                    fontWeight = FontWeight.Bold
-                                )
-                            }
-                        }
                     }
 
                     Spacer(modifier = Modifier.height(10.dp))

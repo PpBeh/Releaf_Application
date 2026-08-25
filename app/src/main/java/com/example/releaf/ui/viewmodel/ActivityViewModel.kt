@@ -13,10 +13,13 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
 import java.util.*
+import kotlin.math.max
 
 class ActivityViewModel(application: Application) : AndroidViewModel(application) {
     private val repository = QuestRepository()
-    private val prefs = application.getSharedPreferences("activity_prefs", Context.MODE_PRIVATE)
+    private val activityPrefs = application.getSharedPreferences("activity_prefs", Context.MODE_PRIVATE)
+
+    private val gardenPrefs = application.getSharedPreferences("garden_prefs", Context.MODE_PRIVATE)
 
     private val _userQuests = MutableStateFlow<List<UserQuestDto>>(emptyList())
     val userQuests: StateFlow<List<UserQuestDto>> = _userQuests.asStateFlow()
@@ -25,38 +28,57 @@ class ActivityViewModel(application: Application) : AndroidViewModel(application
         viewModelScope.launch {
             try {
                 val today = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(Date())
-                val lastRefresh = prefs.getString("last_refresh_$userId", "")
 
-                repository.incrementQuestsByType(userId, "CHECK_IN")
+                try {
+                    repository.incrementQuestsByType(userId, "CHECK_IN")
+                } catch (e: Exception) {
+                    android.util.Log.e("ActivityViewModel", "Check-in failed", e)
+                }
 
-                val userQuests = repository.getUserQuests(userId)
-                
-                if (today != lastRefresh) {
-                    // Daily refresh logic
-                    val easyQuests = repository.getQuestsByDifficulty("EASY")
-                    val medQuests = repository.getQuestsByDifficulty("MEDIUM")
-                    val hardQuests = repository.getQuestsByDifficulty("HARD")
-                    
-                    val selected = mutableListOf<String>()
-                    easyQuests.shuffled().firstOrNull()?.id?.let { selected.add(it) }
-                    medQuests.shuffled().firstOrNull()?.id?.let { selected.add(it) }
-                    hardQuests.shuffled().firstOrNull()?.id?.let { selected.add(it) }
-                    
-                    // Assign new ones if not already assigned
-                    selected.forEach { qId ->
-                        if (userQuests.none { it.quest_id == qId }) {
-                            repository.assignQuestToUser(userId, qId)
+                val allAvailableQuests = repository.getQuestsByDifficulty("EASY") +
+                        repository.getQuestsByDifficulty("MEDIUM") +
+                        repository.getQuestsByDifficulty("HARD")
+                val currentUserQuests = repository.getUserQuests(userId)
+
+                currentUserQuests.forEach { uq ->
+                    val lastUpdate = uq.updated_at ?: ""
+                    if (!lastUpdate.startsWith(today)) {
+                        try {
+                            repository.updateUserQuest(
+                                uq.quest_id,
+                                userId,
+                                UserQuestUpdateDto(progress_current = 0, status = "IN_PROGRESS")
+                            )
+                        } catch (e: Exception) {
+                            android.util.Log.e("ActivityViewModel", "Failed to reset quest", e)
                         }
                     }
-                    prefs.edit().putString("last_refresh_$userId", today).apply()
                 }
 
-                val quests = repository.getUserQuests(userId)
-                _userQuests.value = quests.filter { 
-                    (it.updated_at ?: "").startsWith(today) || it.status != "CLAIMED" 
+                allAvailableQuests.forEach { quest ->
+                    if (currentUserQuests.none { it.quest_id == quest.id }) {
+                        try {
+                            repository.assignQuestToUser(userId, quest.id)
+                        } catch (e: Exception) {
+                            android.util.Log.e("ActivityViewModel", "Failed to assign new quest", e)
+                        }
+                    }
                 }
+
+                val updatedQuests = repository.getUserQuests(userId)
+
+                val statusOrder = mapOf("CLAIMABLE" to 0, "IN_PROGRESS" to 1, "CLAIMED" to 2)
+                val difficultyOrder = mapOf("EASY" to 0, "MEDIUM" to 1, "HARD" to 2)
+
+                _userQuests.value = updatedQuests
+                    .filter { (it.updated_at ?: "").startsWith(today) || it.status != "CLAIMED" }
+                    .sortedWith(compareBy(
+                        { statusOrder[it.status] ?: 99 },
+                        { difficultyOrder[it.quest?.difficulty] ?: 99 }
+                    ))
+
             } catch (e: Exception) {
-                android.util.Log.e("ActivityViewModel", "Error loading quests", e)
+                android.util.Log.e("ActivityViewModel", "Error loading quests completely", e)
             }
         }
     }
@@ -66,47 +88,41 @@ class ActivityViewModel(application: Application) : AndroidViewModel(application
 
     fun claimQuest(questId: String, userId: String) {
         viewModelScope.launch {
-            // Update local state immediately for responsiveness
-            _userQuests.value = _userQuests.value.map { 
-                if (it.quest_id == questId) it.copy(status = "CLAIMED") else it 
+            _userQuests.value = _userQuests.value.map {
+                if (it.quest_id == questId) it.copy(status = "CLAIMED") else it
             }
-            
+
             try {
                 val userQuest = repository.claimQuest(questId, userId)
                 val quest = repository.getQuest(questId) ?: userQuest?.quest
+
                 if (quest != null) {
                     val garden = gardenRepository.getGarden(userId)
-                    val newPoints = if (quest.reward_label.equals("Points", ignoreCase = true)) {
-                        (garden?.current_points ?: 0) + quest.reward_count
-                    } else {
-                        garden?.current_points ?: 0
-                    }
-                    val newGems = if (quest.reward_label.equals("Gems", ignoreCase = true)) {
-                        (garden?.current_gems ?: 0) + quest.reward_count
-                    } else {
-                        garden?.current_gems ?: 0
+
+                    val localExp = gardenPrefs.getInt("tree_exp_${userId}", 0)
+                    val remoteExp = garden?.current_exp ?: 0
+                    val actualExp = max(localExp, remoteExp)
+
+                    val newExp = actualExp + quest.reward_count
+                    val newPoints = (garden?.current_points ?: 0) + quest.reward_count
+
+                    gardenPrefs.edit().putInt("tree_exp_${userId}", newExp).apply()
+
+                    gardenRepository.upsertGardenExp(
+                        userId = userId,
+                        newExp = newExp,
+                        newPoints = newPoints,
+                        newGems = garden?.current_gems ?: 0,
+                        expTarget = garden?.exp_target ?: 2000,
+                        waterUsesLeft = garden?.grow_uses_left ?: 1,
+                        fertilizeUsesLeft = garden?.fertilize_uses_left ?: 1
+                    )
+
+                    val profile = authRepository.getProfile(userId)
+                    if (profile != null) {
+                        authRepository.updateTotalPoints(userId, profile.total_points + quest.reward_count)
                     }
 
-                    if (garden != null) {
-                        gardenRepository.updateGarden(
-                            userId,
-                            com.example.releaf.data.remote.dto.GardenUpdateDto(
-                                current_exp = garden.current_exp,
-                                exp_target = garden.exp_target,
-                                grow_uses_left = garden.grow_uses_left,
-                                fertilize_uses_left = garden.fertilize_uses_left,
-                                current_points = newPoints,
-                                current_gems = newGems
-                            )
-                        )
-                    }
-
-                    if (quest.reward_label.equals("Points", ignoreCase = true)) {
-                        val profile = authRepository.getProfile(userId)
-                        if (profile != null) {
-                            authRepository.updateTotalPoints(userId, profile.total_points + quest.reward_count)
-                        }
-                    }
                     com.example.releaf.data.remote.SupabaseModule.triggerRefresh()
                 }
             } catch (e: Exception) {

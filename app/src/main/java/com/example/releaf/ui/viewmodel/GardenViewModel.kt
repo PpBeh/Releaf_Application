@@ -224,6 +224,8 @@ class GardenViewModel : ViewModel() {
 
                 if (actionType == "FERTILIZE") {
                     questRepository.incrementQuestsByType(userId, "FERTILIZE")
+                } else if (actionType == "WATER") {
+                    questRepository.incrementQuestsByType(userId, "WATER") // 新增：告诉 Activity 任务，用户浇水了！
                 }
 
                 val profile = authRepository.getProfile(userId)
