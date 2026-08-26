@@ -45,7 +45,8 @@ class CommentViewModel : ViewModel() {
                 _reviews.value = reviews
                 val votes = repository.getUserVotes(userId, reviews.map { it.id })
                 _userVotes.value = votes
-            } catch (_: Exception) {
+            } catch (e: Exception) {
+                e.printStackTrace()
                 _reviews.value = emptyList()
             }
             _isLoading.value = false
@@ -62,7 +63,7 @@ class CommentViewModel : ViewModel() {
             try {
                 val existingReviews = try {
                     repository.getReviews(poiId)
-                } catch (_: Exception) {
+                } catch (e: Exception) {
                     emptyList()
                 }
                 if (existingReviews.any { it.user_id == userId }) {
@@ -74,11 +75,19 @@ class CommentViewModel : ViewModel() {
                 repository.addReview(
                     ReviewInsertDto(poi_id = poiId, user_id = userId, star_rating = starRating, text = text)
                 )
+
                 com.example.releaf.data.repository.QuestRepository().incrementQuestsByType(userId, "REVIEW")
+
                 _reviews.value = repository.getReviews(poiId)
                 repository.updatePoiStats(poiId)
                 _errorMessage.value = null
-            } catch (_: Exception) { }
+
+                com.example.releaf.data.remote.SupabaseModule.triggerRefresh()
+
+            } catch (e: Exception) {
+                e.printStackTrace()
+                android.util.Log.e("CommentViewModel", "Error adding review", e)
+            }
             _isProcessing.value = false
         }
     }
@@ -89,7 +98,9 @@ class CommentViewModel : ViewModel() {
             try {
                 repository.updateReview(reviewId, newText)
                 _reviews.value = repository.getReviews(currentPoiId)
-            } catch (_: Exception) { }
+            } catch (e: Exception) {
+                e.printStackTrace()
+            }
             _isProcessing.value = false
         }
     }
@@ -100,7 +111,9 @@ class CommentViewModel : ViewModel() {
             try {
                 repository.deleteReview(reviewId)
                 _reviews.value = repository.getReviews(currentPoiId)
-            } catch (_: Exception) { }
+            } catch (e: Exception) {
+                e.printStackTrace()
+            }
             _isProcessing.value = false
         }
     }
@@ -110,7 +123,9 @@ class CommentViewModel : ViewModel() {
             _isProcessing.value = true
             try {
                 repository.reportReview(reviewId, currentUserId)
-            } catch (_: Exception) { }
+            } catch (e: Exception) {
+                e.printStackTrace()
+            }
             _isProcessing.value = false
         }
     }
@@ -128,7 +143,9 @@ class CommentViewModel : ViewModel() {
                 }
                 _userVotes.value = votes
                 _reviews.value = repository.getReviews(currentPoiId)
-            } catch (_: Exception) { }
+            } catch (e: Exception) {
+                e.printStackTrace()
+            }
             _isVoting.value = false
         }
     }
@@ -146,7 +163,9 @@ class CommentViewModel : ViewModel() {
                 }
                 _userVotes.value = votes
                 _reviews.value = repository.getReviews(currentPoiId)
-            } catch (_: Exception) { }
+            } catch (e: Exception) {
+                e.printStackTrace()
+            }
             _isVoting.value = false
         }
     }

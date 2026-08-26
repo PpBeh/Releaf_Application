@@ -34,7 +34,7 @@ fun GardenScreen(
     val statusMessage by viewModel.statusMessage.collectAsState()
 
     val currentExp by viewModel.currentExp.collectAsState()
-    val currentGems by viewModel.currentGems.collectAsState()
+    //val currentGems by viewModel.currentGems.collectAsState()
     val waterUsesLeft by viewModel.waterUsesLeft.collectAsState()
     val fertilizeUsesLeft by viewModel.fertilizeUsesLeft.collectAsState()
 

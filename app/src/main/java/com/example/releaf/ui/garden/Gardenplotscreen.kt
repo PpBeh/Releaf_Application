@@ -11,11 +11,10 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
@@ -31,6 +30,7 @@ import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -43,8 +43,8 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.example.releaf.data.remote.dto.PlantSlotDto
 import com.example.releaf.ui.theme.string
@@ -58,15 +58,22 @@ fun GardenPlotScreen(
     themeViewModel: ThemeViewModel,
     onBackClick: () -> Unit
 ) {
-    val garden by viewModel.garden.collectAsState()
+    val context = LocalContext.current
+    val currentExp by viewModel.currentExp.collectAsState()
     val plantSlots by viewModel.plantSlots.collectAsState()
 
     LaunchedEffect(userId) {
-        viewModel.loadGarden(userId)
+        viewModel.loadGarden(userId, context)
     }
 
-    val currentPoints = garden?.current_points ?: 0
-    val pointsTarget = garden?.points_target ?: 100
+    val treeStage = viewModel.getTreeStage(currentExp)
+    val nextTargetExp = when (treeStage) {
+        1 -> 2000
+        2 -> 5000
+        else -> 10000
+    }
+    val expProgress = (currentExp.toFloat() / nextTargetExp.toFloat()).coerceIn(0f, 1f)
+
     val slots = plantSlots.ifEmpty {
         List(6) { i -> PlantSlotDto(user_id = userId, slot_index = i + 1, state = "EMPTY_POT") }
     }
@@ -86,35 +93,39 @@ fun GardenPlotScreen(
             IconButton(onClick = onBackClick) {
                 Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
             }
-            
+
             Spacer(modifier = Modifier.width(8.dp))
-            
+
             Card(
                 shape = RoundedCornerShape(20.dp),
                 colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
-                modifier = Modifier.weight(1f)
-            ) {
-                Row(
-                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.SpaceBetween
-                ) {
-                    Text(string("points", themeViewModel), style = MaterialTheme.typography.labelSmall)
-                    Text("$currentPoints / $pointsTarget", fontWeight = FontWeight.Bold)
-                }
-            }
-
-            Spacer(modifier = Modifier.width(12.dp))
-
-            Box(
                 modifier = Modifier
-                    .background(Color(0xFFE91E63), RoundedCornerShape(20.dp))
-                    .padding(horizontal = 16.dp, vertical = 8.dp)
+                    .weight(1f)
+                    .padding(end = 8.dp)
             ) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text("\uD83D\uDC8E", style = MaterialTheme.typography.bodySmall)
-                    Spacer(modifier = Modifier.width(4.dp))
-                    Text("${garden?.current_gems ?: 0}", color = Color.White, fontWeight = FontWeight.Bold)
+                Column(
+                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text("🌟", style = MaterialTheme.typography.bodyMedium)
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text(
+                            "$currentExp / $nextTargetExp",
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.primary
+                        )
+                    }
+                    Spacer(modifier = Modifier.height(4.dp))
+                    LinearProgressIndicator(
+                        progress = { expProgress },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(6.dp)
+                            .clip(RoundedCornerShape(3.dp)),
+                        color = Color(0xFF4CAF50),
+                        trackColor = MaterialTheme.colorScheme.outlineVariant
+                    )
                 }
             }
         }
@@ -146,7 +157,7 @@ fun GardenPlotScreen(
             }
         }
 
-        // Bottom Tools Bar
+
         Card(
             modifier = Modifier.fillMaxWidth(),
             shape = RoundedCornerShape(topStart = 32.dp, topEnd = 32.dp),
@@ -186,8 +197,10 @@ private fun PlantPotTile(slot: PlantSlotDto, themeViewModel: ThemeViewModel, onC
             .clickable(onClick = onClick),
         shape = RoundedCornerShape(28.dp),
         colors = CardDefaults.cardColors(
-            containerColor = if (slot.state == "LOCKED") MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f)
-                             else MaterialTheme.colorScheme.surfaceVariant
+            containerColor = if (slot.state == "LOCKED") MaterialTheme.colorScheme.surfaceVariant.copy(
+                alpha = 0.4f
+            )
+            else MaterialTheme.colorScheme.surfaceVariant
         ),
         elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
     ) {
@@ -199,7 +212,7 @@ private fun PlantPotTile(slot: PlantSlotDto, themeViewModel: ThemeViewModel, onC
                 "FULLY_GROWN" -> "\uD83C\uDF3B"
                 else -> ""
             }
-            
+
             if (slot.state == "EMPTY_POT") {
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
                     Box(
@@ -209,14 +222,27 @@ private fun PlantPotTile(slot: PlantSlotDto, themeViewModel: ThemeViewModel, onC
                                 Brush.radialGradient(
                                     listOf(Color(0xFF8D6E63), Color(0xFF5D4037))
                                 ),
-                                RoundedCornerShape(bottomStart = 24.dp, bottomEnd = 24.dp, topStart = 6.dp, topEnd = 6.dp)
+                                RoundedCornerShape(
+                                    bottomStart = 24.dp,
+                                    bottomEnd = 24.dp,
+                                    topStart = 6.dp,
+                                    topEnd = 6.dp
+                                )
                             )
                     )
                     Spacer(modifier = Modifier.height(4.dp))
-                    Text(string("empty_pot", themeViewModel), style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Text(
+                        string("empty_pot", themeViewModel),
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
                 }
             } else if (slot.state == "LOCKED") {
-                Text(emoji, style = MaterialTheme.typography.displayMedium, color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f))
+                Text(
+                    emoji,
+                    style = MaterialTheme.typography.displayMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
+                )
             } else {
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
                     Text(emoji, style = MaterialTheme.typography.displayMedium)
@@ -226,12 +252,24 @@ private fun PlantPotTile(slot: PlantSlotDto, themeViewModel: ThemeViewModel, onC
                             onClick = onClick,
                             contentPadding = PaddingValues(horizontal = 12.dp, vertical = 0.dp),
                             modifier = Modifier.height(28.dp),
-                            colors = androidx.compose.material3.ButtonDefaults.buttonColors(containerColor = Color(0xFFFFC107))
+                            colors = androidx.compose.material3.ButtonDefaults.buttonColors(
+                                containerColor = Color(0xFFFFC107)
+                            )
                         ) {
-                            Text(string("harvest", themeViewModel).uppercase(), style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold, color = Color.Black)
+                            Text(
+                                string("harvest", themeViewModel).uppercase(),
+                                style = MaterialTheme.typography.labelSmall,
+                                fontWeight = FontWeight.Bold,
+                                color = Color.Black
+                            )
                         }
                     } else if (slot.state == "GROWING") {
-                        Text(string("growing", themeViewModel), style = MaterialTheme.typography.labelSmall, color = Color(0xFF4CAF50), fontWeight = FontWeight.Bold)
+                        Text(
+                            string("growing", themeViewModel),
+                            style = MaterialTheme.typography.labelSmall,
+                            color = Color(0xFF4CAF50),
+                            fontWeight = FontWeight.Bold
+                        )
                     }
                 }
             }
