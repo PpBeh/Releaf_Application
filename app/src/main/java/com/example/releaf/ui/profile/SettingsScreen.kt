@@ -15,43 +15,36 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.automirrored.filled.Logout
-import androidx.compose.material.icons.filled.Block
-import androidx.compose.material.icons.filled.ChevronRight
-import androidx.compose.material.icons.filled.Delete
-import androidx.compose.material.icons.filled.Info
-import androidx.compose.material.icons.filled.Notifications
-import androidx.compose.material.icons.filled.Palette
-import androidx.compose.material.icons.filled.Person
-import androidx.compose.material.icons.filled.Refresh
-import androidx.compose.material.icons.filled.Translate
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.RadioButton
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.ui.Alignment
-import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
-import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.window.Dialog
+import com.example.releaf.R
 import com.example.releaf.ui.theme.AppTheme
 import com.example.releaf.ui.theme.string
 import com.example.releaf.ui.viewmodel.AppLanguage
 import com.example.releaf.ui.viewmodel.ThemeViewModel
-import androidx.compose.ui.unit.dp
 
 internal const val LOG_OUT_LABEL = "Log out"
 
-internal data class SettingsRowData(val icon: ImageVector, val label: String, val key: String = "")
+data class SettingsRowData(val icon: Int, val title: String, val key: String = "")
 
 @Composable
 fun SettingsScreen(
@@ -65,9 +58,9 @@ fun SettingsScreen(
     var showLangDialog by remember { mutableStateOf(false) }
 
     if (showLangDialog) {
-        androidx.compose.ui.window.Dialog(onDismissRequest = { showLangDialog = false }) {
-            androidx.compose.material3.Surface(
-                shape = androidx.compose.foundation.shape.RoundedCornerShape(16.dp),
+        Dialog(onDismissRequest = { showLangDialog = false }) {
+            Surface(
+                shape = RoundedCornerShape(16.dp),
                 color = MaterialTheme.colorScheme.surface
             ) {
                 Column(modifier = Modifier.padding(16.dp)) {
@@ -84,7 +77,7 @@ fun SettingsScreen(
                                 .padding(vertical = 12.dp),
                             verticalAlignment = Alignment.CenterVertically
                         ) {
-                            androidx.compose.material3.RadioButton(
+                            RadioButton(
                                 selected = (currentLang == lang),
                                 onClick = null
                             )
@@ -98,9 +91,9 @@ fun SettingsScreen(
     }
 
     if (showThemeDialog) {
-        androidx.compose.ui.window.Dialog(onDismissRequest = { showThemeDialog = false }) {
-            androidx.compose.material3.Surface(
-                shape = androidx.compose.foundation.shape.RoundedCornerShape(16.dp),
+        Dialog(onDismissRequest = { showThemeDialog = false }) {
+            Surface(
+                shape = RoundedCornerShape(16.dp),
                 color = MaterialTheme.colorScheme.surface
             ) {
                 Column(modifier = Modifier.padding(16.dp)) {
@@ -117,7 +110,7 @@ fun SettingsScreen(
                                 .padding(vertical = 12.dp),
                             verticalAlignment = Alignment.CenterVertically
                         ) {
-                            androidx.compose.material3.RadioButton(
+                            RadioButton(
                                 selected = (currentTheme == theme),
                                 onClick = null
                             )
@@ -131,15 +124,15 @@ fun SettingsScreen(
     }
 
     val rows = listOf(
-        SettingsRowData(Icons.Default.Refresh, "Updates"),
-        SettingsRowData(Icons.Default.Notifications, "Notification Settings"),
-        SettingsRowData(Icons.Default.Palette, string("theme", themeViewModel), "theme"),
-        SettingsRowData(Icons.Default.Translate, string("language", themeViewModel), "language"),
-        SettingsRowData(Icons.Default.Block, "Permission"),
-        SettingsRowData(Icons.Default.Delete, "Clear Cache"),
-        SettingsRowData(Icons.Default.Person, "Account"),
-        SettingsRowData(Icons.Default.Info, "About Us"),
-        SettingsRowData(Icons.AutoMirrored.Filled.Logout, string("logout", themeViewModel), "logout")
+        SettingsRowData(R.drawable.ic_refresh, "Updates"),
+        SettingsRowData(R.drawable.ic_notifications, "Notification Settings"),
+        SettingsRowData(R.drawable.ic_palette, string("theme", themeViewModel), "theme"),
+        SettingsRowData(R.drawable.ic_translate, string("language", themeViewModel), "language"),
+        SettingsRowData(R.drawable.ic_block, "Permission"),
+        SettingsRowData(R.drawable.ic_delete, "Clear Cache"),
+        SettingsRowData(R.drawable.ic_person, "Account"),
+        SettingsRowData(R.drawable.ic_info, "About Us"),
+        SettingsRowData(R.drawable.ic_logout, string("logout", themeViewModel), "logout")
     )
 
     Column(modifier = Modifier.fillMaxSize()) {
@@ -150,7 +143,12 @@ fun SettingsScreen(
                 .background(MaterialTheme.colorScheme.primary)
         ) {
             IconButton(onClick = onBackClick, modifier = Modifier.padding(8.dp)) {
-                Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back", tint = Color.White)
+                // 3. 替换返回按钮
+                Icon(
+                    painter = painterResource(id = R.drawable.ic_arrow_back),
+                    contentDescription = "Back",
+                    tint = Color.White
+                )
             }
             Row(
                 modifier = Modifier
@@ -162,9 +160,15 @@ fun SettingsScreen(
                     modifier = Modifier
                         .size(64.dp)
                         .clip(CircleShape)
-                        .background(MaterialTheme.colorScheme.surface)
-                    // TODO: painterResource(R.drawable.avatar_placeholder) or AsyncImage(user.avatarUrl)
-                )
+                        .background(MaterialTheme.colorScheme.surface),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        painter = painterResource(id = R.drawable.ic_person),
+                        contentDescription = "Avatar",
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
                 Spacer(modifier = Modifier.width(16.dp))
                 Column {
                     Text("User120033029", color = Color.White, fontWeight = FontWeight.Bold, style = MaterialTheme.typography.titleMedium)
@@ -200,7 +204,7 @@ fun SettingsScreen(
 }
 
 @Composable
-internal fun SettingsRow(row: SettingsRowData, onClick: () -> Unit) {
+fun SettingsRow(row: SettingsRowData, onClick: () -> Unit) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -208,10 +212,17 @@ internal fun SettingsRow(row: SettingsRowData, onClick: () -> Unit) {
             .padding(horizontal = 24.dp, vertical = 16.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        Icon(row.icon, contentDescription = null)
+        Icon(
+            painter = painterResource(id = row.icon),
+            contentDescription = null,
+            tint = MaterialTheme.colorScheme.onSurfaceVariant
+        )
         Spacer(modifier = Modifier.width(16.dp))
-        Text(row.label, modifier = Modifier.weight(1f))
-        Icon(Icons.Default.ChevronRight, contentDescription = null)
+        Text(row.title, modifier = Modifier.weight(1f))
+        Icon(
+            painter = painterResource(id = R.drawable.ic_chevron_right),
+            contentDescription = null,
+            tint = MaterialTheme.colorScheme.outlineVariant
+        )
     }
 }
-

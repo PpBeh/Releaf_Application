@@ -5,13 +5,13 @@ import kotlinx.serialization.Serializable
 @Serializable
 data class ProfileDto(
     val id: String,
-    val name: String = "",
-    val email: String = "",
-    val phone: String = "",
-    val title: String = "",
-    val avatar_url: String = "",
-    val total_points: Int = 0,
-    val created_at: String = ""
+    val name: String? = "User",
+    val email: String? = "",
+    val phone: String? = "",
+    val title: String? = "Gardener",
+    val avatar_url: String? = "",
+    val total_points: Int? = 0,
+    val created_at: String? = ""
 )
 
 @Serializable

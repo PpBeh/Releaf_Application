@@ -120,7 +120,7 @@ class ActivityViewModel(application: Application) : AndroidViewModel(application
 
                     val profile = authRepository.getProfile(userId)
                     if (profile != null) {
-                        authRepository.updateTotalPoints(userId, profile.total_points + quest.reward_count)
+                        authRepository.updateTotalPoints(userId, (profile.total_points ?: 0) + quest.reward_count)
                     }
 
                     com.example.releaf.data.remote.SupabaseModule.triggerRefresh()

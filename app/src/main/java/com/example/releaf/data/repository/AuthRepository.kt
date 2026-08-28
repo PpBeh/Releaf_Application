@@ -188,6 +188,11 @@ class AuthRepository {
             null
         }
     }
+
+    suspend fun completeProfileSetup(userId: String, name: String) {
+        updateProfileName(userId, name)
+        createGarden(userId)
+    }
 }
 
 sealed class SessionState {

@@ -230,7 +230,7 @@ class GardenViewModel : ViewModel() {
 
                 val profile = authRepository.getProfile(userId)
                 if (profile != null) {
-                    authRepository.updateTotalPoints(userId, profile.total_points + pointsToAdd)
+                    authRepository.updateTotalPoints(userId, (profile.total_points ?: 0) + pointsToAdd)
                 }
 
                 com.example.releaf.data.remote.SupabaseModule.triggerRefresh()

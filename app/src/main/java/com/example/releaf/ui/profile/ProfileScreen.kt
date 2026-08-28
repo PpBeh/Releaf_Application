@@ -18,19 +18,6 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.Logout
-import androidx.compose.material.icons.filled.Block
-import androidx.compose.material.icons.filled.ChevronRight
-import androidx.compose.material.icons.filled.Delete
-import androidx.compose.material.icons.filled.Favorite
-import androidx.compose.material.icons.filled.Info
-import androidx.compose.material.icons.filled.Notifications
-import androidx.compose.material.icons.filled.Palette
-import androidx.compose.material.icons.filled.Person
-import androidx.compose.material.icons.filled.Refresh
-import androidx.compose.material.icons.filled.Star
-import androidx.compose.material.icons.filled.Translate
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
@@ -39,18 +26,22 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
+import com.example.releaf.R
 import com.example.releaf.ui.theme.AppTheme
 import com.example.releaf.ui.theme.string
+import com.example.releaf.ui.viewmodel.GardenViewModel
 import com.example.releaf.ui.viewmodel.ProfileViewModel
 import com.example.releaf.ui.viewmodel.ThemeViewModel
 
@@ -63,12 +54,16 @@ fun ProfileScreen(
     onFavouritesClick: () -> Unit,
     onLogoutClick: () -> Unit
 ) {
+    val context = LocalContext.current
     val profile by viewModel.profile.collectAsState()
     val achievements by viewModel.achievements.collectAsState()
     val totalAchievements by viewModel.totalAchievements.collectAsState()
     val currentTheme by themeViewModel.theme.collectAsState()
     val currentLang by themeViewModel.language.collectAsState()
-    val context = androidx.compose.ui.platform.LocalContext.current
+
+    val gardenViewModel: GardenViewModel = androidx.lifecycle.viewmodel.compose.viewModel()
+    val currentExp by gardenViewModel.currentExp.collectAsState()
+
     var showThemeDialog by remember { mutableStateOf(false) }
     var showLangDialog by remember { mutableStateOf(false) }
 
@@ -147,26 +142,29 @@ fun ProfileScreen(
     }
 
     LaunchedEffect(userId) {
-        viewModel.loadProfile(userId)
+        if (userId.isNotBlank()) {
+            viewModel.loadProfile(userId)
+            gardenViewModel.loadGarden(userId, context)
+        }
     }
 
-    val displayName = profile?.name?.ifBlank { "User" } ?: "User"
-    val title = profile?.title?.ifBlank { "Gardener" } ?: "Gardener"
-    val phone = profile?.phone?.ifBlank { "N/A" } ?: "N/A"
-    val email = profile?.email?.ifBlank { "N/A" } ?: "N/A"
+    val displayName = profile?.name?.takeIf { it.isNotBlank() } ?: "User"
+    val title = profile?.title?.takeIf { it.isNotBlank() } ?: "Gardener"
+    val phone = profile?.phone?.takeIf { it.isNotBlank() } ?: "N/A"
+    val email = profile?.email?.takeIf { it.isNotBlank() } ?: "N/A"
     val isOwnProfile = userId == currentUserId
 
     val settingsRows = listOf(
-        SettingsRowData(Icons.Default.Favorite, string("favourite_toilets", themeViewModel), "fav"),
-        SettingsRowData(Icons.Default.Refresh, "Updates"),
-        SettingsRowData(Icons.Default.Notifications, "Notification Settings"),
-        SettingsRowData(Icons.Default.Palette, string("theme", themeViewModel), "theme"),
-        SettingsRowData(Icons.Default.Translate, string("language", themeViewModel), "language"),
-        SettingsRowData(Icons.Default.Block, "Permission"),
-        SettingsRowData(Icons.Default.Delete, "Clear Cache"),
-        SettingsRowData(Icons.Default.Person, "Account"),
-        SettingsRowData(Icons.Default.Info, "About Us"),
-        SettingsRowData(Icons.AutoMirrored.Filled.Logout, string("logout", themeViewModel), "logout")
+        SettingsRowData(R.drawable.ic_favorite, string("favourite_toilets", themeViewModel), "fav"),
+        SettingsRowData(R.drawable.ic_refresh, "Updates"),
+        SettingsRowData(R.drawable.ic_notifications, "Notification Settings"),
+        SettingsRowData(R.drawable.ic_palette, string("theme", themeViewModel), "theme"),
+        SettingsRowData(R.drawable.ic_translate, string("language", themeViewModel), "language"),
+        SettingsRowData(R.drawable.ic_block, "Permission"),
+        SettingsRowData(R.drawable.ic_delete, "Clear Cache"),
+        SettingsRowData(R.drawable.ic_person, "Account"),
+        SettingsRowData(R.drawable.ic_info, "About Us"),
+        SettingsRowData(R.drawable.ic_logout, string("logout", themeViewModel), "logout")
     )
 
     Column(
@@ -205,8 +203,8 @@ fun ProfileScreen(
                                 contentScale = androidx.compose.ui.layout.ContentScale.Crop
                             )
                         } else {
-                            androidx.compose.material3.Icon(
-                                Icons.Default.Person,
+                            Icon(
+                                painter = painterResource(id = R.drawable.ic_person),
                                 contentDescription = "Add photo",
                                 tint = MaterialTheme.colorScheme.onSurfaceVariant
                             )
@@ -227,9 +225,19 @@ fun ProfileScreen(
                         )
                         if (isOwnProfile) {
                             Row(verticalAlignment = Alignment.CenterVertically) {
-                                Icon(Icons.Default.Star, contentDescription = null, tint = Color(0xFFFFC107), modifier = Modifier.size(14.dp))
+                                Icon(
+                                    painter = painterResource(id = R.drawable.ic_star),
+                                    contentDescription = null,
+                                    tint = Color(0xFFFFC107),
+                                    modifier = Modifier.size(14.dp)
+                                )
                                 Spacer(modifier = Modifier.width(4.dp))
-                                Text("${profile?.total_points ?: 0} Total Points", color = Color.White, style = MaterialTheme.typography.bodySmall, fontWeight = FontWeight.Bold)
+                                Text(
+                                    "$currentExp Total Points",
+                                    color = Color.White,
+                                    style = MaterialTheme.typography.bodySmall,
+                                    fontWeight = FontWeight.Bold
+                                )
                             }
                             Text(phone, color = Color.White, style = MaterialTheme.typography.bodySmall)
                             Text(email, color = Color.White, style = MaterialTheme.typography.bodySmall)
@@ -240,7 +248,7 @@ fun ProfileScreen(
         }
 
         OutlinedButton(
-            onClick = { /* TODO: navigate to garden */ },
+            onClick = { /* navigate to garden */ },
             modifier = Modifier.padding(start = 20.dp, top = 16.dp)
         ) {
             Text("View Garden")

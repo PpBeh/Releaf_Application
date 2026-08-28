@@ -26,9 +26,35 @@ class ReviewRepository {
     private val client = SupabaseModule.client
 
     suspend fun getReviews(poiId: String): List<ReviewDto> {
-        return client.postgrest.from("reviews")
-            .select { filter { eq("poi_id", poiId) } }
-            .decodeList()
+        return try {
+            val reviews = client.postgrest.from("reviews")
+                .select { filter { eq("poi_id", poiId) } }
+                .decodeList<ReviewDto>()
+
+            if (reviews.isEmpty()) return emptyList()
+
+            val userIds = reviews.map { it.user_id }.distinct()
+            val profiles = try {
+                client.postgrest.from("profiles")
+                    .select { filter { isIn("id", userIds) } }
+                    .decodeList<ProfileDto>()
+                    .associateBy { it.id }
+            } catch (e: Exception) {
+                e.printStackTrace()
+                emptyMap()
+            }
+            reviews.map { review ->
+                val userProfile = profiles[review.user_id]
+                review.copy(
+                    reviewer_name = userProfile?.name?.takeIf { it.isNotBlank() }
+                        ?: review.reviewer_name.ifBlank { "User" },
+                    reviewer_avatar_url = userProfile?.avatar_url ?: review.reviewer_avatar_url
+                )
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
+            emptyList()
+        }
     }
 
     suspend fun addReview(review: ReviewInsertDto): ReviewDto? {
@@ -40,7 +66,9 @@ class ReviewRepository {
             client.postgrest.from("reviews").update(
                 mapOf("text" to newText)
             ) { filter { eq("id", reviewId) } }
-        } catch (_: Exception) { }
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
     }
 
     suspend fun deleteReview(reviewId: String) {
@@ -48,7 +76,9 @@ class ReviewRepository {
             client.postgrest.from("reviews").delete {
                 filter { eq("id", reviewId) }
             }
-        } catch (_: Exception) { }
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
     }
 
     suspend fun reportReview(reviewId: String, userId: String) {
@@ -56,7 +86,9 @@ class ReviewRepository {
             client.postgrest.from("review_reports").insert(
                 mapOf("review_id" to reviewId, "user_id" to userId)
             )
-        } catch (_: Exception) { }
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
     }
 
     suspend fun getUserVotes(userId: String, reviewIds: List<String>): Map<String, String> {
@@ -66,7 +98,8 @@ class ReviewRepository {
                 .select { filter { eq("user_id", userId) } }
                 .decodeList<ReviewVoteDto>()
             votes.filter { it.review_id in reviewIds }.associate { it.review_id to it.vote_type }
-        } catch (_: Exception) {
+        } catch (e: Exception) {
+            e.printStackTrace()
             emptyMap()
         }
     }
@@ -76,7 +109,8 @@ class ReviewRepository {
             client.postgrest.from("review_votes")
                 .select { filter { eq("review_id", reviewId); eq("user_id", userId) } }
                 .decodeList<ReviewVoteDto>()
-        } catch (_: Exception) {
+        } catch (e: Exception) {
+            e.printStackTrace()
             emptyList()
         }
 
@@ -160,13 +194,13 @@ class ReviewRepository {
             val avgRating = reviews.map { it.star_rating }.average()
             val dirtyCount = reviews.count {
                 it.text.contains("dirty", ignoreCase = true) ||
-                it.text.contains("disgusting", ignoreCase = true) ||
-                it.text.contains("filthy", ignoreCase = true)
+                        it.text.contains("disgusting", ignoreCase = true) ||
+                        it.text.contains("filthy", ignoreCase = true)
             }
             val cleanCount = reviews.count {
                 it.text.contains("clean", ignoreCase = true) ||
-                it.text.contains("spotless", ignoreCase = true) ||
-                it.text.contains("tidy", ignoreCase = true)
+                        it.text.contains("spotless", ignoreCase = true) ||
+                        it.text.contains("tidy", ignoreCase = true)
             }
 
             val cleanliness = when {
@@ -179,12 +213,13 @@ class ReviewRepository {
             client.postgrest.from("pois").update(
                 PoiStatsUpdateDto(rating = roundedRating, cleanliness = cleanliness)
             ) { filter { eq("id", poiId) } }
-        } catch (_: Exception) { }
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
     }
 
     suspend fun analyzeReviewAndUpdatePoi(poiId: String, reviewText: String, starRating: Int) {
-        val status = ReviewAnalyzer.analyze(reviewText, starRating)
-        if (status == null) return
+        val status = ReviewAnalyzer.analyze(reviewText, starRating) ?: return
         try {
             val reviews = getReviews(poiId)
             val latestTime = reviews.maxByOrNull { it.created_at }?.created_at ?: return
@@ -194,7 +229,9 @@ class ReviewRepository {
                     "recent_status_time" to latestTime
                 )
             ) { filter { eq("id", poiId) } }
-        } catch (_: Exception) { }
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
     }
 
     suspend fun getLatestAnalyzedStatus(poiId: String): Pair<String?, String?> {
@@ -212,7 +249,7 @@ class ReviewRepository {
                 }
             }
             Pair(null, null)
-        } catch (_: Exception) {
+        } catch (e: Exception) {
             Pair(null, null)
         }
     }

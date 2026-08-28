@@ -25,6 +25,8 @@ class AuthViewModel : ViewModel() {
     private val _needsPasswordReset = MutableStateFlow(false)
     val needsPasswordReset: StateFlow<Boolean> = _needsPasswordReset.asStateFlow()
 
+    private val _registeredName = MutableStateFlow<String?>(null)
+
     init {
         viewModelScope.launch {
             val startTime = System.currentTimeMillis()
@@ -92,6 +94,8 @@ class AuthViewModel : ViewModel() {
         viewModelScope.launch {
             _uiState.value = AuthUiState(isLoading = true)
             _registeredPassword.value = password
+            _registeredName.value = name
+
             val result = repository.register(name, email, password)
             result.fold(
                 onSuccess = {
@@ -108,11 +112,16 @@ class AuthViewModel : ViewModel() {
         viewModelScope.launch {
             _uiState.value = AuthUiState(isLoading = true)
             val password = _registeredPassword.value ?: ""
+            val name = _registeredName.value ?: "User"
+
             val result = repository.login(email, password)
             result.fold(
                 onSuccess = { userId ->
+                    repository.completeProfileSetup(userId, name)
+
                     _session.value = SessionState.LoggedIn(userId)
                     _registeredPassword.value = null
+                    _registeredName.value = null
                     _uiState.value = AuthUiState(isSuccess = true)
                 },
                 onFailure = { error ->
