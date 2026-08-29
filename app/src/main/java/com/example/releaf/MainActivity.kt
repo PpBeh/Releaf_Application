@@ -78,7 +78,16 @@ fun ReleafApp(themeViewModel: ThemeViewModel) {
 
     val navBackStackEntry by navController.currentBackStackEntryAsState()
     val currentRoute = navBackStackEntry?.destination?.route
-    val showBottomBar = currentRoute != Screen.Login.route && currentRoute != Screen.Register.route
+
+    val isChecking by authViewModel.isCheckingSession.collectAsState()
+
+    val isAuthScreen = currentRoute == Screen.Login.route ||
+            currentRoute == Screen.Register.route ||
+            currentRoute == Screen.ForgotPassword.route ||
+            currentRoute == Screen.SetNewPassword.route ||
+            currentRoute?.startsWith(Screen.Verify.route.substringBefore("/{")) == true
+
+    val showBottomBar = !isChecking && !isAuthScreen
 
     Scaffold(
         bottomBar = {
