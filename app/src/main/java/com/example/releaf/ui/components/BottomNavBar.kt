@@ -46,7 +46,12 @@ fun BottomNavBar(navController: NavHostController, themeViewModel: ThemeViewMode
             )
             NavigationBarItem(
                 selected = currentRoute == Screen.Activity.route,
-                onClick = { navController.navigate(Screen.Activity.route) { launchSingleTop = true } },
+                onClick = {
+                    if (currentRoute == Screen.Activity.route) return@NavigationBarItem
+                    navController.navigate(Screen.Activity.route) {
+                        launchSingleTop = true
+                    }
+                },
                 icon = { Icon(Icons.Default.MonitorHeart, contentDescription = string("activity", themeViewModel)) },
                 label = { Text(string("activity", themeViewModel)) }
             )
@@ -58,15 +63,27 @@ fun BottomNavBar(navController: NavHostController, themeViewModel: ThemeViewMode
                 icon = {},
                 label = {}
             )
+            // Rewards
             NavigationBarItem(
                 selected = currentRoute == Screen.Rewards.route,
-                onClick = { navController.navigate(Screen.Rewards.route) { launchSingleTop = true } },
+                onClick = {
+                    if (currentRoute == Screen.Rewards.route) return@NavigationBarItem
+                    navController.navigate(Screen.Rewards.route) {
+                        launchSingleTop = true
+                    }
+                },
                 icon = { Icon(Icons.Default.EmojiEvents, contentDescription = "Rewards") },
                 label = { Text("Rewards") }
             )
+            // Profile
             NavigationBarItem(
                 selected = currentRoute == Screen.Profile.route,
-                onClick = { navController.navigate(Screen.Profile.createRoute()) { launchSingleTop = true } },
+                onClick = {
+                    if (currentRoute == Screen.Profile.route) return@NavigationBarItem
+                    navController.navigate(Screen.Profile.createRoute()) {
+                        launchSingleTop = true
+                    }
+                },
                 icon = { Icon(Icons.Default.Person, contentDescription = string("profile", themeViewModel)) },
                 label = { Text(string("profile", themeViewModel)) }
             )
@@ -76,7 +93,12 @@ fun BottomNavBar(navController: NavHostController, themeViewModel: ThemeViewMode
         // pokes above the bar to draw the eye, instead of sitting flush with
         // the other four tabs.
         FloatingActionButton(
-            onClick = { navController.navigate(Screen.Map.route) { launchSingleTop = true } },
+            onClick = {
+                if (currentRoute == Screen.Map.route) return@FloatingActionButton
+                navController.navigate(Screen.Map.route) {
+                    launchSingleTop = true
+                }
+            },
             modifier = Modifier
                 .align(Alignment.TopCenter)
                 .offset(y = (-20).dp),

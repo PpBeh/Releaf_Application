@@ -36,8 +36,11 @@ class AuthRepository {
                 this.email = email
                 this.password = password
             }
-            val userId = client.auth.currentUserOrNull()?.id
-            if (userId != null) {
+
+            val currentSession = client.auth.currentSessionOrNull()
+
+            if (currentSession != null) {
+                val userId = currentSession.user?.id ?: return Result.failure(Exception("No user id"))
                 updateProfileName(userId, name)
                 createGarden(userId)
                 _sessionState.value = SessionState.LoggedIn(userId)
@@ -129,9 +132,9 @@ class AuthRepository {
 
     private suspend fun updateProfileName(userId: String, name: String) {
         try {
-            client.postgrest.from("profiles").update(
-                mapOf("name" to name)
-            ) { filter { eq("id", userId) } }
+            client.postgrest.from("profiles").upsert(
+                mapOf("id" to userId, "name" to name)
+            )
         } catch (_: Exception) { }
     }
 
