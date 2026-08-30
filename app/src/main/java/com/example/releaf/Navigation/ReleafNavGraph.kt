@@ -102,8 +102,9 @@ fun ReleafNavGraph(
         startDestination = startDestination
     ) {
         composable(Screen.Login.route) {
-            LaunchedEffect(authUiState.isSuccess) {
-                if (authUiState.isSuccess) {
+            LaunchedEffect(authUiState.isLoginSuccess) {
+                if (authUiState.isLoginSuccess) {
+                    authViewModel.clearAuthSuccess()
                     navController.enterAppAfterAuth()
                 }
             }
@@ -143,8 +144,9 @@ fun ReleafNavGraph(
             )
         }
         composable(Screen.Register.route) {
-            LaunchedEffect(authUiState.isSuccess) {
-                if (authUiState.isSuccess) {
+            LaunchedEffect(authUiState.isRegistrationSuccess) {
+                if (authUiState.isRegistrationSuccess) {
+                    authViewModel.clearAuthSuccess()
                     navController.navigate(Screen.Verify.createRoute(authUiState.registeredEmail))
                 }
             }
@@ -163,8 +165,9 @@ fun ReleafNavGraph(
             arguments = listOf(navArgument("email") { type = NavType.StringType })
         ) { backStackEntry ->
             val email = backStackEntry.arguments?.getString("email").orEmpty()
-            LaunchedEffect(authUiState.isSuccess) {
-                if (authUiState.isSuccess) {
+            LaunchedEffect(authUiState.isLoginSuccess) {
+                if (authUiState.isLoginSuccess) {
+                    authViewModel.clearAuthSuccess()
                     navController.enterAppAfterAuth()
                 }
             }
