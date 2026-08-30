@@ -7,6 +7,9 @@ import io.github.jan.supabase.auth.auth
 import io.github.jan.supabase.auth.providers.builtin.Email
 import io.github.jan.supabase.postgrest.postgrest
 import io.github.jan.supabase.storage.storage
+import kotlinx.serialization.json.buildJsonObject
+import kotlinx.serialization.json.jsonPrimitive
+import kotlinx.serialization.json.put
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -22,9 +25,21 @@ class AuthRepository {
                 this.email = email
                 this.password = password
             }
-            val userId = client.auth.currentUserOrNull()?.id ?: return Result.failure(Exception("No user after login"))
-            _sessionState.value = SessionState.LoggedIn(userId)
-            Result.success(userId)
+            val user = client.auth.currentUserOrNull() ?: return Result.failure(Exception("No user after login"))
+
+            val emailVerified = try {
+                user.userMetadata?.get("email_verified")?.jsonPrimitive?.content == "true"
+            } catch (_: Exception) {
+                true
+            }
+            if (!emailVerified) {
+                client.auth.signOut()
+                return Result.failure(Exception("Email not verified. Please click the confirmation link in your email, then try again."))
+            }
+
+            applyPendingName(user.id)
+            _sessionState.value = SessionState.LoggedIn(user.id)
+            Result.success(user.id)
         } catch (e: Exception) {
             Result.failure(e)
         }
@@ -35,6 +50,9 @@ class AuthRepository {
             client.auth.signUpWith(Email) {
                 this.email = email
                 this.password = password
+                data = buildJsonObject {
+                    put("name", name)
+                }
             }
 
             val currentSession = client.auth.currentSessionOrNull()
@@ -46,10 +64,19 @@ class AuthRepository {
                 _sessionState.value = SessionState.LoggedIn(userId)
                 Result.success(userId)
             } else {
+                com.example.releaf.data.remote.DeepLinkHolder.pendingName = name
                 Result.success("pending_verification")
             }
         } catch (e: Exception) {
             Result.failure(e)
+        }
+    }
+
+    private suspend fun applyPendingName(userId: String) {
+        val pendingName = com.example.releaf.data.remote.DeepLinkHolder.pendingName
+        if (pendingName != null && pendingName.isNotBlank()) {
+            updateProfileName(userId, pendingName)
+            com.example.releaf.data.remote.DeepLinkHolder.pendingName = null
         }
     }
 

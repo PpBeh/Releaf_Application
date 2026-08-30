@@ -5,6 +5,7 @@ object DeepLinkHolder {
     var refreshToken: String? = null
     var type: String? = null
     var pendingPoiId: String? = null
+    var pendingName: String? = null
 
     fun clear() {
         accessToken = null

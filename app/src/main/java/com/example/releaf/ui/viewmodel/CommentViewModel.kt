@@ -98,6 +98,7 @@ class CommentViewModel : ViewModel() {
             try {
                 repository.updateReview(reviewId, newText)
                 _reviews.value = repository.getReviews(currentPoiId)
+                repository.updatePoiStats(currentPoiId)
             } catch (e: Exception) {
                 e.printStackTrace()
             }
@@ -111,6 +112,7 @@ class CommentViewModel : ViewModel() {
             try {
                 repository.deleteReview(reviewId)
                 _reviews.value = repository.getReviews(currentPoiId)
+                repository.updatePoiStats(currentPoiId)
             } catch (e: Exception) {
                 e.printStackTrace()
             }

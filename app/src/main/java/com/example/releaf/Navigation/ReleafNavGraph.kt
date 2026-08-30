@@ -121,6 +121,13 @@ fun ReleafNavGraph(
         }
         composable(Screen.ForgotPassword.route) {
             val resetState by authViewModel.resetState.collectAsState()
+            androidx.activity.compose.BackHandler {
+                authViewModel.clearResetState()
+                navController.navigate(Screen.Login.route) {
+                    popUpTo(Screen.Login.route) { inclusive = false }
+                    launchSingleTop = true
+                }
+            }
             ForgotPasswordScreen(
                 isLoading = resetState.isLoading,
                 isSuccess = resetState.isSuccess,
@@ -128,7 +135,10 @@ fun ReleafNavGraph(
                 onSendClick = { email -> authViewModel.sendResetEmail(email) },
                 onBackClick = {
                     authViewModel.clearResetState()
-                    navController.popBackStack()
+                    navController.navigate(Screen.Login.route) {
+                        popUpTo(Screen.Login.route) { inclusive = false }
+                        launchSingleTop = true
+                    }
                 }
             )
         }
@@ -144,6 +154,12 @@ fun ReleafNavGraph(
             )
         }
         composable(Screen.Register.route) {
+            androidx.activity.compose.BackHandler {
+                navController.navigate(Screen.Login.route) {
+                    popUpTo(Screen.Login.route) { inclusive = false }
+                    launchSingleTop = true
+                }
+            }
             LaunchedEffect(authUiState.isRegistrationSuccess) {
                 if (authUiState.isRegistrationSuccess) {
                     authViewModel.clearAuthSuccess()
@@ -156,7 +172,12 @@ fun ReleafNavGraph(
                 onRegisterClick = { name, email, password ->
                     authViewModel.register(name, email, password)
                 },
-                onLoginClick = { navController.popBackStack() },
+                onLoginClick = {
+                    navController.navigate(Screen.Login.route) {
+                        popUpTo(Screen.Login.route) { inclusive = false }
+                        launchSingleTop = true
+                    }
+                },
                 onClearError = { authViewModel.clearError() }
             )
         }
@@ -165,6 +186,12 @@ fun ReleafNavGraph(
             arguments = listOf(navArgument("email") { type = NavType.StringType })
         ) { backStackEntry ->
             val email = backStackEntry.arguments?.getString("email").orEmpty()
+            androidx.activity.compose.BackHandler {
+                navController.navigate(Screen.Login.route) {
+                    popUpTo(Screen.Login.route) { inclusive = false }
+                    launchSingleTop = true
+                }
+            }
             LaunchedEffect(authUiState.isLoginSuccess) {
                 if (authUiState.isLoginSuccess) {
                     authViewModel.clearAuthSuccess()
@@ -181,7 +208,12 @@ fun ReleafNavGraph(
                 onResendClick = {
                     authViewModel.resendVerification(email)
                 },
-                onBackClick = { navController.popBackStack() }
+                onBackClick = {
+                    navController.navigate(Screen.Login.route) {
+                        popUpTo(Screen.Login.route) { inclusive = false }
+                        launchSingleTop = true
+                    }
+                }
             )
         }
         composable(Screen.Garden.route) {

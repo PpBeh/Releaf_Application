@@ -352,7 +352,13 @@ fun MapScreen(
                 verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
                 FloatingActionButton(
-                    onClick = { showAddPoiDialog = true },
+                    onClick = {
+                        fetchFreshLocation(context) { lat, lng ->
+                            currentLat = lat
+                            currentLng = lng
+                        }
+                        showAddPoiDialog = true
+                    },
                     containerColor = MaterialTheme.colorScheme.primary,
                     contentColor = MaterialTheme.colorScheme.onPrimary
                 ) {
