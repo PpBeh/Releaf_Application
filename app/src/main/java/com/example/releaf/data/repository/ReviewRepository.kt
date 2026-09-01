@@ -58,7 +58,12 @@ class ReviewRepository {
     }
 
     suspend fun addReview(review: ReviewInsertDto): ReviewDto? {
-        return client.postgrest.from("reviews").insert(review).decodeSingleOrNull()
+        return try {
+            client.postgrest.from("reviews").insert(review).decodeSingleOrNull()
+        } catch (e: Exception) {
+            e.printStackTrace()
+            null
+        }
     }
 
     suspend fun updateReview(reviewId: String, newText: String) {

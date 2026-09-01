@@ -114,6 +114,7 @@ fun MapScreen(
     val excludedPaid by viewModel.excludedPaid.collectAsState()
     val showUnverified by viewModel.showUnverified.collectAsState()
     var showAddPoiDialog by remember { mutableStateOf(false) }
+    var isFetchingLocation by remember { mutableStateOf(false) }
     var currentLat by remember { mutableStateOf(3.1390) }
     var currentLng by remember { mutableStateOf(101.6869) }
     var selectedPhotoUri by remember { mutableStateOf<Uri?>(null) }
@@ -141,6 +142,12 @@ fun MapScreen(
 
     val filteredSearchPois = pois.filter {
         searchQuery.isBlank() || it.name.contains(searchQuery, ignoreCase = true)
+    }
+
+    LaunchedEffect(isFetchingLocation) {
+        if (isFetchingLocation) {
+            snackbarHostState.showSnackbar("Getting your location...")
+        }
     }
 
     var focusPoint by remember { mutableStateOf<org.osmdroid.util.GeoPoint?>(null) }
@@ -353,11 +360,13 @@ fun MapScreen(
             ) {
                 FloatingActionButton(
                     onClick = {
+                        isFetchingLocation = true
                         fetchFreshLocation(context) { lat, lng ->
                             currentLat = lat
                             currentLng = lng
+                            isFetchingLocation = false
+                            showAddPoiDialog = true
                         }
-                        showAddPoiDialog = true
                     },
                     containerColor = MaterialTheme.colorScheme.primary,
                     contentColor = MaterialTheme.colorScheme.onPrimary
@@ -730,6 +739,8 @@ private fun fetchFreshLocation(
         return
     }
 
+    val bestKnown = listOfNotNull(gps, network).maxByOrNull { it.time }
+
     val listener = object : android.location.LocationListener {
         override fun onLocationChanged(location: android.location.Location) {
             onResult(location.latitude, location.longitude)
@@ -748,4 +759,15 @@ private fun fetchFreshLocation(
         lm?.requestLocationUpdates(android.location.LocationManager.GPS_PROVIDER, 0L, 0f, listener, mainLooper)
         lm?.requestLocationUpdates(android.location.LocationManager.NETWORK_PROVIDER, 0L, 0f, listener, mainLooper)
     } catch (_: SecurityException) { }
+
+    // Fallback: if no fix arrives in 5 seconds (e.g., indoors), use best last-known location
+    val handler = android.os.Handler(mainLooper)
+    handler.postDelayed({
+        try {
+            lm?.removeUpdates(listener)
+        } catch (_: Exception) { }
+        if (bestKnown != null) {
+            onResult(bestKnown.latitude, bestKnown.longitude)
+        }
+    }, 5000L)
 }
