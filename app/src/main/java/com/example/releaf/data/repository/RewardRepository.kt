@@ -50,7 +50,7 @@ class RewardRepository {
     suspend fun getGardenSlots(userId: String): List<PlantSlotDto> {
         return try {
             client.postgrest.from("plant_slots")
-                .select() {
+                .select {
                     filter { eq("user_id", userId) }
                 }
                 .decodeList<PlantSlotDto>()
@@ -59,15 +59,31 @@ class RewardRepository {
         }
     }
 
-    suspend fun claimPlantReward(userId: String, slotIndex: Int) {
-        client.postgrest.from("plant_slots")
-            .update(mapOf("state" to "PLANTED")) {
-                filter {
-                    eq("user_id", userId)
-                    eq("slot_index", slotIndex)
-                }
+    suspend fun claimPlantReward(userId: String, slotIndex: Int, plantType: String? = null) {
+        try {
+            val data = mutableMapOf<String, Any>(
+                "user_id" to userId,
+                "slot_index" to slotIndex,
+                "state" to "PLANTED"
+            )
+            plantType?.let { data["plant_type"] = it }
+            client.postgrest.from("plant_slots").upsert(data) {
+                onConflict = "user_id,slot_index"
             }
+        } catch (e: Exception) {
+            try {
+                val updateData = mutableMapOf<String, Any>("state" to "PLANTED")
+                plantType?.let { updateData["plant_type"] = it }
+                client.postgrest.from("plant_slots")
+                    .update(updateData) {
+                        filter {
+                            eq("user_id", userId)
+                            eq("slot_index", slotIndex)
+                        }
+                    }
+            } catch (ex: Exception) {
+                ex.printStackTrace()
+            }
+        }
     }
-
-
 }

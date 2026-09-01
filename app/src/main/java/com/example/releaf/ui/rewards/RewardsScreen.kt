@@ -1,5 +1,6 @@
 package com.example.releaf.ui.rewards
 
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -10,8 +11,10 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
@@ -20,17 +23,25 @@ import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import com.example.releaf.R
+import com.example.releaf.model.SeedData
+import com.example.releaf.model.SeedInfo
 import com.example.releaf.ui.theme.string
 import com.example.releaf.ui.viewmodel.RewardsViewModel
 import com.example.releaf.ui.viewmodel.ThemeViewModel
@@ -45,11 +56,19 @@ fun RewardsScreen(
     val userRewards by viewModel.userRewards.collectAsState()
     val userPoints by viewModel.userPoints.collectAsState()
     val gardenSlots by viewModel.gardenSlots.collectAsState()
+    val claimStatus by viewModel.claimStatus.collectAsState()
 
-    val seedMilestones = listOf(50, 150, 300, 500, 800, 1200)
+    val snackbarHostState = remember { SnackbarHostState() }
 
     LaunchedEffect(userId) {
         viewModel.loadRewards(userId)
+    }
+
+    LaunchedEffect(claimStatus) {
+        claimStatus?.let { status ->
+            snackbarHostState.showSnackbar(status)
+            viewModel.clearClaimStatus()
+        }
     }
 
     val nextTargetExp = when {
@@ -59,84 +78,91 @@ fun RewardsScreen(
     }
     val expProgress = (userPoints.toFloat() / nextTargetExp.toFloat()).coerceIn(0f, 1f)
 
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .verticalScroll(rememberScrollState())
-            .padding(16.dp)
-    ) {
-        Card(
-            shape = RoundedCornerShape(20.dp),
-            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
-            modifier = Modifier.fillMaxWidth()
+    Box(modifier = Modifier.fillMaxSize()) {
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .verticalScroll(rememberScrollState())
+                .padding(16.dp)
         ) {
-            Column(
-                modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
-                horizontalAlignment = Alignment.CenterHorizontally
+            Card(
+                shape = RoundedCornerShape(20.dp),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
+                modifier = Modifier.fillMaxWidth()
             ) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text("🌟", style = MaterialTheme.typography.bodyMedium)
-                    Spacer(modifier = Modifier.width(6.dp))
-                    Text(
-                        text = "$userPoints / $nextTargetExp",
-                        fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.primary
+                Column(
+                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text("🌟", style = MaterialTheme.typography.bodyMedium)
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text(
+                            text = "$userPoints / $nextTargetExp",
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.primary
+                        )
+                    }
+                    Spacer(modifier = Modifier.height(6.dp))
+                    LinearProgressIndicator(
+                        progress = { expProgress },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(6.dp)
+                            .clip(RoundedCornerShape(3.dp)),
+                        color = Color(0xFF4CAF50),
+                        trackColor = MaterialTheme.colorScheme.outlineVariant
                     )
                 }
-                Spacer(modifier = Modifier.height(6.dp))
-                LinearProgressIndicator(
-                    progress = { expProgress },
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(6.dp)
-                        .clip(RoundedCornerShape(3.dp)),
-                    color = Color(0xFF4CAF50),
-                    trackColor = MaterialTheme.colorScheme.outlineVariant
-                )
             }
-        }
 
-        Spacer(modifier = Modifier.height(24.dp))
+            Spacer(modifier = Modifier.height(24.dp))
 
-        Text("Titles & Badges", style = MaterialTheme.typography.titleMedium)
-        Spacer(modifier = Modifier.height(8.dp))
+            Text("Titles & Badges", style = MaterialTheme.typography.titleMedium)
+            Spacer(modifier = Modifier.height(8.dp))
 
-        Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
-            if (tiers.isEmpty()) {
-                val fallbackTiers = listOf(500 to true, 2000 to false, 10000 to false)
-                fallbackTiers.forEach { (target, unlocked) ->
-                    TierBox(points = userPoints, target = target, unlocked = unlocked, themeViewModel = themeViewModel)
-                }
-            } else {
-                tiers.forEach { tier ->
-                    val unlocked = userRewards.any { it.tier_id == tier.id }
-                    TierBox(points = userPoints, target = tier.target_points, unlocked = unlocked, themeViewModel = themeViewModel)
+            Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                if (tiers.isEmpty()) {
+                    val fallbackTiers = listOf(500 to true, 2000 to false, 10000 to false)
+                    fallbackTiers.forEach { (target, unlocked) ->
+                        TierBox(points = userPoints, target = target, unlocked = unlocked, themeViewModel = themeViewModel)
+                    }
+                } else {
+                    tiers.forEach { tier ->
+                        val unlocked = userRewards.any { it.tier_id == tier.id }
+                        TierBox(points = userPoints, target = tier.target_points, unlocked = unlocked, themeViewModel = themeViewModel)
+                    }
                 }
             }
-        }
 
-        Spacer(modifier = Modifier.height(32.dp))
+            Spacer(modifier = Modifier.height(32.dp))
 
-        Text("Garden Seeds", style = MaterialTheme.typography.titleMedium)
-        Spacer(modifier = Modifier.height(8.dp))
+            Text("Garden Seeds", style = MaterialTheme.typography.titleMedium)
+            Spacer(modifier = Modifier.height(8.dp))
 
-        Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
-            seedMilestones.forEachIndexed { index, targetPoints ->
-                val slotIndex = index + 1
-                val slot = gardenSlots.find { it.slot_index == slotIndex }
-                val isPlanted = slot?.state == "PLANTED"
+            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                SeedData.seedList.forEach { seed ->
+                    val slot = gardenSlots.find { it.slot_index == seed.slotIndex }
+                    val isPlanted = slot?.state != null && slot.state != "EMPTY_POT"
 
-                SeedMilestoneBox(
-                    points = userPoints,
-                    target = targetPoints,
-                    isPlanted = isPlanted,
-                    themeViewModel = themeViewModel,
-                    onClaim = { viewModel.claimPlantReward(userId, slotIndex) }
-                )
+                    SeedMilestoneBox(
+                        seedInfo = seed,
+                        points = userPoints,
+                        isPlanted = isPlanted,
+                        onClaim = { viewModel.claimPlantReward(userId, seed.slotIndex) }
+                    )
+                }
             }
+
+            Spacer(modifier = Modifier.height(32.dp))
         }
 
-        Spacer(modifier = Modifier.height(32.dp))
+        SnackbarHost(
+            hostState = snackbarHostState,
+            modifier = Modifier
+                .align(Alignment.BottomCenter)
+                .padding(bottom = 16.dp)
+        )
     }
 }
 
@@ -150,42 +176,112 @@ private fun TierBox(points: Int, target: Int, unlocked: Boolean, themeViewModel:
                 if (unlocked) Color(0xFF8BC34A) else MaterialTheme.colorScheme.surfaceVariant,
                 RoundedCornerShape(12.dp)
             )
-            .padding(16.dp)
+            .padding(16.dp),
+        contentAlignment = Alignment.CenterStart
     ) {
-        Text("$points/$target ${if (unlocked) string("unlocked", themeViewModel) else string("locked", themeViewModel)}")
+        Text(
+            text = "$points/$target ${if (unlocked) string("unlocked", themeViewModel) else string("locked", themeViewModel)}",
+            fontWeight = FontWeight.SemiBold,
+            color = if (unlocked) Color.White else MaterialTheme.colorScheme.onSurfaceVariant
+        )
     }
 }
 
 @Composable
 private fun SeedMilestoneBox(
+    seedInfo: SeedInfo,
     points: Int,
-    target: Int,
     isPlanted: Boolean,
-    themeViewModel: ThemeViewModel,
     onClaim: () -> Unit
 ) {
-    val unlocked = points >= target
+    val unlocked = points >= seedInfo.targetPoints
 
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .height(80.dp)
-            .background(
-                if (isPlanted) Color(0xFF8BC34A) else MaterialTheme.colorScheme.surfaceVariant,
-                RoundedCornerShape(12.dp)
-            )
-            .padding(horizontal = 16.dp),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.SpaceBetween
+    Card(
+        shape = RoundedCornerShape(16.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = if (isPlanted) {
+                MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.4f)
+            } else if (unlocked) {
+                MaterialTheme.colorScheme.surfaceVariant
+            } else {
+                MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
+            }
+        ),
+        elevation = CardDefaults.cardElevation(defaultElevation = if (unlocked && !isPlanted) 3.dp else 0.dp),
+        modifier = Modifier.fillMaxWidth()
     ) {
-        Text("$points/$target ${if (isPlanted) "Planted" else if (unlocked) "Ready" else "Locked"}")
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Image(
+                painter = painterResource(id = if (unlocked || isPlanted) seedInfo.drawableRes else R.drawable.ic_pot_empty),
+                contentDescription = seedInfo.name,
+                modifier = Modifier
+                    .size(56.dp)
+                    .clip(CircleShape)
+                    .background(MaterialTheme.colorScheme.surface)
+                    .padding(6.dp)
+            )
 
-        if (unlocked && !isPlanted) {
-            Button(
-                onClick = onClaim,
-                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF4CAF50))
-            ) {
-                Text("Claim")
+            Spacer(modifier = Modifier.width(16.dp))
+
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = seedInfo.name,
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold
+                )
+                Text(
+                    text = seedInfo.description,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                Spacer(modifier = Modifier.height(4.dp))
+                Text(
+                    text = if (isPlanted) "🌱 Planted in Garden Plot" else if (unlocked) "Unlocked (${points}/${seedInfo.targetPoints} EXP)" else "Requires ${seedInfo.targetPoints} EXP (${points}/${seedInfo.targetPoints})",
+                    style = MaterialTheme.typography.labelMedium,
+                    color = if (isPlanted) Color(0xFF2E7D32) else if (unlocked) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+
+            Spacer(modifier = Modifier.width(8.dp))
+
+            if (isPlanted) {
+                Surface(
+                    shape = RoundedCornerShape(12.dp),
+                    color = Color(0xFF4CAF50).copy(alpha = 0.15f)
+                ) {
+                    Text(
+                        text = "Planted",
+                        color = Color(0xFF2E7D32),
+                        fontWeight = FontWeight.Bold,
+                        style = MaterialTheme.typography.labelMedium,
+                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp)
+                    )
+                }
+            } else if (unlocked) {
+                Button(
+                    onClick = onClaim,
+                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF4CAF50)),
+                    shape = RoundedCornerShape(12.dp)
+                ) {
+                    Text("Claim", fontWeight = FontWeight.Bold)
+                }
+            } else {
+                Surface(
+                    shape = RoundedCornerShape(12.dp),
+                    color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
+                ) {
+                    Text(
+                        text = "Locked 🔒",
+                        style = MaterialTheme.typography.labelMedium,
+                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
             }
         }
     }
