@@ -101,7 +101,7 @@ fun BottomNavBar(navController: NavHostController, themeViewModel: ThemeViewMode
             },
             modifier = Modifier
                 .align(Alignment.TopCenter)
-                .offset(y = (-20).dp),
+                .offset(y = (-10).dp),
             shape = CircleShape,
             containerColor = Color(0xFF2196F3),
             contentColor = Color.White
