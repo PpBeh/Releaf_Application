@@ -1,6 +1,7 @@
 package com.example.releaf.data.repository
 
 import com.example.releaf.data.remote.SupabaseModule
+import com.example.releaf.data.remote.dto.PlantSlotDto
 import com.example.releaf.data.remote.dto.ProfileDto
 import com.example.releaf.data.remote.dto.ReviewDto
 import com.example.releaf.data.remote.dto.ReviewInsertDto
@@ -264,6 +265,7 @@ class ReviewRepository {
             .select { filter { eq("id", userId) } }
             .decodeSingleOrNull()
     }
+
 }
 
 sealed class VoteResult {

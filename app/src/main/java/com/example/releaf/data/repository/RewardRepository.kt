@@ -5,6 +5,7 @@ import com.example.releaf.data.remote.dto.RewardTierDto
 import com.example.releaf.data.remote.dto.UserRewardDto
 import com.example.releaf.data.remote.dto.UserAchievementDto
 import com.example.releaf.data.remote.dto.AchievementDto
+import com.example.releaf.data.remote.dto.PlantSlotDto
 import io.github.jan.supabase.postgrest.postgrest
 
 class RewardRepository {
@@ -45,4 +46,28 @@ class RewardRepository {
             mapOf("total_points" to points)
         ) { filter { eq("id", userId) } }
     }
+
+    suspend fun getGardenSlots(userId: String): List<PlantSlotDto> {
+        return try {
+            client.postgrest.from("plant_slots")
+                .select() {
+                    filter { eq("user_id", userId) }
+                }
+                .decodeList<PlantSlotDto>()
+        } catch (e: Exception) {
+            emptyList()
+        }
+    }
+
+    suspend fun claimPlantReward(userId: String, slotIndex: Int) {
+        client.postgrest.from("plant_slots")
+            .update(mapOf("state" to "PLANTED")) {
+                filter {
+                    eq("user_id", userId)
+                    eq("slot_index", slotIndex)
+                }
+            }
+    }
+
+
 }
