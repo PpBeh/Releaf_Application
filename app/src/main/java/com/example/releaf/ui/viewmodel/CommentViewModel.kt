@@ -72,8 +72,19 @@ class CommentViewModel : ViewModel() {
                     return@launch
                 }
 
+                val reviewerName = try {
+                    com.example.releaf.data.repository.AuthRepository().getProfile(userId)?.name?.ifBlank { "User" } ?: "User"
+                } catch (_: Exception) {
+                    "User"
+                }
                 repository.addReview(
-                    ReviewInsertDto(poi_id = poiId, user_id = userId, star_rating = starRating, text = text)
+                    ReviewInsertDto(
+                        poi_id = poiId,
+                        user_id = userId,
+                        star_rating = starRating,
+                        text = text,
+                        reviewer_name = reviewerName
+                    )
                 )
 
                 com.example.releaf.data.repository.QuestRepository().incrementQuestsByType(userId, "REVIEW")

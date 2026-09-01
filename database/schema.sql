@@ -83,6 +83,7 @@ CREATE TABLE IF NOT EXISTS public.reviews (
     text TEXT DEFAULT '',
     like_count INT DEFAULT 0,
     dislike_count INT DEFAULT 0,
+    reviewer_name TEXT DEFAULT '',
     created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
@@ -128,6 +129,7 @@ CREATE TABLE IF NOT EXISTS public.quests (
     reward_count INT DEFAULT 10,
     progress_target INT DEFAULT 10,
     difficulty TEXT DEFAULT 'EASY',
+    quest_type TEXT DEFAULT '',
     created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
@@ -312,7 +314,7 @@ CREATE POLICY "Users can create own achievements" ON public.user_achievements FO
 -- ============================================
 -- TIMESTAMP TRIGGERS (auto-update updated_at)
 -- ============================================
-CREATE OR REPLACE FUNCTION public.update_timestamp()
+CREATE OR REPLACE FUNCTION public.update_updated_at_column()
 RETURNS TRIGGER AS $$
 BEGIN
     NEW.updated_at = NOW();
@@ -320,12 +322,14 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
+DROP TRIGGER IF EXISTS tr_gardens_update ON public.gardens;
 DROP TRIGGER IF EXISTS update_gardens_timestamp ON public.gardens;
-CREATE TRIGGER update_gardens_timestamp
+CREATE TRIGGER tr_gardens_update
 BEFORE UPDATE ON public.gardens
-FOR EACH ROW EXECUTE FUNCTION public.update_timestamp();
+FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
 
+DROP TRIGGER IF EXISTS tr_user_quests_update ON public.user_quests;
 DROP TRIGGER IF EXISTS update_user_quests_timestamp ON public.user_quests;
-CREATE TRIGGER update_user_quests_timestamp
+CREATE TRIGGER tr_user_quests_update
 BEFORE UPDATE ON public.user_quests
-FOR EACH ROW EXECUTE FUNCTION public.update_timestamp();
+FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
