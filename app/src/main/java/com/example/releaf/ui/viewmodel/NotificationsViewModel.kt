@@ -45,4 +45,48 @@ class NotificationsViewModel : ViewModel() {
             } catch (_: Exception) { }
         }
     }
+
+    fun checkRewardNotifications(userId: String, userPoints: Int) {
+        viewModelScope.launch {
+            try {
+                val existing = repository.getNotifications(userId)
+                val seeds = com.example.releaf.model.SeedData.seedList
+                seeds.forEach { seed ->
+                    if (userPoints >= seed.targetPoints) {
+                        val title = "🎁 Reward Available: ${seed.name}"
+                        if (existing.none { it.title == title }) {
+                            repository.sendNotification(
+                                userId = userId,
+                                title = title,
+                                body = "Congratulations! You reached ${seed.targetPoints} points and unlocked the ${seed.name} seed. Visit Rewards to claim your seedling!",
+                                type = "REWARD"
+                            )
+                        }
+                    }
+                }
+
+                // Check Badge milestones
+                val badges = listOf(
+                    500 to "Bronze Gardener Badge",
+                    2000 to "Silver Gardener Badge",
+                    10000 to "Gold Gardener Badge"
+                )
+                badges.forEach { (pts, label) ->
+                    if (userPoints >= pts) {
+                        val title = "🏆 Badge Milestone: $label"
+                        if (existing.none { it.title == title }) {
+                            repository.sendNotification(
+                                userId = userId,
+                                title = title,
+                                body = "Amazing! You accumulated $userPoints points and unlocked the $label!",
+                                type = "REWARD"
+                            )
+                        }
+                    }
+                }
+
+                loadNotifications(userId)
+            } catch (_: Exception) { }
+        }
+    }
 }

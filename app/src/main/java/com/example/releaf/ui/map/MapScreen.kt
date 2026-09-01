@@ -30,7 +30,9 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.CameraAlt
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Image
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.MyLocation
 import androidx.compose.material.icons.filled.Notifications
@@ -43,6 +45,7 @@ import androidx.compose.material3.BadgedBox
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
+import androidx.compose.material3.Surface
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilledIconButton
@@ -68,10 +71,14 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import com.example.releaf.model.CleanlinessStatus
 import com.example.releaf.model.PoiCategory
 import com.example.releaf.ui.components.MapFilterBar
@@ -118,8 +125,14 @@ fun MapScreen(
     var currentLat by remember { mutableStateOf(3.1390) }
     var currentLng by remember { mutableStateOf(101.6869) }
     var selectedPhotoUri by remember { mutableStateOf<Uri?>(null) }
+    var showSubscriptionDialog by remember { mutableStateOf(false) }
+    var isSubscribed by remember { mutableStateOf(false) }
+    var dailyPointsClaimed by remember { mutableStateOf(false) }
+    var showPhotoSourcePickerForPoi by remember { mutableStateOf(false) }
+
     val sheetState = rememberModalBottomSheetState()
     val snackbarHostState = remember { SnackbarHostState() }
+    val scope = rememberCoroutineScope()
     val context = androidx.compose.ui.platform.LocalContext.current
 
     val photoPicker = rememberLauncherForActivityResult(
@@ -136,9 +149,16 @@ fun MapScreen(
         }
     }
 
-    // val cameraLauncher = rememberLauncherForActivityResult(
-    //    ActivityResultContracts.TakePicturePreview()
-    // ) { bitmap -> }
+    val cameraPhotoPicker = rememberLauncherForActivityResult(
+        ActivityResultContracts.TakePicturePreview()
+    ) { bitmap ->
+        if (bitmap != null) {
+            val uri = saveBitmapToUri(context, bitmap)
+            viewModel.selectedPoi.value?.let { poi ->
+                viewModel.uploadPhoto(poi.id, uri, context)
+            }
+        }
+    }
 
     val filteredSearchPois = pois.filter {
         searchQuery.isBlank() || it.name.contains(searchQuery, ignoreCase = true)
@@ -265,12 +285,37 @@ fun MapScreen(
                             searchQuery = it
                             viewModel.onSearchQueryChanged(it)
                         },
-                        modifier = Modifier.fillMaxWidth(),
+                        modifier = Modifier.weight(1f),
                         placeholder = { Text(string("search_placeholder", themeViewModel)) },
                         leadingIcon = { Icon(Icons.Default.Search, contentDescription = null) },
                         singleLine = true,
                         shape = RoundedCornerShape(12.dp)
                     )
+
+                    Spacer(modifier = Modifier.width(8.dp))
+
+                    // Diamond Subscription Button
+                    androidx.compose.material3.Surface(
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(12.dp))
+                            .clickable { showSubscriptionDialog = true },
+                        shape = RoundedCornerShape(12.dp),
+                        color = if (isSubscribed) Color(0xFFFFD54F) else MaterialTheme.colorScheme.primaryContainer
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(horizontal = 10.dp, vertical = 10.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text("💎", fontSize = 16.sp)
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Text(
+                                if (isSubscribed) "Pro" else "Get Pro",
+                                fontWeight = FontWeight.Bold,
+                                color = if (isSubscribed) Color(0xFF5D4037) else MaterialTheme.colorScheme.onPrimaryContainer,
+                                fontSize = 12.sp
+                            )
+                        }
+                    }
                 }
 
                 if (searchResults.isNotEmpty() && searchQuery.isNotBlank()) {
@@ -458,9 +503,228 @@ fun MapScreen(
                     }
                     context.startActivity(Intent.createChooser(sendIntent, "Share POI"))
                 },
-                onAddPhotoClick = { detailPhotoPicker.launch("image/*") },
+                onAddPhotoClick = { showPhotoSourcePickerForPoi = true },
                 actionResult = actionResult
             )
+        }
+    }
+
+    if (showPhotoSourcePickerForPoi) {
+        androidx.compose.ui.window.Dialog(onDismissRequest = { showPhotoSourcePickerForPoi = false }) {
+            Surface(
+                shape = RoundedCornerShape(20.dp),
+                color = MaterialTheme.colorScheme.surface,
+                modifier = Modifier.fillMaxWidth().padding(16.dp)
+            ) {
+                Column(
+                    modifier = Modifier.padding(20.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    Text(
+                        "Upload Facility Photo",
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold
+                    )
+
+                    Spacer(modifier = Modifier.height(16.dp))
+
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable {
+                                showPhotoSourcePickerForPoi = false
+                                detailPhotoPicker.launch("image/*")
+                            }
+                            .padding(12.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(Icons.Default.Image, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
+                        Spacer(modifier = Modifier.width(16.dp))
+                        Column {
+                            Text("Choose from Gallery", fontWeight = FontWeight.Bold)
+                            Text("Select an existing photo from device", style = MaterialTheme.typography.labelSmall, color = Color.Gray)
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(8.dp))
+
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable {
+                                showPhotoSourcePickerForPoi = false
+                                cameraPhotoPicker.launch(null)
+                            }
+                            .padding(12.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(Icons.Default.CameraAlt, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
+                        Spacer(modifier = Modifier.width(16.dp))
+                        Column {
+                            Text("Take Photo with Camera", fontWeight = FontWeight.Bold)
+                            Text("Capture a new photo right now", style = MaterialTheme.typography.labelSmall, color = Color.Gray)
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(12.dp))
+
+                    TextButton(onClick = { showPhotoSourcePickerForPoi = false }) {
+                        Text("Cancel")
+                    }
+                }
+            }
+        }
+    }
+
+    if (showSubscriptionDialog) {
+        androidx.compose.ui.window.Dialog(onDismissRequest = { showSubscriptionDialog = false }) {
+            Surface(
+                shape = RoundedCornerShape(24.dp),
+                color = MaterialTheme.colorScheme.surface,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(8.dp)
+            ) {
+                Column(
+                    modifier = Modifier
+                        .padding(20.dp)
+                        .verticalScroll(rememberScrollState()),
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clip(RoundedCornerShape(16.dp))
+                            .background(
+                                androidx.compose.ui.graphics.Brush.horizontalGradient(
+                                    listOf(Color(0xFF6A1B9A), Color(0xFFAB47BC), Color(0xFFFFD54F))
+                                )
+                            )
+                            .padding(20.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                            Text("💎", fontSize = 42.sp)
+                            Spacer(modifier = Modifier.height(4.dp))
+                            Text(
+                                "Releaf Diamond Pro",
+                                color = Color.White,
+                                fontWeight = FontWeight.Bold,
+                                style = MaterialTheme.typography.titleLarge
+                            )
+                            Text(
+                                "Unlock Exclusive Member Perks",
+                                color = Color.White.copy(alpha = 0.9f),
+                                style = MaterialTheme.typography.labelMedium
+                            )
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(16.dp))
+
+                    Text(
+                        "Subscription Benefits",
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+
+                    Spacer(modifier = Modifier.height(12.dp))
+
+                    SubscriptionBenefitCard(
+                        icon = "🎁",
+                        title = "Daily Free Points & Gems",
+                        description = "Claim 100 bonus points and 5 gems every single day to level up faster."
+                    )
+
+                    Spacer(modifier = Modifier.height(10.dp))
+
+                    SubscriptionBenefitCard(
+                        icon = "🎨",
+                        title = "Customizable Profile Banner",
+                        description = "Express your unique style with forest themes, gradients, and custom cover images."
+                    )
+
+                    Spacer(modifier = Modifier.height(10.dp))
+
+                    SubscriptionBenefitCard(
+                        icon = "👑",
+                        title = "Exclusive Profile Borders",
+                        description = "Stand out in reviews and comments with golden avatar frames and glowing badges."
+                    )
+
+                    Spacer(modifier = Modifier.height(10.dp))
+
+                    SubscriptionBenefitCard(
+                        icon = "💧",
+                        title = "Unlimited Garden Care",
+                        description = "Extra daily watering and fertilizing uses for all your garden plants."
+                    )
+
+                    Spacer(modifier = Modifier.height(20.dp))
+
+                    if (!isSubscribed) {
+                        Button(
+                            onClick = {
+                                isSubscribed = true
+                                scope.launch {
+                                    snackbarHostState.showSnackbar("🎉 Welcome to Releaf Diamond Pro Membership!")
+                                }
+                            },
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(50.dp),
+                            shape = RoundedCornerShape(16.dp),
+                            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF6A1B9A))
+                        ) {
+                            Text("Subscribe Now • $2.99 / mo", fontWeight = FontWeight.Bold, color = Color.White)
+                        }
+                    } else {
+                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                            Surface(
+                                shape = RoundedCornerShape(12.dp),
+                                color = Color(0xFFE8F5E9)
+                            ) {
+                                Text(
+                                    "Active Pro Subscription ✓",
+                                    color = Color(0xFF2E7D32),
+                                    fontWeight = FontWeight.Bold,
+                                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
+                                )
+                            }
+
+                            Spacer(modifier = Modifier.height(10.dp))
+
+                            Button(
+                                onClick = {
+                                    if (!dailyPointsClaimed) {
+                                        dailyPointsClaimed = true
+                                        scope.launch {
+                                            snackbarHostState.showSnackbar("🎁 Claimed today's 100 Points & 5 Gems!")
+                                        }
+                                    }
+                                },
+                                enabled = !dailyPointsClaimed,
+                                modifier = Modifier.fillMaxWidth(),
+                                shape = RoundedCornerShape(14.dp),
+                                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFFFC107))
+                            ) {
+                                Text(
+                                    if (dailyPointsClaimed) "Today's Reward Claimed ✓" else "🎁 Claim Daily 100 Points & 5 Gems",
+                                    fontWeight = FontWeight.Bold,
+                                    color = Color.Black
+                                )
+                            }
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(8.dp))
+
+                    TextButton(onClick = { showSubscriptionDialog = false }) {
+                        Text("Close", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
+                }
+            }
         }
     }
 
@@ -579,7 +843,33 @@ fun MapScreen(
             }
         }
     }
+    }
 }
+
+@Composable
+private fun SubscriptionBenefitCard(
+    icon: String,
+    title: String,
+    description: String
+) {
+    Surface(
+        shape = RoundedCornerShape(14.dp),
+        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.6f),
+        modifier = Modifier.fillMaxWidth()
+    ) {
+        Row(
+            modifier = Modifier.padding(12.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(icon, fontSize = 24.sp)
+            Spacer(modifier = Modifier.width(12.dp))
+            Column {
+                Text(title, fontWeight = FontWeight.Bold, style = MaterialTheme.typography.bodyMedium)
+                Spacer(modifier = Modifier.height(2.dp))
+                Text(description, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
+        }
+    }
 }
 
 @Composable

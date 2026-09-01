@@ -28,18 +28,89 @@ data class SeedInfo(
     val slotIndex: Int,
     val targetPoints: Int,
     val name: String,
-    val description: String,
+    val nickname: String = "",
+    val personality: String = "",
+    val mood: String = "",
+    val quote: String = "",
+    val description: String = "",
+    val careTip: String = "",
     val drawableRes: Int
 )
 
 object SeedData {
     val seedList = listOf(
-        SeedInfo(1, 50, "Sunflower", "A bright yellow flower that turns to face the sun.", R.drawable.ic_plant_1),
-        SeedInfo(2, 150, "Evergreen Bonsai", "A delicate miniature tree cultivated with care.", R.drawable.ic_plant_2),
-        SeedInfo(3, 300, "Prickly Cactus", "A resilient desert plant that thrives anywhere.", R.drawable.ic_plant_3),
-        SeedInfo(4, 500, "Blooming Rose", "A classic red rose blooming with vibrant colors.", R.drawable.ic_plant_4),
-        SeedInfo(5, 800, "Lush Monstera", "A tropical plant known for its split green leaves.", R.drawable.ic_plant_5),
-        SeedInfo(6, 1200, "Golden Oak", "A majestic golden seedling of a giant oak tree.", R.drawable.ic_plant_6)
+        SeedInfo(
+            slotIndex = 1,
+            targetPoints = 50,
+            name = "Sunflower",
+            nickname = "Sunny",
+            personality = "Cheerful • Energetic • Sun-Chaser",
+            mood = "Feeling bright & sun-kissed! ☀️",
+            quote = "\"Always look towards the light, my friend!\"",
+            description = "A vibrant yellow flower that turns to face the morning sun. Brings optimism and energy to your garden.",
+            careTip = "Water daily and give plenty of direct sunlight.",
+            drawableRes = R.drawable.ic_plant_1
+        ),
+        SeedInfo(
+            slotIndex = 2,
+            targetPoints = 150,
+            name = "Evergreen Bonsai",
+            nickname = "Zen Master",
+            personality = "Calm • Wise • Patient",
+            mood = "Meditating peacefully in the breeze... 🧘",
+            quote = "\"Growth is not a race, it is an art form.\"",
+            description = "A delicate miniature tree cultivated with extreme patience and care. Radiates tranquil energy.",
+            careTip = "Prune gently and water with mindfulness.",
+            drawableRes = R.drawable.ic_plant_2
+        ),
+        SeedInfo(
+            slotIndex = 3,
+            targetPoints = 300,
+            name = "Prickly Cactus",
+            nickname = "Spike",
+            personality = "Sassy • Independent • Soft at Heart",
+            mood = "Don't touch unless you've brought water! 🌵",
+            quote = "\"I'm tough on the outside, but I blossom big!\"",
+            description = "A resilient desert survivor that thrives in tough conditions. Underneath its spikes lies a gentle bloom.",
+            careTip = "Thrives with minimal watering and plenty of warmth.",
+            drawableRes = R.drawable.ic_plant_3
+        ),
+        SeedInfo(
+            slotIndex = 4,
+            targetPoints = 500,
+            name = "Blooming Rose",
+            nickname = "Rosie",
+            personality = "Romantic • Passionate • Elegant",
+            mood = "In full bloom and smelling divine! 🌹",
+            quote = "\"Elegance is an attitude, and so is blooming!\"",
+            description = "A classic velvet rose blooming with rich fragrance and deep colors. The undisputed queen of the garden.",
+            careTip = "Enjoys organic fertilizer and gentle morning misting.",
+            drawableRes = R.drawable.ic_plant_4
+        ),
+        SeedInfo(
+            slotIndex = 5,
+            targetPoints = 800,
+            name = "Lush Monstera",
+            nickname = "Monty",
+            personality = "Playful • Trendy • Jungle Enthusiast",
+            mood = "Unfurling a brand new leaf today! 🌿",
+            quote = "\"More split leaves, more good vibes!\"",
+            description = "A tropical icon known for its wide split green leaves. Loves to climb high and fill the space with tropical joy.",
+            careTip = "Keep in indirect sunlight and wipe leaves regularly.",
+            drawableRes = R.drawable.ic_plant_5
+        ),
+        SeedInfo(
+            slotIndex = 6,
+            targetPoints = 1200,
+            name = "Golden Oak",
+            nickname = "Aurelius",
+            personality = "Majestic • Guardian • Inspiring",
+            mood = "Standing tall and glowing with golden sap! 🌳",
+            quote = "\"Mighty oaks from tiny golden acorns grow.\"",
+            description = "A majestic golden seedling of an ancient oak tree. Its golden leaves shimmer with royal elegance.",
+            careTip = "Needs a sturdy pot, plenty of soil nutrients, and room to grow.",
+            drawableRes = R.drawable.ic_plant_6
+        )
     )
 
     fun getSeedForSlot(slotIndex: Int): SeedInfo {

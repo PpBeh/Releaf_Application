@@ -28,17 +28,41 @@ class RewardRepository {
     }
 
     suspend fun getUserAchievements(userId: String): List<UserAchievementDto> {
-        return client.postgrest.from("user_achievements")
-            .select {
-                filter { eq("user_id", userId) }
+        return try {
+            client.postgrest.from("user_achievements")
+                .select(io.github.jan.supabase.postgrest.query.Columns.raw("*, achievement:achievements(*)")) {
+                    filter { eq("user_id", userId) }
+                }
+                .decodeList()
+        } catch (e: Exception) {
+            try {
+                client.postgrest.from("user_achievements")
+                    .select { filter { eq("user_id", userId) } }
+                    .decodeList()
+            } catch (ex: Exception) {
+                emptyList()
             }
-            .decodeList()
+        }
+    }
+
+    suspend fun getAllAchievements(): List<AchievementDto> {
+        return try {
+            client.postgrest.from("achievements")
+                .select()
+                .decodeList()
+        } catch (e: Exception) {
+            emptyList()
+        }
     }
 
     suspend fun getTotalAchievements(): Int {
-        return client.postgrest.from("achievements")
-            .select()
-            .decodeList<AchievementDto>().size
+        return try {
+            client.postgrest.from("achievements")
+                .select()
+                .decodeList<AchievementDto>().size
+        } catch (e: Exception) {
+            0
+        }
     }
 
     suspend fun updateUserPoints(userId: String, points: Int) {

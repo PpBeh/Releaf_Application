@@ -1,6 +1,12 @@
 package com.example.releaf.ui.map
 
+import android.graphics.Bitmap
+import android.net.Uri
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -15,21 +21,32 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.filled.AccountCircle
 import androidx.compose.material.icons.automirrored.filled.Send
+import androidx.compose.material.icons.filled.AccountCircle
+import androidx.compose.material.icons.filled.AddAPhoto
+import androidx.compose.material.icons.filled.CameraAlt
+import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.Image
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.filled.ThumbDown
 import androidx.compose.material.icons.filled.ThumbUp
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.ModalBottomSheet
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -43,10 +60,28 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.window.Dialog
+import coil.compose.rememberAsyncImagePainter
 import com.example.releaf.data.remote.dto.ReviewDto
 import com.example.releaf.ui.viewmodel.CommentViewModel
+import java.io.File
+
+fun countWords(text: String): Int {
+    if (text.isBlank()) return 0
+    return text.trim().split("\\s+".toRegex()).size
+}
+
+fun saveBitmapToUri(context: android.content.Context, bitmap: Bitmap): Uri {
+    val file = File(context.cacheDir, "comment_camera_${System.currentTimeMillis()}.jpg")
+    file.outputStream().use { out ->
+        bitmap.compress(Bitmap.CompressFormat.JPEG, 90, out)
+    }
+    return Uri.fromFile(file)
+}
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -63,9 +98,29 @@ fun CommentScreen(
     val errorMessage by viewModel.errorMessage.collectAsState()
     val isProcessing by viewModel.isProcessing.collectAsState()
     val isVoting by viewModel.isVoting.collectAsState()
+
     var commentText by remember { mutableStateOf("") }
     var starRating by remember { mutableIntStateOf(5) }
-    val context = androidx.compose.ui.platform.LocalContext.current
+    var selectedPhotoUri by remember { mutableStateOf<Uri?>(null) }
+    var showPhotoSourcePicker by remember { mutableStateOf(false) }
+
+    val context = LocalContext.current
+
+    val galleryLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.GetContent()
+    ) { uri ->
+        if (uri != null) {
+            selectedPhotoUri = uri
+        }
+    }
+
+    val cameraLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.TakePicturePreview()
+    ) { bitmap ->
+        if (bitmap != null) {
+            selectedPhotoUri = saveBitmapToUri(context, bitmap)
+        }
+    }
 
     var sheetUserId by remember { mutableStateOf<String?>(null) }
     var sheetProfile by remember { mutableStateOf<com.example.releaf.data.remote.dto.ProfileDto?>(null) }
@@ -90,6 +145,77 @@ fun CommentScreen(
         while (true) {
             kotlinx.coroutines.delay(3000)
             viewModel.loadReviews(poiId, currentUserId)
+        }
+    }
+
+    val wordCount = countWords(commentText)
+    val isWordLimitExceeded = wordCount > 500
+
+    // Photo Source Picker Dialog (Gallery vs Camera)
+    if (showPhotoSourcePicker) {
+        Dialog(onDismissRequest = { showPhotoSourcePicker = false }) {
+            Surface(
+                shape = RoundedCornerShape(20.dp),
+                color = MaterialTheme.colorScheme.surface,
+                modifier = Modifier.fillMaxWidth().padding(16.dp)
+            ) {
+                Column(
+                    modifier = Modifier.padding(20.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    Text(
+                        "Attach Photo",
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold
+                    )
+
+                    Spacer(modifier = Modifier.height(16.dp))
+
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable {
+                                showPhotoSourcePicker = false
+                                galleryLauncher.launch("image/*")
+                            }
+                            .padding(12.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(Icons.Default.Image, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
+                        Spacer(modifier = Modifier.width(16.dp))
+                        Column {
+                            Text("Choose from Gallery", fontWeight = FontWeight.Bold)
+                            Text("Select an existing photo from device", style = MaterialTheme.typography.labelSmall, color = Color.Gray)
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(8.dp))
+
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable {
+                                showPhotoSourcePicker = false
+                                cameraLauncher.launch(null)
+                            }
+                            .padding(12.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(Icons.Default.CameraAlt, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
+                        Spacer(modifier = Modifier.width(16.dp))
+                        Column {
+                            Text("Take Photo with Camera", fontWeight = FontWeight.Bold)
+                            Text("Capture a new photo right now", style = MaterialTheme.typography.labelSmall, color = Color.Gray)
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(12.dp))
+
+                    TextButton(onClick = { showPhotoSourcePicker = false }) {
+                        Text("Cancel")
+                    }
+                }
+            }
         }
     }
 
@@ -122,6 +248,48 @@ fun CommentScreen(
             }
         }
 
+        // Selected Photo Preview Banner
+        if (selectedPhotoUri != null) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp, vertical = 4.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Box(
+                    modifier = Modifier.size(60.dp)
+                ) {
+                    Image(
+                        painter = rememberAsyncImagePainter(model = selectedPhotoUri),
+                        contentDescription = "Attached Photo",
+                        modifier = Modifier
+                            .size(56.dp)
+                            .clip(RoundedCornerShape(8.dp)),
+                        contentScale = ContentScale.Crop
+                    )
+
+                    IconButton(
+                        onClick = { selectedPhotoUri = null },
+                        modifier = Modifier
+                            .size(20.dp)
+                            .align(Alignment.TopEnd)
+                            .background(Color.Red, CircleShape)
+                    ) {
+                        Icon(Icons.Default.Close, contentDescription = "Remove", tint = Color.White, modifier = Modifier.size(12.dp))
+                    }
+                }
+
+                Spacer(modifier = Modifier.width(12.dp))
+
+                Text(
+                    "Photo attached to comment ✓",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = Color(0xFF2E7D32),
+                    fontWeight = FontWeight.Bold
+                )
+            }
+        }
+
         Row(
             modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
             verticalAlignment = Alignment.CenterVertically
@@ -131,12 +299,27 @@ fun CommentScreen(
                 onValueChange = { commentText = it },
                 modifier = Modifier.weight(1f),
                 placeholder = { Text("Add a comment...") },
-                singleLine = true
+                singleLine = false,
+                maxLines = 3,
+                isError = isWordLimitExceeded
             )
-            Spacer(modifier = Modifier.width(8.dp))
+
+            Spacer(modifier = Modifier.width(4.dp))
+
+            // Photo Attachment Choice Button
+            IconButton(
+                onClick = { showPhotoSourcePicker = true }
+            ) {
+                Icon(
+                    Icons.Default.AddAPhoto,
+                    contentDescription = "Attach Photo",
+                    tint = if (selectedPhotoUri != null) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+
             IconButton(
                 onClick = {
-                    if (commentText.isNotBlank()) {
+                    if (commentText.isNotBlank() && !isWordLimitExceeded) {
                         val lm = context.getSystemService(android.content.Context.LOCATION_SERVICE) as? android.location.LocationManager
                         val loc = try {
                             lm?.getLastKnownLocation(android.location.LocationManager.GPS_PROVIDER)
@@ -144,14 +327,41 @@ fun CommentScreen(
                         } catch (_: SecurityException) { null }
                         val lat = loc?.latitude ?: 0.0
                         val lng = loc?.longitude ?: 0.0
-                        viewModel.addReview(poiId, currentUserId, starRating, commentText, lat, lng)
+                        viewModel.addReview(poiId, currentUserId, starRating, commentText, lat, lng, selectedPhotoUri, context)
                         commentText = ""
+                        selectedPhotoUri = null
                         starRating = 5
                     }
-                }
+                },
+                enabled = commentText.isNotBlank() && !isWordLimitExceeded && !isProcessing
             ) {
                 Icon(Icons.AutoMirrored.Filled.Send, contentDescription = "Send")
             }
+        }
+
+        // Word Limit Counter Banner
+        Row(
+            modifier = Modifier.fillMaxWidth().padding(horizontal = 20.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            if (isWordLimitExceeded) {
+                Text(
+                    "Word limit exceeded! (Max 500 words)",
+                    color = MaterialTheme.colorScheme.error,
+                    style = MaterialTheme.typography.labelSmall,
+                    fontWeight = FontWeight.Bold
+                )
+            } else {
+                Spacer(modifier = Modifier.weight(1f))
+            }
+
+            Text(
+                "$wordCount / 500 words",
+                style = MaterialTheme.typography.labelSmall,
+                color = if (isWordLimitExceeded) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant,
+                fontWeight = if (isWordLimitExceeded) FontWeight.Bold else FontWeight.Normal
+            )
         }
 
         if (errorMessage != null) {
@@ -198,25 +408,39 @@ fun CommentScreen(
                     )
                     if (showEditDialog) {
                         var editText by remember { mutableStateOf(review.text) }
-                        androidx.compose.material3.AlertDialog(
+                        val editWordCount = countWords(editText)
+                        val isEditExceeded = editWordCount > 500
+
+                        AlertDialog(
                             onDismissRequest = { if (!isProcessing) showEditDialog = false },
                             title = { Text("Edit Comment") },
                             text = {
-                                OutlinedTextField(
-                                    value = editText,
-                                    onValueChange = { editText = it },
-                                    modifier = Modifier.fillMaxWidth(),
-                                    singleLine = false,
-                                    enabled = !isProcessing
-                                )
+                                Column {
+                                    OutlinedTextField(
+                                        value = editText,
+                                        onValueChange = { editText = it },
+                                        modifier = Modifier.fillMaxWidth(),
+                                        singleLine = false,
+                                        enabled = !isProcessing,
+                                        isError = isEditExceeded
+                                    )
+                                    Spacer(modifier = Modifier.height(4.dp))
+                                    Text(
+                                        "$editWordCount / 500 words",
+                                        style = MaterialTheme.typography.labelSmall,
+                                        color = if (isEditExceeded) MaterialTheme.colorScheme.error else Color.Gray
+                                    )
+                                }
                             },
                             confirmButton = {
-                                androidx.compose.material3.TextButton(
+                                TextButton(
                                     onClick = {
-                                        viewModel.updateReview(review.id, editText)
-                                        showEditDialog = false
+                                        if (!isEditExceeded) {
+                                            viewModel.updateReview(review.id, editText)
+                                            showEditDialog = false
+                                        }
                                     },
-                                    enabled = !isProcessing
+                                    enabled = !isProcessing && !isEditExceeded
                                 ) {
                                     if (isProcessing) {
                                         CircularProgressIndicator(strokeWidth = 2.dp, modifier = Modifier.size(18.dp))
@@ -226,7 +450,7 @@ fun CommentScreen(
                                 }
                             },
                             dismissButton = {
-                                androidx.compose.material3.TextButton(
+                                TextButton(
                                     onClick = { showEditDialog = false },
                                     enabled = !isProcessing
                                 ) { Text("Cancel") }
@@ -250,7 +474,7 @@ fun CommentScreen(
     }
 
     if (sheetUserId != null) {
-        androidx.compose.material3.ModalBottomSheet(
+        ModalBottomSheet(
             onDismissRequest = {
                 sheetUserId = null
                 sheetProfile = null
@@ -265,7 +489,7 @@ fun CommentScreen(
                 Box(
                     modifier = Modifier
                         .size(72.dp)
-                        .clip(androidx.compose.foundation.shape.CircleShape)
+                        .clip(CircleShape)
                         .background(MaterialTheme.colorScheme.primaryContainer),
                     contentAlignment = Alignment.Center
                 ) {
@@ -306,7 +530,7 @@ fun CommentScreen(
                     }
                 }
                 Spacer(modifier = Modifier.height(16.dp))
-                androidx.compose.material3.OutlinedButton(
+                OutlinedButton(
                     onClick = {
                         val uid = sheetUserId ?: return@OutlinedButton
                         sheetUserId = null

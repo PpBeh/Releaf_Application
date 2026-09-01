@@ -32,7 +32,6 @@ import com.example.releaf.ui.auth.RegisterScreen
 import com.example.releaf.ui.auth.SetNewPasswordScreen
 import com.example.releaf.ui.auth.VerificationScreen
 import com.example.releaf.ui.garden.GardenPlotScreen
-import com.example.releaf.ui.garden.GardenScreen
 import com.example.releaf.ui.map.CommentScreen
 import com.example.releaf.ui.map.DirectionScreen
 import com.example.releaf.ui.map.MapScreen
@@ -219,11 +218,11 @@ fun ReleafNavGraph(
         composable(Screen.Garden.route) {
             val gardenViewModel: GardenViewModel = viewModel()
             val userId = (session as? SessionState.LoggedIn)?.userId ?: return@composable
-            GardenScreen(
+            GardenPlotScreen(
                 viewModel = gardenViewModel,
                 userId = userId,
                 themeViewModel = themeViewModel,
-                onHouseClick = { navController.navigateToGardenSection(toPlot = true) }
+                onBackClick = { navController.popBackStack() }
             )
         }
         composable(Screen.GardenPlot.route) {
@@ -317,6 +316,9 @@ fun ReleafNavGraph(
                     navController.logout() },
                 onSettingsClick = {
                     navController.navigate(Screen.Settings.route)
+                },
+                onViewGardenClick = {
+                    navController.navigateToGardenSection(toPlot = true)
                 }
             )
         }

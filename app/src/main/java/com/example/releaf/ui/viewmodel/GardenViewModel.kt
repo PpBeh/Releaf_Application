@@ -10,6 +10,7 @@ import com.example.releaf.data.remote.dto.PlantSlotDto
 import com.example.releaf.data.repository.AuthRepository
 import com.example.releaf.data.repository.GardenRepository
 import com.example.releaf.data.repository.QuestRepository
+import com.example.releaf.data.repository.RewardRepository
 import com.example.releaf.model.SeedData
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -24,6 +25,7 @@ class GardenViewModel(application: Application) : AndroidViewModel(application) 
     private val repository = GardenRepository()
     private val authRepository = AuthRepository()
     private val questRepository = QuestRepository()
+    private val rewardRepository = RewardRepository()
 
     private val gardenPrefs = application.getSharedPreferences("garden_prefs", Context.MODE_PRIVATE)
 
@@ -258,6 +260,24 @@ class GardenViewModel(application: Application) : AndroidViewModel(application) 
                 SupabaseModule.triggerRefresh()
             } catch (e: Exception) {
                 e.printStackTrace()
+            }
+        }
+    }
+
+    fun plantSeed(slotIndex: Int, userId: String) {
+        viewModelScope.launch {
+            try {
+                val seed = SeedData.getSeedForSlot(slotIndex)
+                rewardRepository.claimPlantReward(userId, slotIndex, seed.name)
+                gardenPrefs.edit().putString("slot_${userId}_$slotIndex", "PLANTED").apply()
+                _statusMessage.value = "Planted ${seed.nickname.ifBlank { seed.name }} in Slot $slotIndex! 🌱"
+                loadGarden(userId)
+                SupabaseModule.triggerRefresh()
+            } catch (e: Exception) {
+                e.printStackTrace()
+                gardenPrefs.edit().putString("slot_${userId}_$slotIndex", "PLANTED").apply()
+                _statusMessage.value = "Planted ${SeedData.getSeedForSlot(slotIndex).name}! 🌱"
+                loadGarden(userId)
             }
         }
     }

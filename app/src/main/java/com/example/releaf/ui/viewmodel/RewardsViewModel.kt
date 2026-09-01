@@ -65,6 +65,25 @@ class RewardsViewModel(application: Application) : AndroidViewModel(application)
                 _tiers.value = rewardRepository.getRewardTiers()
                 _userRewards.value = rewardRepository.getUserRewards(userId)
                 _gardenSlots.value = loadSlotsWithLocalFallback(userId)
+
+                // Check and notify available rewards
+                try {
+                    val notifRepo = com.example.releaf.data.repository.NotificationRepository()
+                    val existing = notifRepo.getNotifications(userId)
+                    SeedData.seedList.forEach { seed ->
+                        if (actualExp >= seed.targetPoints) {
+                            val title = "🎁 Reward Available: ${seed.name}"
+                            if (existing.none { it.title == title }) {
+                                notifRepo.sendNotification(
+                                    userId = userId,
+                                    title = title,
+                                    body = "Congratulations! You reached ${seed.targetPoints} points and unlocked the ${seed.name} seed. Claim it now!",
+                                    type = "REWARD"
+                                )
+                            }
+                        }
+                    }
+                } catch (_: Exception) { }
             } catch (e: Exception) {
                 Log.e("RewardsViewModel", "Failed to load rewards data", e)
 

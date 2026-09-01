@@ -40,4 +40,17 @@ class NotificationRepository {
             ) { filter { eq("user_id", userId) } }
         } catch (_: Exception) { }
     }
+
+    suspend fun sendNotification(userId: String, title: String, body: String, type: String = "REWARD") {
+        try {
+            val data = mapOf(
+                "user_id" to userId,
+                "title" to title,
+                "body" to body,
+                "type" to type,
+                "is_read" to false
+            )
+            client.postgrest.from("notifications").insert(data)
+        } catch (_: Exception) { }
+    }
 }

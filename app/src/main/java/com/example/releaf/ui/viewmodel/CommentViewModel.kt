@@ -57,7 +57,16 @@ class CommentViewModel : ViewModel() {
         _errorMessage.value = null
     }
 
-    fun addReview(poiId: String, userId: String, starRating: Int, text: String, userLat: Double, userLng: Double) {
+    fun addReview(
+        poiId: String,
+        userId: String,
+        starRating: Int,
+        text: String,
+        userLat: Double,
+        userLng: Double,
+        photoUri: android.net.Uri? = null,
+        context: android.content.Context? = null
+    ) {
         viewModelScope.launch {
             _isProcessing.value = true
             try {
@@ -67,7 +76,7 @@ class CommentViewModel : ViewModel() {
                     emptyList()
                 }
                 if (existingReviews.any { it.user_id == userId }) {
-                    _errorMessage.value = "You have already commented on this toilet. Only one comment per user is allowed."
+                    _errorMessage.value = "You have already commented on this location. Only one comment per user is allowed."
                     _isProcessing.value = false
                     return@launch
                 }
@@ -86,6 +95,15 @@ class CommentViewModel : ViewModel() {
                         reviewer_name = reviewerName
                     )
                 )
+
+                if (photoUri != null && context != null) {
+                    try {
+                        com.example.releaf.data.repository.PoiRepository()
+                            .uploadPoiPhoto(poiId, userId, photoUri, context)
+                    } catch (e: Exception) {
+                        e.printStackTrace()
+                    }
+                }
 
                 com.example.releaf.data.repository.QuestRepository().incrementQuestsByType(userId, "REVIEW")
 
