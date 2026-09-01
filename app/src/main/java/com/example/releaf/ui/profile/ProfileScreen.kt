@@ -19,6 +19,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
@@ -52,7 +53,8 @@ fun ProfileScreen(
     viewModel: ProfileViewModel,
     themeViewModel: ThemeViewModel,
     onFavouritesClick: () -> Unit,
-    onLogoutClick: () -> Unit
+    onLogoutClick: () -> Unit,
+    onSettingsClick: () -> Unit
 ) {
     val context = LocalContext.current
     val profile by viewModel.profile.collectAsState()
@@ -74,7 +76,11 @@ fun ProfileScreen(
                 color = MaterialTheme.colorScheme.surface
             ) {
                 Column(modifier = Modifier.padding(16.dp)) {
-                    Text(string("select_language", themeViewModel), style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+                    Text(
+                        string("select_language", themeViewModel),
+                        style = MaterialTheme.typography.titleLarge,
+                        fontWeight = FontWeight.Bold
+                    )
                     Spacer(modifier = Modifier.height(16.dp))
                     com.example.releaf.ui.viewmodel.AppLanguage.entries.forEach { lang ->
                         Row(
@@ -107,7 +113,11 @@ fun ProfileScreen(
                 color = MaterialTheme.colorScheme.surface
             ) {
                 Column(modifier = Modifier.padding(16.dp)) {
-                    Text("Select Theme", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+                    Text(
+                        "Select Theme",
+                        style = MaterialTheme.typography.titleLarge,
+                        fontWeight = FontWeight.Bold
+                    )
                     Spacer(modifier = Modifier.height(16.dp))
                     AppTheme.entries.forEach { theme ->
                         Row(
@@ -178,6 +188,21 @@ fun ProfileScreen(
                 .height(220.dp)
                 .background(MaterialTheme.colorScheme.primary)
         ) {
+            if (isOwnProfile) {
+                IconButton(
+                    onClick = { onSettingsClick },
+                    modifier = Modifier
+                        .align(Alignment.TopEnd)
+                        .padding(8.dp)
+                ) {
+                    Icon(
+                        painter = painterResource(id = R.drawable.ic_palette),
+                        contentDescription = "Settings",
+                        tint = Color.White,
+                        modifier = Modifier.size(28.dp)
+                    )
+                }
+            }
             Column(
                 modifier = Modifier
                     .align(Alignment.BottomStart)
@@ -239,8 +264,16 @@ fun ProfileScreen(
                                     fontWeight = FontWeight.Bold
                                 )
                             }
-                            Text(phone, color = Color.White, style = MaterialTheme.typography.bodySmall)
-                            Text(email, color = Color.White, style = MaterialTheme.typography.bodySmall)
+                            Text(
+                                phone,
+                                color = Color.White,
+                                style = MaterialTheme.typography.bodySmall
+                            )
+                            Text(
+                                email,
+                                color = Color.White,
+                                style = MaterialTheme.typography.bodySmall
+                            )
                         }
                     }
                 }
@@ -298,27 +331,27 @@ fun ProfileScreen(
             }
         }
 
-        if (isOwnProfile) {
-            Text(
-                "Settings",
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.Bold,
-                modifier = Modifier.padding(start = 20.dp, top = 12.dp, bottom = 4.dp)
-            )
-
-            settingsRows.forEach { row ->
-                SettingsRow(
-                    row = row,
-                    onClick = {
-                        when (row.key) {
-                            "logout" -> onLogoutClick()
-                            "fav" -> onFavouritesClick()
-                            "theme" -> showThemeDialog = true
-                            "language" -> showLangDialog = true
-                        }
-                    }
-                )
-            }
-        }
+//        if (isOwnProfile) {
+//            Text(
+//                "Settings",
+//                style = MaterialTheme.typography.titleMedium,
+//                fontWeight = FontWeight.Bold,
+//                modifier = Modifier.padding(start = 20.dp, top = 12.dp, bottom = 4.dp)
+//            )
+//
+//            settingsRows.forEach { row ->
+//                SettingsRow(
+//                    row = row,
+//                    onClick = {
+//                        when (row.key) {
+//                            "logout" -> onLogoutClick()
+//                            "fav" -> onFavouritesClick()
+//                            "theme" -> showThemeDialog = true
+//                            "language" -> showLangDialog = true
+//                        }
+//                    }
+//                )
+//            }
+//        }
     }
 }

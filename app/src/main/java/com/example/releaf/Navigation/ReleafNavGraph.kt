@@ -314,7 +314,9 @@ fun ReleafNavGraph(
                 onFavouritesClick = { navController.navigate(Screen.Favourites.route) },
                 onLogoutClick = {
                     authViewModel.logout()
-                    navController.logout()
+                    navController.logout() },
+                onSettingsClick = {
+                    navController.navigate(Screen.Settings.route)
                 }
             )
         }

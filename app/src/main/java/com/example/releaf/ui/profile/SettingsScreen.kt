@@ -40,6 +40,7 @@ import com.example.releaf.R
 import com.example.releaf.ui.theme.AppTheme
 import com.example.releaf.ui.theme.string
 import com.example.releaf.ui.viewmodel.AppLanguage
+import com.example.releaf.ui.viewmodel.ProfileViewModel
 import com.example.releaf.ui.viewmodel.ThemeViewModel
 
 internal const val LOG_OUT_LABEL = "Log out"
@@ -143,7 +144,7 @@ fun SettingsScreen(
                 .background(MaterialTheme.colorScheme.primary)
         ) {
             IconButton(onClick = onBackClick, modifier = Modifier.padding(8.dp)) {
-                // 3. 替换返回按钮
+
                 Icon(
                     painter = painterResource(id = R.drawable.ic_arrow_back),
                     contentDescription = "Back",
