@@ -133,6 +133,7 @@ fun MapScreen(
     var dailyPointsClaimed by remember { mutableStateOf(isDailyRewardClaimedToday(billingPrefs, currentUserId)) }
     var isClaimingDaily by remember { mutableStateOf(false) }
     var showPhotoSourcePickerForPoi by remember { mutableStateOf(false) }
+    var showAddPhotoSourcePicker by remember { mutableStateOf(false) }
     var showEnableLocationDialog by remember { mutableStateOf(false) }
 
     LaunchedEffect(currentUserId) {
@@ -175,6 +176,16 @@ fun MapScreen(
             viewModel.selectedPoi.value?.let { poi ->
                 viewModel.uploadPhoto(poi.id, uri, context)
             }
+        }
+    }
+
+    // Camera capture for the "Add New POI" picture (kept in a local Uri like the
+    // comment camera so it uploads from the same picker flow).
+    val addPoiCameraPicker = rememberLauncherForActivityResult(
+        ActivityResultContracts.TakePicturePreview()
+    ) { bitmap ->
+        if (bitmap != null) {
+            selectedPhotoUri = saveBitmapToUri(context, bitmap)
         }
     }
 
@@ -608,70 +619,12 @@ fun MapScreen(
     }
 
     if (showPhotoSourcePickerForPoi) {
-        androidx.compose.ui.window.Dialog(onDismissRequest = { showPhotoSourcePickerForPoi = false }) {
-            Surface(
-                shape = RoundedCornerShape(20.dp),
-                color = MaterialTheme.colorScheme.surface,
-                modifier = Modifier.fillMaxWidth().padding(16.dp)
-            ) {
-                Column(
-                    modifier = Modifier.padding(20.dp),
-                    horizontalAlignment = Alignment.CenterHorizontally
-                ) {
-                    Text(
-                        "Upload Facility Photo",
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.Bold
-                    )
-
-                    Spacer(modifier = Modifier.height(16.dp))
-
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clickable {
-                                showPhotoSourcePickerForPoi = false
-                                detailPhotoPicker.launch("image/*")
-                            }
-                            .padding(12.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Icon(Icons.Default.Image, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
-                        Spacer(modifier = Modifier.width(16.dp))
-                        Column {
-                            Text("Choose from Gallery", fontWeight = FontWeight.Bold)
-                            Text("Select an existing photo from device", style = MaterialTheme.typography.labelSmall, color = Color.Gray)
-                        }
-                    }
-
-                    Spacer(modifier = Modifier.height(8.dp))
-
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clickable {
-                                showPhotoSourcePickerForPoi = false
-                                cameraPhotoPicker.launch(null)
-                            }
-                            .padding(12.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Icon(Icons.Default.CameraAlt, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
-                        Spacer(modifier = Modifier.width(16.dp))
-                        Column {
-                            Text("Take Photo with Camera", fontWeight = FontWeight.Bold)
-                            Text("Capture a new photo right now", style = MaterialTheme.typography.labelSmall, color = Color.Gray)
-                        }
-                    }
-
-                    Spacer(modifier = Modifier.height(12.dp))
-
-                    TextButton(onClick = { showPhotoSourcePickerForPoi = false }) {
-                        Text("Cancel")
-                    }
-                }
-            }
-        }
+        PhotoSourcePickerDialog(
+            title = "Upload Facility Photo",
+            onDismiss = { showPhotoSourcePickerForPoi = false },
+            onGalleryClick = { detailPhotoPicker.launch("image/*") },
+            onCameraClick = { cameraPhotoPicker.launch(null) }
+        )
     }
 
     if (showSubscriptionDialog) {
@@ -877,13 +830,22 @@ fun MapScreen(
                 showAddPoiDialog = false
                 selectedPhotoUri = null
             },
-            onPickPhoto = { photoPicker.launch("image/*") },
+            onPickPhoto = { showAddPhotoSourcePicker = true },
             onSubmit = { name, category, desc, isPaid ->
                 viewModel.createPoi(name, category, currentLat, currentLng, isPaid, currentUserId, desc, selectedPhotoUri, context)
                 showAddPoiDialog = false
                 selectedPhotoUri = null
                 viewModel.loadPois()
             }
+        )
+    }
+
+    if (showAddPhotoSourcePicker) {
+        PhotoSourcePickerDialog(
+            title = "Add New Toilet Photo",
+            onDismiss = { showAddPhotoSourcePicker = false },
+            onGalleryClick = { photoPicker.launch("image/*") },
+            onCameraClick = { addPoiCameraPicker.launch(null) }
         )
     }
 
@@ -1043,6 +1005,79 @@ private fun SubscriptionBenefitCard(
                 Text(title, fontWeight = FontWeight.Bold, style = MaterialTheme.typography.bodyMedium)
                 Spacer(modifier = Modifier.height(2.dp))
                 Text(description, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
+        }
+    }
+}
+
+@Composable
+private fun PhotoSourcePickerDialog(
+    title: String,
+    onDismiss: () -> Unit,
+    onGalleryClick: () -> Unit,
+    onCameraClick: () -> Unit
+) {
+    androidx.compose.ui.window.Dialog(onDismissRequest = onDismiss) {
+        Surface(
+            shape = RoundedCornerShape(20.dp),
+            color = MaterialTheme.colorScheme.surface,
+            modifier = Modifier.fillMaxWidth().padding(16.dp)
+        ) {
+            Column(
+                modifier = Modifier.padding(20.dp),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                Text(
+                    title,
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold
+                )
+
+                Spacer(modifier = Modifier.height(16.dp))
+
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable {
+                            onDismiss()
+                            onGalleryClick()
+                        }
+                        .padding(12.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Icon(Icons.Default.Image, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
+                    Spacer(modifier = Modifier.width(16.dp))
+                    Column {
+                        Text("Choose from Gallery", fontWeight = FontWeight.Bold)
+                        Text("Select an existing photo from device", style = MaterialTheme.typography.labelSmall, color = Color.Gray)
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(8.dp))
+
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable {
+                            onDismiss()
+                            onCameraClick()
+                        }
+                        .padding(12.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Icon(Icons.Default.CameraAlt, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
+                    Spacer(modifier = Modifier.width(16.dp))
+                    Column {
+                        Text("Take Photo with Camera", fontWeight = FontWeight.Bold)
+                        Text("Capture a new photo right now", style = MaterialTheme.typography.labelSmall, color = Color.Gray)
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(12.dp))
+
+                TextButton(onClick = onDismiss) {
+                    Text("Cancel")
+                }
             }
         }
     }

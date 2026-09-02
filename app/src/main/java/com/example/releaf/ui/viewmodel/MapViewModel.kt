@@ -209,24 +209,31 @@ class MapViewModel : ViewModel() {
             )
             val created = repository.createPoi(dto)
             if (created) {
-                loadPois()
-                if (photoUri != null && context != null) {
-                    // Upload the chosen photo against the newly created POI.
-                    val target = _pois.value.minByOrNull {
-                        haversine(latitude, longitude, it.latitude, it.longitude)
-                    }
-                    val match = target?.let {
-                        if (haversine(latitude, longitude, it.latitude, it.longitude) < 50.0) it else null
-                    }
-                    if (match != null) {
-                        val uploaded = try {
-                            repository.uploadPoiPhoto(match.id, userId, photoUri, context)
-                        } catch (_: Exception) { false }
-                        _actionResult.value = if (uploaded) {
-                            PoiActionResult.Message("photo_uploaded")
-                        } else {
-                            PoiActionResult.Message("photo_failed")
-                        }
+                // Fetch the fresh list BEFORE locating the new POI - loadPois() is
+                // async, and searching the stale list made photo attachment fail.
+                val refreshed = try {
+                    repository.getAllPois()
+                } catch (_: Exception) {
+                    emptyList()
+                }
+                if (refreshed.isNotEmpty()) {
+                    _pois.value = refreshed
+                    applyFilters()
+                }
+                val searchable = refreshed.ifEmpty { _pois.value }
+                val match = searchable
+                    .filter { it.category == category }
+                    .minByOrNull { haversine(latitude, longitude, it.latitude, it.longitude) }
+                    ?.takeIf { haversine(latitude, longitude, it.latitude, it.longitude) < 50.0 }
+
+                if (photoUri != null && context != null && match != null) {
+                    val uploaded = try {
+                        repository.uploadPoiPhoto(match.id, userId, photoUri, context)
+                    } catch (_: Exception) { false }
+                    _actionResult.value = if (uploaded) {
+                        PoiActionResult.Message("photo_uploaded")
+                    } else {
+                        PoiActionResult.Message("photo_failed")
                     }
                 } else {
                     _actionResult.value = PoiActionResult.Message("created")
