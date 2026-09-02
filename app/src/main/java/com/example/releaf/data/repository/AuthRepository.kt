@@ -49,25 +49,11 @@ class AuthRepository {
         }
     }
 
-    private suspend fun isEmailRegistered(email: String): Boolean {
-        return try {
-            val existing = client.postgrest.from("profiles").select {
-                filter { eq("email", email) }
-            }.decodeList<ProfileDto>()
-            existing.isNotEmpty()
-        } catch (_: Exception) {
-            false
-        }
-    }
-
     suspend fun register(name: String, email: String, password: String): Result<RegisterResult> {
+        // Let the auth server decide whether the email already exists; the
+        // profiles table is not a reliable duplicate check (rows/email columns
+        // depend on triggers, and unconfirmed signups create rows too).
         return try {
-            if (isEmailRegistered(email)) {
-                return Result.failure(EmailAlreadyRegisteredException(
-                    "This email is already registered. Please log in instead, or use \"Forgot password\" to reset it."
-                ))
-            }
-
             client.auth.signUpWith(Email) {
                 this.email = email
                 this.password = password
@@ -91,12 +77,18 @@ class AuthRepository {
             }
         } catch (e: Exception) {
             val msg = e.message ?: ""
-            if (msg.contains("already", ignoreCase = true) && msg.contains("registered", ignoreCase = true)) {
-                Result.failure(EmailAlreadyRegisteredException(
-                    "This email is already registered. Please log in instead, or use \"Forgot password\" to reset it."
-                ))
-            } else {
-                Result.failure(e)
+            when {
+                (msg.contains("already", ignoreCase = true) && (msg.contains("registered", ignoreCase = true) ||
+                        msg.contains("exists", ignoreCase = true) || msg.contains("taken", ignoreCase = true))) ->
+                    Result.failure(EmailAlreadyRegisteredException(
+                        "This email is already registered. Please log in instead, or use \"Forgot password\" to reset it."
+                    ))
+                msg.contains("rate", ignoreCase = true) || msg.contains("too many", ignoreCase = true) ||
+                        msg.contains("exceeded", ignoreCase = true) ->
+                    Result.failure(Exception(
+                        "Too many sign-up attempts for this email. Please wait a few minutes and try again."
+                    ))
+                else -> Result.failure(e)
             }
         }
     }
@@ -118,19 +110,23 @@ class AuthRepository {
             if (email.isBlank() || !android.util.Patterns.EMAIL_ADDRESS.matcher(email).matches()) {
                 return Result.failure(Exception("Please enter a valid email address"))
             }
-            if (!isEmailRegistered(email)) {
-                return Result.failure(Exception("This email is not registered. Please sign up first."))
-            }
             client.auth.resendEmail(type = io.github.jan.supabase.auth.OtpType.Email.SIGNUP, email = email)
             Result.success(Unit)
         } catch (e: Exception) {
             val msg = e.message ?: ""
-            if (msg.contains("already", ignoreCase = true) && msg.contains("registered", ignoreCase = true)) {
-                Result.failure(EmailAlreadyRegisteredException(
-                    "This email is already registered. Please log in instead."
-                ))
-            } else {
-                Result.failure(e)
+            when {
+                msg.contains("not found", ignoreCase = true) || msg.contains("no user", ignoreCase = true) ||
+                        msg.contains("unregistered", ignoreCase = true) ->
+                    Result.failure(Exception("This email is not registered. Please sign up first."))
+                msg.contains("already", ignoreCase = true) &&
+                        (msg.contains("registered", ignoreCase = true) || msg.contains("confirmed", ignoreCase = true)) ->
+                    Result.failure(EmailAlreadyRegisteredException(
+                        "This email is fully registered. Please log in instead."
+                    ))
+                msg.contains("rate", ignoreCase = true) || msg.contains("too many", ignoreCase = true) ||
+                        msg.contains("exceeded", ignoreCase = true) ->
+                    Result.failure(Exception("Too many resend attempts. Please wait about a minute and try again."))
+                else -> Result.failure(e)
             }
         }
     }

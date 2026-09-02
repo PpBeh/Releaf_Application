@@ -105,6 +105,7 @@ class AuthViewModel : ViewModel() {
             result.fold(
                 onSuccess = { userId ->
                     _registeredName.value = null
+                    _registeredPassword.value = null
                     _uiState.value = AuthUiState(isLoginSuccess = true)
                     _session.value = SessionState.LoggedIn(userId)
                 },
@@ -128,7 +129,9 @@ class AuthViewModel : ViewModel() {
                 onSuccess = { registerResult ->
                     when (registerResult) {
                         is RegisterResult.VerificationPending -> {
-                            _registeredPassword.value = null
+                            // Keep the password in memory: it is needed to log in
+                            // again when the user taps "I've verified - Continue".
+                            // It is cleared once verification/login succeeds.
                             _uiState.value = AuthUiState(isRegistrationSuccess = true, registeredEmail = email)
                         }
                         is RegisterResult.AccountReady -> {
