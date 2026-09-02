@@ -102,12 +102,35 @@ class GardenRepository {
             exp_target = expTarget,
             grow_uses_left = waterUsesLeft,
             fertilize_uses_left = fertilizeUsesLeft,
-            current_points = newPoints,
-            current_gems = newGems
+            current_points = newPoints.coerceAtLeast(0),
+            current_gems = newGems.coerceAtLeast(0)
         )
 
         client.postgrest.from("gardens").upsert(upsertData) {
             onConflict = "user_id"
         }
+    }
+
+    // Repairs legacy negative balances (caused by the old frame-purchase bug) to 0.
+    suspend fun healNegativeBalance(userId: String, garden: GardenDto): GardenDto {
+        if (garden.current_points >= 0 && garden.current_gems >= 0) return garden
+        val healed = garden.copy(
+            current_points = garden.current_points.coerceAtLeast(0),
+            current_gems = garden.current_gems.coerceAtLeast(0)
+        )
+        try {
+            updateGarden(
+                userId,
+                GardenUpdateDto(
+                    current_exp = healed.current_exp,
+                    exp_target = healed.exp_target,
+                    grow_uses_left = healed.grow_uses_left,
+                    fertilize_uses_left = healed.fertilize_uses_left,
+                    current_points = healed.current_points,
+                    current_gems = healed.current_gems
+                )
+            )
+        } catch (_: Exception) { }
+        return healed
     }
 }

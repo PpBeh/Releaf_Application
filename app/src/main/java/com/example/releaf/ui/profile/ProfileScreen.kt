@@ -256,7 +256,10 @@ fun ProfileScreen(
                                 text = {
                                     Column {
                                         frames.forEach { (fid, label) ->
-                                            val owned = fid == "None" || fid == "Leaf" || prefs.getBoolean("owned_$fid", false)
+                                            // A frame is usable if it is free, purchased on this device,
+                                            // or currently equipped on the server (survives reinstalls).
+                                            val owned = fid == "None" || fid == "Leaf" ||
+                                                    currentFrame == fid || prefs.getBoolean("owned_$fid", false)
                                             Row(
                                                 modifier = Modifier.fillMaxWidth().clickable(enabled = owned) {
                                                     viewModel.updateAvatarFrame(userId, if (fid == "None") "" else fid)
@@ -421,10 +424,18 @@ fun ProfileScreen(
                             )
                             Spacer(modifier = Modifier.width(4.dp))
                             Text(
-                                "$gardenExp EXP / Points",
+                                "$gardenExp EXP",
                                 color = Color.White,
                                 style = MaterialTheme.typography.bodyMedium,
                                 fontWeight = FontWeight.Bold
+                            )
+                            Spacer(modifier = Modifier.width(10.dp))
+                            Text("🪙", fontSize = 14.sp)
+                            Spacer(modifier = Modifier.width(2.dp))
+                            Text(
+                                "${userGarden?.current_points ?: 0} Points",
+                                color = Color.White.copy(alpha = 0.9f),
+                                style = MaterialTheme.typography.bodyMedium
                             )
                         }
 

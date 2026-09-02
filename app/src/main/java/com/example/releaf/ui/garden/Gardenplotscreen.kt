@@ -308,7 +308,7 @@ fun GardenPlotScreen(
                             shape = RoundedCornerShape(16.dp),
                             colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF2196F3))
                         ) {
-                            Text("💧 Water (+50)", fontSize = 12.sp)
+                            Text("💧 Water +50 EXP", fontSize = 12.sp)
                         }
 
                         Button(
@@ -320,7 +320,7 @@ fun GardenPlotScreen(
                             shape = RoundedCornerShape(16.dp),
                             colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF4CAF50))
                         ) {
-                            Text("🌱 Fertilize (+50)", fontSize = 12.sp)
+                            Text("🌱 Fertilize +50 EXP", fontSize = 12.sp)
                         }
                     }
                     if (isPlanted) {

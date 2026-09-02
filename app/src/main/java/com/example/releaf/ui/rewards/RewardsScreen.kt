@@ -98,15 +98,15 @@ fun RewardsScreen(
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {
                     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(16.dp)) {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Text("🌟", style = MaterialTheme.typography.bodyMedium)
-                            Spacer(modifier = Modifier.width(6.dp))
-                            Text(
-                                text = "$userPoints / $nextTargetExp",
-                                fontWeight = FontWeight.Bold,
-                                color = MaterialTheme.colorScheme.primary
-                            )
-                        }
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text("🌟", style = MaterialTheme.typography.bodyMedium)
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text(
+                            text = "$userPoints / $nextTargetExp EXP",
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.primary
+                        )
+                    }
                         Text("•", color = MaterialTheme.colorScheme.onSurfaceVariant)
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Text("💎", style = MaterialTheme.typography.bodyMedium)
@@ -188,28 +188,51 @@ fun RewardsScreen(
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text("💎 $userGems Gems", fontWeight = FontWeight.Bold, color = Color(0xFF00ACC1))
                 Spacer(modifier = Modifier.width(8.dp))
-                Text("🌟 $userPoints Points", fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
+                Text("🪙 $walletPoints Points", fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
             }
+            Spacer(modifier = Modifier.height(2.dp))
+            Text(
+                "Frames are bought with 💎 Gems + 🪙 spendable Points (earn 🪙 by watering & quests, 💎 by watering and Pro daily rewards).",
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
             Spacer(modifier = Modifier.height(8.dp))
+            val framePrefs = androidx.compose.ui.platform.LocalContext.current.getSharedPreferences(
+                "frames_$userId",
+                android.content.Context.MODE_PRIVATE
+            )
             val frames = listOf(
                 Triple("None", 0 to 0, "No frame"), Triple("Leaf", 0 to 0, "🍃"), Triple("Blocks", 100 to 1000, "🧱"), Triple("Gold", 200 to 2000, "🏆"), Triple("Diamond", 500 to 5000, "💎")
             )
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 frames.forEach { (frameName, price, icon) ->
                     val (gemPrice, pointPrice) = price
-                    val canAfford = userGems >= gemPrice && walletPoints >= pointPrice
+                    val alreadyOwned = framePrefs.getBoolean("owned_$frameName", false)
+                    val canAfford = !alreadyOwned && userGems >= gemPrice && walletPoints >= pointPrice
                     Card(shape = RoundedCornerShape(12.dp), modifier = Modifier.fillMaxWidth()) {
                         Row(modifier = Modifier.padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
                             Text(icon, fontSize = 24.sp, modifier = Modifier.padding(end = 12.dp))
                             Column(modifier = Modifier.weight(1f)) {
                                 Text(frameName, fontWeight = FontWeight.Bold)
-                                Text("$gemPrice Gems • $pointPrice Points", style = MaterialTheme.typography.labelSmall)
+                                Text(
+                                    if (alreadyOwned) "Owned - pick it in Profile → frame picker"
+                                    else "💎 $gemPrice Gems • 🪙 $pointPrice Points",
+                                    style = MaterialTheme.typography.labelSmall
+                                )
                             }
                             Button(
                                 onClick = { viewModel.purchaseFrame(userId, frameName, gemPrice, pointPrice) },
                                 enabled = canAfford,
                                 shape = RoundedCornerShape(8.dp)
-                            ) { Text(if (canAfford) "Buy" else "Locked") }
+                            ) {
+                                Text(
+                                    when {
+                                        alreadyOwned -> "Owned ✓"
+                                        canAfford -> "Buy"
+                                        else -> "Locked"
+                                    }
+                                )
+                            }
                         }
                     }
                 }

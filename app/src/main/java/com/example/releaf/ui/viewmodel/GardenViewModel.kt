@@ -83,7 +83,7 @@ class GardenViewModel(application: Application) : AndroidViewModel(application) 
         currentUserId = userId
         viewModelScope.launch {
             try {
-                val g = repository.getGarden(userId)
+                val g = repository.getGarden(userId)?.let { repository.healNegativeBalance(userId, it) }
                 _garden.value = g
 
                 val remoteSlots = repository.getPlantSlots(userId)
@@ -179,7 +179,7 @@ class GardenViewModel(application: Application) : AndroidViewModel(application) 
             .apply()
         _waterUsesLeft.value = (maxAllowed - (waterUsed + 1)).coerceAtLeast(0)
 
-        _statusMessage.value = "Watering completed! (+50 EXP)"
+        _statusMessage.value = "Watering completed! (+50 EXP, +10 🪙 Points, +1 💎 Gem)"
 
         syncToCloud(userId, newExp, "WATER")
     }
@@ -208,7 +208,7 @@ class GardenViewModel(application: Application) : AndroidViewModel(application) 
             .apply()
         _fertilizeUsesLeft.value = (maxAllowed - (fertilizeUsed + 1)).coerceAtLeast(0)
 
-        _statusMessage.value = "Fertilizing completed! (+50 EXP)"
+        _statusMessage.value = "Fertilizing completed! (+50 EXP, +20 🪙 Points)"
 
         syncToCloud(userId, newExp, "FERTILIZE")
     }
@@ -219,7 +219,7 @@ class GardenViewModel(application: Application) : AndroidViewModel(application) 
                 // Always base point/gem arithmetic on the freshest server row so a
                 // stale/empty local copy can never zero out the account totals.
                 val fresh = try {
-                    repository.getGarden(userId)
+                    repository.getGarden(userId)?.let { repository.healNegativeBalance(userId, it) }
                 } catch (_: Exception) {
                     null
                 } ?: _garden.value

@@ -61,7 +61,7 @@ class NotificationsViewModel : ViewModel() {
                             repository.sendNotification(
                                 userId = userId,
                                 title = title,
-                                body = "Congratulations! You reached ${seed.targetPoints} points and unlocked the ${seed.name} seed. Visit Rewards to claim your seedling!",
+                                body = "Congratulations! You reached ${seed.targetPoints} EXP and unlocked the ${seed.name} seed. Visit Rewards to claim your seedling!",
                                 type = "REWARD"
                             )
                         }
@@ -81,7 +81,7 @@ class NotificationsViewModel : ViewModel() {
                             repository.sendNotification(
                                 userId = userId,
                                 title = title,
-                                body = "Amazing! You accumulated $userPoints points and unlocked the $label!",
+                                body = "Amazing! You accumulated $userPoints EXP and unlocked the $label!",
                                 type = "REWARD"
                             )
                         }

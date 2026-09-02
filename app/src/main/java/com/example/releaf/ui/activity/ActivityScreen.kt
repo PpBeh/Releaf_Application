@@ -110,7 +110,7 @@ fun ActivityScreen(
                     Text("🌟", style = MaterialTheme.typography.bodyMedium)
                     Spacer(modifier = Modifier.width(6.dp))
                     Text(
-                        "$currentExp / $nextTargetExp",
+                        "$currentExp / $nextTargetExp EXP",
                         fontWeight = FontWeight.Bold,
                         color = MaterialTheme.colorScheme.primary
                     )
@@ -250,7 +250,7 @@ private fun QuestCard(
                         style = MaterialTheme.typography.labelMedium
                     )
                     Row(verticalAlignment = Alignment.CenterVertically) {
-                        Text("🌟", style = MaterialTheme.typography.bodyLarge)
+                        Text("🪙", style = MaterialTheme.typography.bodyLarge)
                         Spacer(modifier = Modifier.width(6.dp))
                         Text(
                             "+ ${quest.reward_count} Points",
@@ -259,6 +259,12 @@ private fun QuestCard(
                             style = MaterialTheme.typography.bodyLarge
                         )
                     }
+                    Spacer(modifier = Modifier.height(2.dp))
+                    Text(
+                        "+ ${quest.reward_count} 🌟 EXP",
+                        color = Color.White.copy(alpha = 0.8f),
+                        style = MaterialTheme.typography.labelMedium
+                    )
                 }
 
                 Column(horizontalAlignment = Alignment.End) {

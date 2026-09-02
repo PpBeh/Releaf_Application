@@ -803,7 +803,7 @@ fun MapScreen(
                                     when {
                                         isClaimingDaily -> "Claiming..."
                                         dailyPointsClaimed -> "Today's Reward Claimed ✓"
-                                        else -> "🎁 Claim Daily 100 Points & 5 Gems"
+                                        else -> "🎁 Claim Daily +100 🪙 Points & +5 💎 Gems"
                                     },
                                     fontWeight = FontWeight.Bold,
                                     color = Color.Black

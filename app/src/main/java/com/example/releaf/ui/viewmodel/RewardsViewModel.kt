@@ -61,7 +61,7 @@ class RewardsViewModel(application: Application) : AndroidViewModel(application)
         currentUserId = userId
         viewModelScope.launch {
             try {
-                val garden = gardenRepository.getGarden(userId)
+                val garden = gardenRepository.getGarden(userId)?.let { gardenRepository.healNegativeBalance(userId, it) }
                 val remoteExp = garden?.current_exp ?: 0
                 val localExp = gardenPrefs.getInt("tree_exp_${userId}", 0)
                 val actualExp = max(localExp, remoteExp)
@@ -85,7 +85,7 @@ class RewardsViewModel(application: Application) : AndroidViewModel(application)
                                 notifRepo.sendNotification(
                                     userId = userId,
                                     title = title,
-                                    body = "Congratulations! You reached ${seed.targetPoints} points and unlocked the ${seed.name} seed. Claim it now!",
+                                    body = "Congratulations! You reached ${seed.targetPoints} EXP and unlocked the ${seed.name} seed. Claim it now!",
                                     type = "REWARD"
                                 )
                             }
@@ -174,7 +174,7 @@ class RewardsViewModel(application: Application) : AndroidViewModel(application)
                     return@launch
                 }
                 // Always validate against the freshest server balances.
-                val garden = gardenRepository.getGarden(userId)
+                val garden = gardenRepository.getGarden(userId)?.let { gardenRepository.healNegativeBalance(userId, it) }
                     ?: run {
                         _claimStatus.value = "Garden data not available yet. Please try again in a moment."
                         return@launch
