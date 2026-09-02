@@ -9,8 +9,16 @@ sealed class Screen(val route: String) {
         fun createRoute(email: String) = "verify/$email"
     }
 
-    data object Garden : Screen("garden")
-    data object GardenPlot : Screen("garden_plot")
+    data object Garden : Screen("garden/{userId}") {
+        const val ARG_USER_ID = "userId"
+        const val ME = "me"
+        fun createRoute(userId: String = ME) = "garden/$userId"
+    }
+    data object GardenPlot : Screen("garden_plot/{userId}") {
+        const val ARG_USER_ID = "userId"
+        const val ME = "me"
+        fun createRoute(userId: String = ME) = "garden_plot/$userId"
+    }
     data object Activity : Screen("activity")
     data object Map : Screen("map")
 

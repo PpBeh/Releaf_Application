@@ -280,16 +280,23 @@ fun ProfileScreen(
                         "Diamond" -> Color(0xFF00BCD4)
                         else -> Color.White.copy(alpha = 0.6f)
                     }
-                    val frameWidth = if (selectedFrame.isBlank() || selectedFrame == "None") 2.dp else 4.dp
+                    val frameWidth = if (selectedFrame.isBlank() || selectedFrame == "None") 2.dp else 5.dp
                     Box(
                         modifier = Modifier
-                            .size(72.dp)
+                            .size(78.dp)
                             .clip(CircleShape)
-                            .background(Color.White.copy(alpha = 0.2f))
+                            .background(Color.Transparent)
                             .border(frameWidth, frameColor, CircleShape)
                             .clickable(enabled = isOwnProfile) { avatarPicker.launch("image/*") },
                         contentAlignment = Alignment.Center
                     ) {
+                        Box(
+                            modifier = Modifier
+                                .size(68.dp)
+                                .clip(CircleShape)
+                                .background(Color.White.copy(alpha = 0.2f)),
+                            contentAlignment = Alignment.Center
+                        ) {
                         val avatarUrl = profile?.avatar_url.orEmpty()
                         if (avatarUrl.isNotBlank()) {
                             Image(
@@ -307,6 +314,7 @@ fun ProfileScreen(
                                 tint = Color.White,
                                 modifier = Modifier.size(36.dp)
                             )
+                        }
                         }
                     }
 

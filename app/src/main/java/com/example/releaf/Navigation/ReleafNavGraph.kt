@@ -216,22 +216,34 @@ fun ReleafNavGraph(
                 }
             )
         }
-        composable(Screen.Garden.route) {
+        composable(
+            route = Screen.Garden.route,
+            arguments = listOf(navArgument(Screen.Garden.ARG_USER_ID) { type = NavType.StringType })
+        ) { backStackEntry ->
+            val paramId = backStackEntry.arguments?.getString(Screen.Garden.ARG_USER_ID) ?: Screen.Garden.ME
+            val currentUserId = (session as? SessionState.LoggedIn)?.userId ?: ""
+            val gardenUserId = if (paramId == Screen.Garden.ME) currentUserId else paramId
+            if (gardenUserId.isBlank()) return@composable
             val gardenViewModel: GardenViewModel = viewModel()
-            val userId = (session as? SessionState.LoggedIn)?.userId ?: return@composable
             GardenPlotScreen(
                 viewModel = gardenViewModel,
-                userId = userId,
+                userId = gardenUserId,
                 themeViewModel = themeViewModel,
                 onBackClick = { navController.popBackStack() }
             )
         }
-        composable(Screen.GardenPlot.route) {
+        composable(
+            route = Screen.GardenPlot.route,
+            arguments = listOf(navArgument(Screen.GardenPlot.ARG_USER_ID) { type = NavType.StringType })
+        ) { backStackEntry ->
+            val paramId = backStackEntry.arguments?.getString(Screen.GardenPlot.ARG_USER_ID) ?: Screen.GardenPlot.ME
+            val currentUserId = (session as? SessionState.LoggedIn)?.userId ?: ""
+            val gardenUserId = if (paramId == Screen.GardenPlot.ME) currentUserId else paramId
+            if (gardenUserId.isBlank()) return@composable
             val gardenViewModel: GardenViewModel = viewModel()
-            val userId = (session as? SessionState.LoggedIn)?.userId ?: return@composable
             GardenPlotScreen(
                 viewModel = gardenViewModel,
-                userId = userId,
+                userId = gardenUserId,
                 themeViewModel = themeViewModel,
                 onBackClick = { navController.navigateToGardenSection(toPlot = false) }
             )
@@ -329,7 +341,7 @@ fun ReleafNavGraph(
                     navController.navigate(Screen.Settings.route)
                 },
                 onViewGardenClick = {
-                    navController.navigateToGardenSection(toPlot = true)
+                    navController.navigate(Screen.Garden.createRoute(actualUserId))
                 }
             )
         }

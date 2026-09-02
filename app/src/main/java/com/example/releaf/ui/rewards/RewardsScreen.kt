@@ -210,7 +210,7 @@ fun RewardsScreen(
             }
             Spacer(modifier = Modifier.height(8.dp))
             val frames = listOf(
-                Triple("None", 0 to 0, "No frame"), Triple("Leaf", 50 to 500, "🍃"), Triple("Blocks", 100 to 1000, "🧱"), Triple("Gold", 200 to 2000, "🏆"), Triple("Diamond", 500 to 5000, "💎")
+                Triple("None", 0 to 0, "No frame"), Triple("Leaf", 0 to 0, "🍃"), Triple("Blocks", 100 to 1000, "🧱"), Triple("Gold", 200 to 2000, "🏆"), Triple("Diamond", 500 to 5000, "💎")
             )
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 frames.forEach { (frameName, price, icon) ->

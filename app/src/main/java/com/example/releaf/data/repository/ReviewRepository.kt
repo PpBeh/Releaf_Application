@@ -49,7 +49,8 @@ class ReviewRepository {
                 review.copy(
                     reviewer_name = userProfile?.name?.takeIf { it.isNotBlank() }
                         ?: review.reviewer_name.ifBlank { "User" },
-                    reviewer_avatar_url = userProfile?.avatar_url ?: review.reviewer_avatar_url
+                    reviewer_avatar_url = userProfile?.avatar_url ?: review.reviewer_avatar_url,
+                    reviewer_frame = userProfile?.avatar_frame ?: ""
                 )
             }
         } catch (e: Exception) {

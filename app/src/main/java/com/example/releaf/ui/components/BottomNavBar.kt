@@ -32,7 +32,7 @@ import com.example.releaf.ui.viewmodel.ThemeViewModel
 fun BottomNavBar(navController: NavHostController, themeViewModel: ThemeViewModel) {
     val navBackStackEntry by navController.currentBackStackEntryAsState()
     val currentRoute = navBackStackEntry?.destination?.route
-    val onGardenSection = currentRoute == Screen.Garden.route || currentRoute == Screen.GardenPlot.route
+    val onGardenSection = currentRoute?.startsWith("garden") == true
 
     Box(modifier = Modifier.fillMaxWidth()) {
         NavigationBar {

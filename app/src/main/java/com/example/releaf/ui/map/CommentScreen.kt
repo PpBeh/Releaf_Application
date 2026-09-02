@@ -6,6 +6,7 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -16,6 +17,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -390,7 +392,7 @@ fun CommentScreen(
         } else {
             LazyColumn(
                 modifier = Modifier.fillMaxSize(),
-                contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp)
+                contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 8.dp, bottom = 80.dp)
             ) {
                 items(reviews) { review ->
                     var showEditDialog by remember { mutableStateOf(false) }
@@ -577,6 +579,13 @@ private fun ReviewRowItem(
 
     Column {
         Row(verticalAlignment = Alignment.CenterVertically) {
+            val frameColor = when (review.reviewer_frame) {
+                "Leaf" -> Color(0xFF4CAF50)
+                "Blocks" -> Color(0xFF795548)
+                "Gold" -> Color(0xFFFFD700)
+                "Diamond" -> Color(0xFF00BCD4)
+                else -> null
+            }
             if (review.reviewer_avatar_url.isNotBlank()) {
                 Image(
                     painter = rememberAsyncImagePainter(model = review.reviewer_avatar_url),
@@ -584,15 +593,24 @@ private fun ReviewRowItem(
                     modifier = Modifier
                         .size(40.dp)
                         .clip(CircleShape)
+                        .then(if (frameColor != null) Modifier.border(2.dp, frameColor, CircleShape) else Modifier)
                         .clickable(onClick = onAvatarClick),
                     contentScale = ContentScale.Crop
                 )
             } else {
-                IconButton(onClick = onAvatarClick) {
+                Box(
+                    modifier = Modifier
+                        .size(40.dp)
+                        .clip(CircleShape)
+                        .then(if (frameColor != null) Modifier.border(2.dp, frameColor, CircleShape) else Modifier)
+                        .clickable(onClick = onAvatarClick)
+                        .background(MaterialTheme.colorScheme.surfaceVariant),
+                    contentAlignment = Alignment.Center
+                ) {
                     Icon(
                         Icons.Default.AccountCircle,
                         contentDescription = "View profile",
-                        modifier = Modifier.size(40.dp)
+                        modifier = Modifier.size(32.dp)
                     )
                 }
             }
@@ -612,15 +630,14 @@ private fun ReviewRowItem(
                     }
                 }
                 Text(review.text, style = MaterialTheme.typography.bodyMedium)
-                // Photo attached to review — directly under comment text
                 if (!review.photo_url.isNullOrBlank()) {
-                    Spacer(modifier = Modifier.height(6.dp))
+                    Spacer(modifier = Modifier.height(8.dp))
                     Image(
                         painter = rememberAsyncImagePainter(model = review.photo_url),
                         contentDescription = "Review photo",
                         modifier = Modifier
                             .fillMaxWidth()
-                            .height(160.dp)
+                            .heightIn(max = 220.dp)
                             .clip(RoundedCornerShape(10.dp))
                             .clickable { showFullImage = true },
                         contentScale = ContentScale.Crop
