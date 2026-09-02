@@ -46,6 +46,9 @@ class ProfileViewModel(application: android.app.Application) : androidx.lifecycl
     private val _userVerifiedCount = MutableStateFlow(0)
     val userVerifiedCount: StateFlow<Int> = _userVerifiedCount.asStateFlow()
 
+    private val _userPhotoCount = MutableStateFlow(0)
+    val userPhotoCount: StateFlow<Int> = _userPhotoCount.asStateFlow()
+
     private var currentUserId = ""
 
     init {
@@ -100,6 +103,10 @@ class ProfileViewModel(application: android.app.Application) : androidx.lifecycl
 
             try {
                 _userVerifiedCount.value = com.example.releaf.data.repository.PoiRepository().countUserVerifications(userId)
+            } catch (_: Exception) { }
+
+            try {
+                _userPhotoCount.value = com.example.releaf.data.repository.PoiRepository().countUserPhotos(userId)
             } catch (_: Exception) { }
 
             try {

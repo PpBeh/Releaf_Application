@@ -255,6 +255,19 @@ class PoiRepository {
             0
         }
     }
+
+    suspend fun countUserPhotos(userId: String): Int {
+        return try {
+            client.postgrest.from("poi_photos")
+                .select(io.github.jan.supabase.postgrest.query.Columns.raw("id")) {
+                    filter { eq("uploaded_by", userId) }
+                }
+                .decodeList<kotlinx.serialization.json.JsonObject>()
+                .size
+        } catch (_: Exception) {
+            0
+        }
+    }
 }
 
 sealed class VerifyResult {

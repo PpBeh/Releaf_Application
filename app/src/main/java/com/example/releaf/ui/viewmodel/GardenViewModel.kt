@@ -86,7 +86,33 @@ class GardenViewModel(application: Application) : AndroidViewModel(application) 
                 val g = repository.getGarden(userId)?.let { repository.healNegativeBalance(userId, it) }
                 _garden.value = g
 
-                val remoteSlots = repository.getPlantSlots(userId)
+                var remoteSlots = repository.getPlantSlots(userId)
+
+                // Push any plant that currently exists only on this device (planted
+                // while offline or before RLS allowed writes) up to the server so it
+                // survives reinstalls.
+                val remoteByIndex = remoteSlots.associateBy { it.slot_index }
+                var pushedAny = false
+                for (index in 1..6) {
+                    val localRaw = gardenPrefs.getString("slot_${userId}_$index", null)
+                    val localState = if (localRaw == "PLANTED") "GROWING" else localRaw
+                    if (localState == null || localState == "EMPTY_POT") continue
+                    val remote = remoteByIndex[index]
+                    if (remote == null || remote.state == "EMPTY_POT") {
+                        try {
+                            repository.upsertPlantSlot(
+                                userId = userId,
+                                slotIndex = index,
+                                state = localState,
+                                plantType = SeedData.getSeedForSlot(index).name
+                            )
+                            pushedAny = true
+                        } catch (_: Exception) { }
+                    }
+                }
+                if (pushedAny) {
+                    remoteSlots = repository.getPlantSlots(userId)
+                }
 
                 val mergedSlots = (1..6).map { index ->
                     val remote = remoteSlots.find { it.slot_index == index }

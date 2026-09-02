@@ -416,6 +416,69 @@ fun GardenPlotScreen(
 
             Spacer(modifier = Modifier.height(8.dp))
 
+            // Daily care uses remaining (actions live inside each plant's dialog)
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(10.dp)
+            ) {
+                Surface(
+                    shape = RoundedCornerShape(14.dp),
+                    color = if (waterUsesLeft > 0) Color(0xFFE3F2FD) else MaterialTheme.colorScheme.surfaceVariant,
+                    modifier = Modifier.weight(1f)
+                ) {
+                    Row(
+                        modifier = Modifier.padding(vertical = 8.dp, horizontal = 12.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.Center
+                    ) {
+                        Text("💧", fontSize = 16.sp)
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Column {
+                            Text(
+                                "Water",
+                                style = MaterialTheme.typography.labelMedium,
+                                fontWeight = FontWeight.Bold,
+                                color = if (waterUsesLeft > 0) Color(0xFF1565C0) else Color.Gray
+                            )
+                            Text(
+                                "Uses left today: $waterUsesLeft",
+                                style = MaterialTheme.typography.labelSmall,
+                                color = Color.Gray
+                            )
+                        }
+                    }
+                }
+                Surface(
+                    shape = RoundedCornerShape(14.dp),
+                    color = if (fertilizeUsesLeft > 0) Color(0xFFE8F5E9) else MaterialTheme.colorScheme.surfaceVariant,
+                    modifier = Modifier.weight(1f)
+                ) {
+                    Row(
+                        modifier = Modifier.padding(vertical = 8.dp, horizontal = 12.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.Center
+                    ) {
+                        Text("🌱", fontSize = 16.sp)
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Column {
+                            Text(
+                                "Fertilize",
+                                style = MaterialTheme.typography.labelMedium,
+                                fontWeight = FontWeight.Bold,
+                                color = if (fertilizeUsesLeft > 0) Color(0xFF2E7D32) else Color.Gray
+                            )
+                            Text(
+                                "Uses left today: $fertilizeUsesLeft",
+                                style = MaterialTheme.typography.labelSmall,
+                                color = Color.Gray
+                            )
+                        }
+                    }
+                }
+            }
+
+            Spacer(modifier = Modifier.height(6.dp))
+
             Text(
                 "Tap any plant below to water or fertilize it.",
                 style = MaterialTheme.typography.bodySmall,

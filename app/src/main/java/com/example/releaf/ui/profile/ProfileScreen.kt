@@ -88,6 +88,7 @@ fun ProfileScreen(
     val userPlantSlots by viewModel.userPlantSlots.collectAsState()
     val userReviewCount by viewModel.userReviewCount.collectAsState()
     val userVerifiedCount by viewModel.userVerifiedCount.collectAsState()
+    val userPhotoCount by viewModel.userPhotoCount.collectAsState()
 
 
     val avatarPicker = androidx.activity.compose.rememberLauncherForActivityResult(
@@ -162,17 +163,22 @@ fun ProfileScreen(
     val verifiedCount = minOf(userVerifiedCount, 5)
 
     val achievementItems = defaultMasterAchievements.map { defaultItem ->
-        val userEarned = userAchievements.any { userAch ->
+        val earnedByRow = userAchievements.any { userAch ->
             userAch.achievement_id == defaultItem.id ||
                     userAch.achievement?.label?.equals(defaultItem.label, ignoreCase = true) == true
         }
-        val progress = when (defaultItem.id) {
-            "1" -> minOf(reviewCount, defaultItem.target)
-            "2" -> minOf(plantCount, defaultItem.target)
-            "3" -> minOf(verifiedCount, defaultItem.target)
-            else -> if (userEarned) defaultItem.target else 0
+        // Unlock measurable achievements directly from the user's real activity,
+        // not only from (rarely-populated) user_achievements server rows.
+        val activityCount = when (defaultItem.id) {
+            "1", "4" -> reviewCount        // Expert Reviewer / Clean Crusader
+            "2" -> plantCount              // Expert Gardener (current plants)
+            "3" -> verifiedCount           // Toilet Scout
+            "6" -> userPhotoCount          // Photo Fanatic
+            else -> 0
         }
-        defaultItem.copy(isUnlocked = userEarned, progress = progress)
+        val isUnlocked = earnedByRow || (activityCount > 0 && activityCount >= defaultItem.target)
+        val progress = minOf(activityCount, defaultItem.target)
+        defaultItem.copy(isUnlocked = isUnlocked, progress = progress)
     }
     val unlockedCount = achievementItems.count { it.isUnlocked }
 
