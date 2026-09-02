@@ -61,12 +61,16 @@ class ReviewRepository {
         }
     }
 
-    suspend fun addReview(review: ReviewInsertDto): ReviewDto? {
+    suspend fun addReview(review: ReviewInsertDto): Boolean {
+        // Success = the row was inserted. Do not require decoding the returned
+        // representation - PostgREST responses can be empty even on success,
+        // which previously made the app report a false failure.
         return try {
-            client.postgrest.from("reviews").insert(review).decodeSingleOrNull()
+            client.postgrest.from("reviews").insert(review)
+            true
         } catch (e: Exception) {
             e.printStackTrace()
-            null
+            false
         }
     }
 

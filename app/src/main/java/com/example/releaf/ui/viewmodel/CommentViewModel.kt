@@ -80,7 +80,7 @@ class CommentViewModel : ViewModel() {
                     emptyList()
                 }
                 if (existingReviews.count { it.user_id == userId } >= 3) {
-                    _errorMessage.value = "You have reached the limit of 3 comments for this toilet."
+                    _errorMessage.value = "You have reached the limit of 3 comments for this location."
                     _isProcessing.value = false
                     return@launch
                 }
@@ -113,7 +113,8 @@ class CommentViewModel : ViewModel() {
                         android.util.Log.e("CommentVM", "photo upload failed", e)
                     }
                 }
-                val added = repository.addReview(
+
+                val posted = repository.addReview(
                     ReviewInsertDto(
                         poi_id = poiId,
                         user_id = userId,
@@ -123,24 +124,30 @@ class CommentViewModel : ViewModel() {
                         photo_url = uploadedPhotoUrl
                     )
                 )
-                if (added == null) {
+                if (!posted) {
                     _errorMessage.value = "Could not post your comment. Check your connection and try again."
                     _isProcessing.value = false
                     return@launch
                 }
 
-                com.example.releaf.data.repository.QuestRepository().incrementQuestsByType(userId, "REVIEW")
-
-                _reviews.value = repository.getReviews(poiId)
-                repository.updatePoiStats(poiId)
+                // The comment is on the server. Everything below is background
+                // housekeeping - a failure here must NOT report the post as failed
+                // (that caused phantom errors and duplicate posts on retry).
+                success = true
+                _errorMessage.value = null
+                try {
+                    com.example.releaf.data.repository.QuestRepository().incrementQuestsByType(userId, "REVIEW")
+                } catch (_: Exception) { }
+                try {
+                    _reviews.value = repository.getReviews(poiId)
+                } catch (_: Exception) { }
+                try {
+                    repository.updatePoiStats(poiId)
+                } catch (_: Exception) { }
                 try {
                     repository.analyzeReviewAndUpdatePoi(poiId, text, starRating)
                 } catch (_: Exception) { }
-                _errorMessage.value = null
-                success = true
-
                 com.example.releaf.data.remote.SupabaseModule.triggerRefresh()
-
             } catch (e: Exception) {
                 e.printStackTrace()
                 android.util.Log.e("CommentViewModel", "Error adding review", e)
