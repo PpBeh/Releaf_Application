@@ -39,6 +39,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import com.example.releaf.R
 import com.example.releaf.model.SeedData
 import com.example.releaf.model.SeedInfo
@@ -55,6 +56,7 @@ fun RewardsScreen(
     val tiers by viewModel.tiers.collectAsState()
     val userRewards by viewModel.userRewards.collectAsState()
     val userPoints by viewModel.userPoints.collectAsState()
+    val userGems by viewModel.userGems.collectAsState()
     val gardenSlots by viewModel.gardenSlots.collectAsState()
     val claimStatus by viewModel.claimStatus.collectAsState()
 
@@ -94,14 +96,27 @@ fun RewardsScreen(
                     modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Text("🌟", style = MaterialTheme.typography.bodyMedium)
-                        Spacer(modifier = Modifier.width(6.dp))
-                        Text(
-                            text = "$userPoints / $nextTargetExp",
-                            fontWeight = FontWeight.Bold,
-                            color = MaterialTheme.colorScheme.primary
-                        )
+                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Text("🌟", style = MaterialTheme.typography.bodyMedium)
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text(
+                                text = "$userPoints / $nextTargetExp",
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.primary
+                            )
+                        }
+                        Text("•", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Text("💎", style = MaterialTheme.typography.bodyMedium)
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Text(
+                                text = "$userGems",
+                                fontWeight = FontWeight.Bold,
+                                color = Color(0xFF00ACC1)
+                            )
+                            Text(" Gems", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        }
                     }
                     Spacer(modifier = Modifier.height(6.dp))
                     LinearProgressIndicator(
@@ -151,6 +166,70 @@ fun RewardsScreen(
                         isPlanted = isPlanted,
                         onClaim = { viewModel.claimPlantReward(userId, seed.slotIndex) }
                     )
+                }
+            }
+
+            Spacer(modifier = Modifier.height(32.dp))
+
+            Text("Claimable Titles", style = MaterialTheme.typography.titleMedium)
+            Spacer(modifier = Modifier.height(8.dp))
+            val titles = listOf(
+                "Gardener" to 0, "Sprout" to 500, "Green Thumb" to 2000, "Expert Gardener" to 5000, "Master Gardener" to 10000
+            )
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                titles.forEach { (titleName, req) ->
+                    val isUnlocked = userPoints >= req
+                    val isEquipped = false
+                    Card(
+                        shape = RoundedCornerShape(12.dp),
+                        colors = CardDefaults.cardColors(containerColor = if (isUnlocked) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceVariant),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Row(modifier = Modifier.padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
+                            Text(if (isUnlocked) "✓" else "🔒", modifier = Modifier.padding(end = 8.dp))
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(titleName, fontWeight = FontWeight.Bold, style = MaterialTheme.typography.bodyMedium)
+                                Text(if (isUnlocked) "Unlocked - tap to equip" else "Requires $req EXP", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            }
+                            if (isUnlocked) {
+                                Button(onClick = { viewModel.equipTitle(userId, titleName) }, shape = RoundedCornerShape(8.dp)) { Text("Equip") }
+                            }
+                        }
+                    }
+                }
+            }
+
+            Spacer(modifier = Modifier.height(32.dp))
+
+            Text("Avatar Frames", style = MaterialTheme.typography.titleMedium)
+            Spacer(modifier = Modifier.height(4.dp))
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text("💎 $userGems Gems", fontWeight = FontWeight.Bold, color = Color(0xFF00ACC1))
+                Spacer(modifier = Modifier.width(8.dp))
+                Text("🌟 $userPoints Points", fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
+            }
+            Spacer(modifier = Modifier.height(8.dp))
+            val frames = listOf(
+                Triple("None", 0 to 0, "No frame"), Triple("Leaf", 50 to 500, "🍃"), Triple("Blocks", 100 to 1000, "🧱"), Triple("Gold", 200 to 2000, "🏆"), Triple("Diamond", 500 to 5000, "💎")
+            )
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                frames.forEach { (frameName, price, icon) ->
+                    val (gemPrice, pointPrice) = price
+                    val canAfford = userGems >= gemPrice && userPoints >= pointPrice
+                    Card(shape = RoundedCornerShape(12.dp), modifier = Modifier.fillMaxWidth()) {
+                        Row(modifier = Modifier.padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
+                            Text(icon, fontSize = 24.sp, modifier = Modifier.padding(end = 12.dp))
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(frameName, fontWeight = FontWeight.Bold)
+                                Text("$gemPrice Gems • $pointPrice Points", style = MaterialTheme.typography.labelSmall)
+                            }
+                            Button(
+                                onClick = { viewModel.purchaseFrame(userId, frameName, gemPrice, pointPrice) },
+                                enabled = canAfford,
+                                shape = RoundedCornerShape(8.dp)
+                            ) { Text(if (canAfford) "Buy" else "Locked") }
+                        }
+                    }
                 }
             }
 

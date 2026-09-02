@@ -22,6 +22,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ElevatedCard
 import androidx.compose.material3.Icon
@@ -31,10 +32,14 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -46,6 +51,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Settings
 import coil.compose.rememberAsyncImagePainter
 import com.example.releaf.R
 import com.example.releaf.model.SeedData
@@ -76,6 +83,7 @@ fun ProfileScreen(
     val userAchievements by viewModel.achievements.collectAsState()
     val userGarden by viewModel.userGarden.collectAsState()
     val userPlantSlots by viewModel.userPlantSlots.collectAsState()
+    var showDeletePlantSlot by remember { mutableStateOf<Int?>(null) }
 
     val avatarPicker = androidx.activity.compose.rememberLauncherForActivityResult(
         androidx.activity.result.contract.ActivityResultContracts.GetContent()
@@ -84,6 +92,14 @@ fun ProfileScreen(
             viewModel.uploadAvatar(userId, uri, context)
         }
     }
+    val bannerPicker = androidx.activity.compose.rememberLauncherForActivityResult(
+        androidx.activity.result.contract.ActivityResultContracts.GetContent()
+    ) { uri ->
+        if (uri != null) {
+            viewModel.uploadBanner(userId, uri, context)
+        }
+    }
+    val isVip = remember { context.getSharedPreferences("billing_prefs", android.content.Context.MODE_PRIVATE).getBoolean("isPro", false) }
 
     LaunchedEffect(userId) {
         if (userId.isNotBlank()) {
@@ -148,41 +164,129 @@ fun ProfileScreen(
             .background(MaterialTheme.colorScheme.background)
             .verticalScroll(rememberScrollState())
     ) {
-        // TOP PROFILE HEADER BANNER
+        // TOP PROFILE HEADER BANNER - VIP can edit background
         Box(
             modifier = Modifier
                 .fillMaxWidth()
-                .background(MaterialTheme.colorScheme.primary)
-                .padding(bottom = 20.dp)
+                .height(220.dp)
         ) {
+            val bannerUrl = profile?.banner_url.orEmpty()
+            if (bannerUrl.isNotBlank()) {
+                Image(
+                    painter = rememberAsyncImagePainter(model = bannerUrl),
+                    contentDescription = "Banner",
+                    modifier = Modifier.fillMaxSize(),
+                    contentScale = ContentScale.Crop
+                )
+                Box(modifier = Modifier.fillMaxSize().background(Color.Black.copy(alpha = 0.35f)))
+            } else {
+                Box(modifier = Modifier.fillMaxSize().background(MaterialTheme.colorScheme.primary))
+            }
             if (isOwnProfile) {
-                IconButton(
-                    onClick = { onSettingsClick() },
-                    modifier = Modifier
-                        .align(Alignment.TopEnd)
-                        .padding(8.dp)
+                Row(
+                    modifier = Modifier.align(Alignment.TopEnd).padding(8.dp),
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Icon(
-                        painter = painterResource(id = R.drawable.ic_palette),
-                        contentDescription = "Settings",
-                        tint = Color.White,
-                        modifier = Modifier.size(26.dp)
-                    )
+                    if (isVip) {
+                        var showFramePicker by remember { mutableStateOf(false) }
+                        val currentFrame = profile?.avatar_frame.orEmpty()
+                        Surface(
+                            shape = RoundedCornerShape(16.dp),
+                            color = Color.White.copy(alpha = 0.9f),
+                            modifier = Modifier.clickable { bannerPicker.launch("image/*") }
+                        ) {
+                            Row(modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp), verticalAlignment = Alignment.CenterVertically) {
+                                Text("✏️", fontSize = 12.sp)
+                                Spacer(modifier = Modifier.width(4.dp))
+                                Text("Edit Banner", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = Color(0xFF2E7D32))
+                            }
+                        }
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Surface(
+                            shape = RoundedCornerShape(16.dp),
+                            color = Color.White.copy(alpha = 0.9f),
+                            modifier = Modifier.clickable { showFramePicker = true }
+                        ) {
+                            Row(modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp), verticalAlignment = Alignment.CenterVertically) {
+                                Text("🖼️", fontSize = 12.sp)
+                                Spacer(modifier = Modifier.width(4.dp))
+                                Text(if (currentFrame.isBlank()) "Frame: None" else "Frame: $currentFrame", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = Color(0xFF2E7D32))
+                            }
+                        }
+                        if (showFramePicker) {
+                            val frames = listOf("None" to "No frame", "Leaf" to "🍃 Leaf", "Blocks" to "🧱 Blocks", "Gold" to "🏆 Gold", "Diamond" to "💎 Diamond")
+                            val prefs = remember { context.getSharedPreferences("frames_${userId}", android.content.Context.MODE_PRIVATE) }
+                            androidx.compose.material3.AlertDialog(
+                                onDismissRequest = { showFramePicker = false },
+                                title = { Text("Choose Frame") },
+                                text = {
+                                    Column {
+                                        frames.forEach { (fid, label) ->
+                                            val owned = fid == "None" || prefs.getBoolean("owned_$fid", false)
+                                            Row(
+                                                modifier = Modifier.fillMaxWidth().clickable(enabled = owned) {
+                                                    if (owned) {
+                                                        viewModel.updateAvatarFrame(userId, if (fid == "None") "" else fid)
+                                                        showFramePicker = false
+                                                    }
+                                                }.padding(8.dp),
+                                                verticalAlignment = Alignment.CenterVertically
+                                            ) {
+                                                Text(label, modifier = Modifier.weight(1f))
+                                                if (!owned) Text("🔒", fontSize = 12.sp) else if (currentFrame == fid || (fid == "None" && currentFrame.isBlank())) Text("✓", color = Color(0xFF2E7D32))
+                                            }
+                                        }
+                                        Text("Buy frames in Rewards → Avatar Frames", style = MaterialTheme.typography.labelSmall, color = Color.Gray, modifier = Modifier.padding(top = 8.dp))
+                                    }
+                                },
+                                confirmButton = { TextButton(onClick = { showFramePicker = false }) { Text("Close") } }
+                            )
+                        }
+                        Spacer(modifier = Modifier.width(8.dp))
+                    } else if (isOwnProfile) {
+                        Surface(
+                            shape = RoundedCornerShape(16.dp),
+                            color = Color.White.copy(alpha = 0.2f)
+                        ) {
+                            Text("VIP only", fontSize = 10.sp, color = Color.White, modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp))
+                        }
+                        Spacer(modifier = Modifier.width(8.dp))
+                    }
+                    IconButton(
+                        onClick = { onSettingsClick() }
+                    ) {
+                        Icon(
+                            imageVector = Icons.Filled.Settings,
+                            contentDescription = "Settings",
+                            tint = Color.White,
+                            modifier = Modifier.size(26.dp)
+                        )
+                    }
                 }
             }
 
             Column(
                 modifier = Modifier
+                    .align(Alignment.BottomStart)
                     .fillMaxWidth()
                     .padding(horizontal = 20.dp, vertical = 16.dp)
             ) {
-                Spacer(modifier = Modifier.height(16.dp))
                 Row(verticalAlignment = Alignment.CenterVertically) {
+                    val selectedFrame = profile?.avatar_frame.orEmpty()
+                    val frameColor = when (selectedFrame) {
+                        "Leaf" -> Color(0xFF4CAF50)
+                        "Blocks" -> Color(0xFF795548)
+                        "Gold" -> Color(0xFFFFD700)
+                        "Diamond" -> Color(0xFF00BCD4)
+                        else -> Color.White.copy(alpha = 0.6f)
+                    }
+                    val frameWidth = if (selectedFrame.isBlank() || selectedFrame == "None") 2.dp else 4.dp
                     Box(
                         modifier = Modifier
                             .size(72.dp)
                             .clip(CircleShape)
                             .background(Color.White.copy(alpha = 0.2f))
+                            .border(frameWidth, frameColor, CircleShape)
                             .clickable(enabled = isOwnProfile) { avatarPicker.launch("image/*") },
                         contentAlignment = Alignment.Center
                     ) {
@@ -209,22 +313,62 @@ fun ProfileScreen(
                     Spacer(modifier = Modifier.width(16.dp))
 
                     Column {
-                        Text(
-                            displayName,
-                            color = Color.White,
-                            fontWeight = FontWeight.Bold,
-                            style = MaterialTheme.typography.titleLarge
-                        )
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Text(
+                                displayName,
+                                color = Color.White,
+                                fontWeight = FontWeight.Bold,
+                                style = MaterialTheme.typography.titleLarge
+                            )
+                            if (isVip && isOwnProfile) {
+                                Spacer(modifier = Modifier.width(6.dp))
+                                Surface(shape = RoundedCornerShape(8.dp), color = Color(0xFFFFD700)) {
+                                    Text("VIP", fontSize = 10.sp, fontWeight = FontWeight.Bold, color = Color.Black, modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp))
+                                }
+                            }
+                        }
+                        var showTitlePicker by remember { mutableStateOf(false) }
+                        val titles = listOf("Gardener" to 0, "Sprout" to 500, "Green Thumb" to 2000, "Expert Gardener" to 5000, "Master Gardener" to 10000)
+                        val gardenPoints = userGarden?.current_points ?: profile?.total_points ?: 0
                         Surface(
                             shape = RoundedCornerShape(12.dp),
                             color = Color.White.copy(alpha = 0.2f),
-                            modifier = Modifier.padding(vertical = 4.dp)
+                            modifier = Modifier
+                                .padding(vertical = 4.dp)
+                                .clickable(enabled = isOwnProfile) { if (isOwnProfile) showTitlePicker = true }
                         ) {
-                            Text(
-                                title,
-                                color = Color.White,
-                                style = MaterialTheme.typography.labelMedium,
-                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp)
+                            Row(modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp), verticalAlignment = Alignment.CenterVertically) {
+                                Text(title, color = Color.White, style = MaterialTheme.typography.labelMedium)
+                                if (isOwnProfile) {
+                                    Spacer(modifier = Modifier.width(4.dp))
+                                    Text("▼", fontSize = 10.sp, color = Color.White)
+                                }
+                            }
+                        }
+                        if (showTitlePicker) {
+                            androidx.compose.material3.AlertDialog(
+                                onDismissRequest = { showTitlePicker = false },
+                                title = { Text("Choose Title") },
+                                text = {
+                                    Column {
+                                        titles.forEach { (tName, req) ->
+                                            val unlocked = gardenPoints >= req
+                                            Row(
+                                                modifier = Modifier.fillMaxWidth().clickable(enabled = unlocked) {
+                                                    if (unlocked) {
+                                                        viewModel.updateTitle(userId, tName)
+                                                        showTitlePicker = false
+                                                    }
+                                                }.padding(8.dp),
+                                                verticalAlignment = Alignment.CenterVertically
+                                            ) {
+                                                Text(tName, modifier = Modifier.weight(1f), color = if (unlocked) Color.Black else Color.Gray)
+                                                if (!unlocked) Text("🔒 $req EXP", fontSize = 11.sp, color = Color.Gray) else if (title == tName) Text("✓", color = Color(0xFF2E7D32))
+                                            }
+                                        }
+                                    }
+                                },
+                                confirmButton = { TextButton(onClick = { showTitlePicker = false }) { Text("Close") } }
                             )
                         }
 
@@ -407,6 +551,22 @@ fun ProfileScreen(
                                     contentDescription = seedInfo.name,
                                     modifier = Modifier.size(44.dp)
                                 )
+                                if (isPlanted && isOwnProfile) {
+                                    IconButton(
+                                        onClick = { showDeletePlantSlot = slotIndex },
+                                        modifier = Modifier
+                                            .align(Alignment.TopEnd)
+                                            .size(20.dp)
+                                            .background(Color.White.copy(alpha = 0.9f), CircleShape)
+                                    ) {
+                                        Icon(
+                                            painter = painterResource(id = R.drawable.ic_delete),
+                                            contentDescription = "Remove plant",
+                                            tint = Color(0xFFE53935),
+                                            modifier = Modifier.size(12.dp)
+                                        )
+                                    }
+                                }
                             }
 
                             Spacer(modifier = Modifier.height(8.dp))
@@ -443,6 +603,17 @@ fun ProfileScreen(
                                     color = if (isPlanted) Color(0xFF2E7D32) else MaterialTheme.colorScheme.onSurfaceVariant,
                                     modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp)
                                 )
+                            }
+                            if (isPlanted && isOwnProfile) {
+                                Spacer(modifier = Modifier.height(6.dp))
+                                OutlinedButton(
+                                    onClick = { showDeletePlantSlot = slotIndex },
+                                    shape = RoundedCornerShape(10.dp),
+                                    contentPadding = PaddingValues(horizontal = 8.dp, vertical = 2.dp),
+                                    modifier = Modifier.fillMaxWidth()
+                                ) {
+                                    Text("Remove", fontSize = 10.sp, color = Color(0xFFE53935))
+                                }
                             }
                         }
                     }
@@ -648,5 +819,24 @@ fun ProfileScreen(
 
             Spacer(modifier = Modifier.height(32.dp))
         }
+
+        // Delete plant confirmation - deletes DB row with confirmation
+        showDeletePlantSlot?.let { slotIndex ->
+            AlertDialog(
+                onDismissRequest = { showDeletePlantSlot = null },
+                title = { Text("Remove Plant?") },
+                text = { Text("Are you sure you want to remove the plant in Slot $slotIndex? This will delete the DB row (plant_slots) and cannot be undone.") },
+                confirmButton = {
+                    TextButton(onClick = {
+                        viewModel.deletePlantSlot(userId, slotIndex)
+                        showDeletePlantSlot = null
+                    }) { Text("Remove", color = Color(0xFFE53935)) }
+                },
+                dismissButton = {
+                    TextButton(onClick = { showDeletePlantSlot = null }) { Text("Cancel") }
+                }
+            )
+        }
+
     }
 }

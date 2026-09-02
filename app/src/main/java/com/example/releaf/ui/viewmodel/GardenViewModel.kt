@@ -88,10 +88,15 @@ class GardenViewModel(application: Application) : AndroidViewModel(application) 
 
                 val mergedSlots = (1..6).map { index ->
                     val remote = remoteSlots.find { it.slot_index == index }
-                    val localState = gardenPrefs.getString("slot_${userId}_$index", null)
-                    val state = if ((remote != null) && (remote.state != "EMPTY_POT")) {
-                        remote.state
-                    } else localState ?: (remote?.state ?: "EMPTY_POT")
+                    val localState = gardenPrefs.getString("slot_${userId}_$index", null)?.let {
+                        if (it == "PLANTED") "GROWING" else it
+                    }
+                    // Prioritize DB state when present and valid; fallback to prefs
+                    val state = when {
+                        remote != null && remote.state != "EMPTY_POT" -> remote.state
+                        localState != null && localState != "EMPTY_POT" -> localState
+                        else -> remote?.state ?: "EMPTY_POT"
+                    }
 
                     PlantSlotDto(
                         id = remote?.id ?: "",
@@ -128,7 +133,9 @@ class GardenViewModel(application: Application) : AndroidViewModel(application) 
                 _currentExp.value = localExp
 
                 val mergedSlots = (1..6).map { index ->
-                    val localState = gardenPrefs.getString("slot_${userId}_$index", null)
+                    val localState = gardenPrefs.getString("slot_${userId}_$index", null)?.let {
+                        if (it == "PLANTED") "GROWING" else it
+                    }
                     PlantSlotDto(
                         id = "",
                         user_id = userId,
@@ -222,6 +229,19 @@ class GardenViewModel(application: Application) : AndroidViewModel(application) 
                     fertilizeUsesLeft = _fertilizeUsesLeft.value
                 )
 
+                // Also ensure DB row reflects current gem/point state via upsertGarden if needed
+                // Keep local _garden in sync
+                _garden.value = g?.copy(
+                    current_exp = newExp,
+                    current_points = newPoints,
+                    current_gems = newGems
+                ) ?: GardenDto(
+                    user_id = userId,
+                    current_exp = newExp,
+                    current_points = newPoints,
+                    current_gems = newGems
+                )
+
                 if (actionType == "FERTILIZE") {
                     questRepository.incrementQuestsByType(userId, "FERTILIZE")
                 } else if (actionType == "WATER") {
@@ -243,20 +263,37 @@ class GardenViewModel(application: Application) : AndroidViewModel(application) 
     fun harvestSlot(slotId: String, userId: String) {
         viewModelScope.launch {
             try {
-                val g = _garden.value ?: return@launch
+                val g = _garden.value ?: repository.getGarden(userId)
 
-                repository.upsertGardenExp(
-                    userId = userId,
-                    newExp = _currentExp.value,
-                    newPoints = g.current_points + 50,
-                    newGems = g.current_gems,
-                    expTarget = g.exp_target,
-                    waterUsesLeft = _waterUsesLeft.value,
-                    fertilizeUsesLeft = _fertilizeUsesLeft.value
-                )
-                repository.updatePlantSlot(slotId, "EMPTY_POT")
+                if (g != null) {
+                    repository.upsertGardenExp(
+                        userId = userId,
+                        newExp = _currentExp.value,
+                        newPoints = g.current_points + 50,
+                        newGems = g.current_gems,
+                        expTarget = g.exp_target,
+                        waterUsesLeft = _waterUsesLeft.value,
+                        fertilizeUsesLeft = _fertilizeUsesLeft.value
+                    )
+                }
+                if (slotId.isNotBlank()) {
+                    repository.updatePlantSlot(slotId, "EMPTY_POT")
+                } else {
+                    // Fallback: find slot by user and delete via slot index if id missing
+                    val slots = _plantSlots.value
+                    val toClear = slots.find { it.id == slotId }
+                    if (toClear != null) {
+                        repository.upsertPlantSlot(userId, toClear.slot_index, "EMPTY_POT", null)
+                        gardenPrefs.edit().remove("slot_${userId}_${toClear.slot_index}").apply()
+                    }
+                }
+                // Also clear prefs for that slot if we can identify index
+                val slot = _plantSlots.value.find { it.id == slotId }
+                slot?.let { gardenPrefs.edit().remove("slot_${userId}_${it.slot_index}").apply() }
+
                 questRepository.incrementQuestsByType(userId, "HARVEST")
 
+                loadGarden(userId)
                 SupabaseModule.triggerRefresh()
             } catch (e: Exception) {
                 e.printStackTrace()
@@ -268,17 +305,65 @@ class GardenViewModel(application: Application) : AndroidViewModel(application) 
         viewModelScope.launch {
             try {
                 val seed = SeedData.getSeedForSlot(slotIndex)
-                rewardRepository.claimPlantReward(userId, slotIndex, seed.name)
-                gardenPrefs.edit().putString("slot_${userId}_$slotIndex", "PLANTED").apply()
+                // Use GROWING (valid CHECK) instead of PLANTED
+                repository.upsertPlantSlot(userId, slotIndex, "GROWING", seed.name)
+                try {
+                    rewardRepository.claimPlantReward(userId, slotIndex, seed.name)
+                } catch (_: Exception) { }
+                gardenPrefs.edit().putString("slot_${userId}_$slotIndex", "GROWING").apply()
                 _statusMessage.value = "Planted ${seed.nickname.ifBlank { seed.name }} in Slot $slotIndex! 🌱"
                 loadGarden(userId)
                 SupabaseModule.triggerRefresh()
             } catch (e: Exception) {
                 e.printStackTrace()
-                gardenPrefs.edit().putString("slot_${userId}_$slotIndex", "PLANTED").apply()
+                gardenPrefs.edit().putString("slot_${userId}_$slotIndex", "GROWING").apply()
                 _statusMessage.value = "Planted ${SeedData.getSeedForSlot(slotIndex).name}! 🌱"
                 loadGarden(userId)
             }
         }
+    }
+
+    fun deletePlantSlot(userId: String, slotIndex: Int) {
+        viewModelScope.launch {
+            try {
+                repository.deletePlantSlot(userId, slotIndex)
+                gardenPrefs.edit().remove("slot_${userId}_$slotIndex").apply()
+                _plantSlots.value = _plantSlots.value.map {
+                    if (it.slot_index == slotIndex) it.copy(state = "EMPTY_POT", plant_type = null, id = "") else it
+                }
+                _statusMessage.value = "Plant in slot $slotIndex removed"
+                SupabaseModule.triggerRefresh()
+            } catch (e: Exception) {
+                e.printStackTrace()
+                gardenPrefs.edit().remove("slot_${userId}_$slotIndex").apply()
+                loadGarden(userId)
+            }
+        }
+    }
+
+    fun deleteGarden(userId: String) {
+        viewModelScope.launch {
+            try {
+                repository.deleteGarden(userId)
+                // Also delete all plant slots
+                for (i in 1..6) {
+                    try { repository.deletePlantSlot(userId, i) } catch (_: Exception) { }
+                    gardenPrefs.edit().remove("slot_${userId}_$i").apply()
+                }
+                gardenPrefs.edit().remove("tree_exp_$userId").apply()
+                _garden.value = null
+                _plantSlots.value = emptyList()
+                _currentExp.value = 0
+                _currentGems.value = 0
+                _statusMessage.value = "Garden removed"
+                SupabaseModule.triggerRefresh()
+            } catch (e: Exception) {
+                e.printStackTrace()
+            }
+        }
+    }
+
+    fun clearStatusMessage() {
+        _statusMessage.value = null
     }
 }

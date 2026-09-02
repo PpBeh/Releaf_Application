@@ -38,27 +38,7 @@ class AuthViewModel : ViewModel() {
                 SessionState.LoggedOut
             }
 
-            val token = DeepLinkHolder.accessToken
-            val refresh = DeepLinkHolder.refreshToken
-            val type = DeepLinkHolder.type
-            if (token != null && refresh != null) {
-                val imported = repository.importSession(token, refresh)
-                if (imported) {
-                    val userId = repository.getCurrentUserId() ?: ""
-                    if (type == "recovery") {
-                        _needsPasswordReset.value = true
-                        _session.value = SessionState.LoggedIn(userId)
-                    } else if (type == "signup") {
-                        val name = _registeredName.value ?: "User"
-                        repository.completeProfileSetup(userId, name)
-                        _registeredName.value = null
-                        _session.value = SessionState.LoggedIn(userId)
-                    } else {
-                        _session.value = SessionState.LoggedIn(userId)
-                    }
-                }
-                DeepLinkHolder.clear()
-            }
+            handleDeepLinkTokens()
 
             val elapsed = System.currentTimeMillis() - startTime
             val minSplash = 2500L
@@ -66,6 +46,37 @@ class AuthViewModel : ViewModel() {
                 kotlinx.coroutines.delay(minSplash - elapsed)
             }
             _isCheckingSession.value = false
+        }
+    }
+
+    fun handleDeepLink() {
+        viewModelScope.launch {
+            handleDeepLinkTokens()
+        }
+    }
+
+    private suspend fun handleDeepLinkTokens() {
+        val token = DeepLinkHolder.accessToken
+        val refresh = DeepLinkHolder.refreshToken
+        val type = DeepLinkHolder.type
+        if (token != null && refresh != null) {
+            val imported = repository.importSession(token, refresh)
+            if (imported) {
+                val userId = repository.getCurrentUserId() ?: ""
+                if (type == "recovery") {
+                    _needsPasswordReset.value = true
+                    _session.value = SessionState.LoggedIn(userId)
+                } else if (type == "signup") {
+                    val name = _registeredName.value ?: DeepLinkHolder.pendingName ?: "User"
+                    repository.completeProfileSetup(userId, name)
+                    _registeredName.value = null
+                    DeepLinkHolder.pendingName = null
+                    _session.value = SessionState.LoggedIn(userId)
+                } else {
+                    _session.value = SessionState.LoggedIn(userId)
+                }
+            }
+            DeepLinkHolder.clear()
         }
     }
 
@@ -151,10 +162,13 @@ class AuthViewModel : ViewModel() {
 
     fun resendVerification(email: String) {
         viewModelScope.launch {
-            _uiState.value = AuthUiState(isLoading = true)
-            val password = _registeredPassword.value ?: ""
-            repository.resendVerificationEmail(email, password)
-            _uiState.value = AuthUiState()
+            _uiState.value = _uiState.value.copy(isLoading = true)
+            try {
+                repository.resendVerificationEmail(email)
+                _uiState.value = AuthUiState(resendSuccess = true, resendMessage = "Verification email resent. Please check your inbox.")
+            } catch (e: Exception) {
+                _uiState.value = AuthUiState(error = e.message ?: "Failed to resend email")
+            }
         }
     }
 
@@ -200,7 +214,9 @@ data class AuthUiState(
     val isLoginSuccess: Boolean = false,
     val isRegistrationSuccess: Boolean = false,
     val error: String? = null,
-    val registeredEmail: String = ""
+    val registeredEmail: String = "",
+    val resendSuccess: Boolean = false,
+    val resendMessage: String? = null
 )
 
 data class ResetUiState(

@@ -41,6 +41,7 @@ fun VerificationScreen(
     email: String,
     isLoading: Boolean,
     error: String?,
+    successMessage: String? = null,
     onVerifyClick: (code: String) -> Unit,
     onResendClick: () -> Unit,
     onBackClick: () -> Unit
@@ -171,6 +172,31 @@ fun VerificationScreen(
                     textAlign = TextAlign.Center
                 )
             }
+            if (successMessage != null) {
+                Spacer(modifier = Modifier.height(14.dp))
+                Box(
+                    modifier = Modifier
+                        .background(Color(0xFFE8F5E9), RoundedCornerShape(12.dp))
+                        .padding(horizontal = 16.dp, vertical = 10.dp)
+                ) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(
+                            Icons.Default.CheckCircle,
+                            contentDescription = null,
+                            tint = Color(0xFF2E7D32),
+                            modifier = Modifier.size(18.dp)
+                        )
+                        Spacer(modifier = Modifier.size(8.dp))
+                        Text(
+                            successMessage,
+                            color = Color(0xFF2E7D32),
+                            style = MaterialTheme.typography.bodySmall,
+                            textAlign = TextAlign.Center,
+                            fontWeight = FontWeight.Medium
+                        )
+                    }
+                }
+            }
 
             Spacer(modifier = Modifier.height(28.dp))
 
@@ -198,7 +224,10 @@ fun VerificationScreen(
 
             Spacer(modifier = Modifier.height(12.dp))
 
-            TextButton(onClick = onResendClick) {
+            TextButton(
+                onClick = onResendClick,
+                enabled = !isLoading
+            ) {
                 Text(
                     "Resend verification email",
                     color = Color(0xFF2E7D32),

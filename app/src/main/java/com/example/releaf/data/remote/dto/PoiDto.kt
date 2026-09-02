@@ -21,7 +21,9 @@ data class PoiDto(
     val recent_status_time: String? = null,
     val photo_urls: List<String> = emptyList(),
     val created_at: String = ""
-)
+) {
+    // Needed for serialisation defaults when columns missing
+}
 
 @Serializable
 data class PoiInsertDto(

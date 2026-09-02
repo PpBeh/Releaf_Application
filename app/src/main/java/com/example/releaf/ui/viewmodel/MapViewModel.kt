@@ -255,13 +255,17 @@ class MapViewModel : ViewModel() {
         _actionResult.value = null
     }
 
+    private var searchJob: kotlinx.coroutines.Job? = null
+
     fun onSearchQueryChanged(query: String) {
-        viewModelScope.launch {
-            if (query.isBlank()) {
-                _searchResults.value = emptyList()
-            } else {
-                _searchResults.value = repository.searchPois(query)
-            }
+        searchJob?.cancel()
+        if (query.isBlank()) {
+            _searchResults.value = emptyList()
+            return
+        }
+        searchJob = viewModelScope.launch {
+            kotlinx.coroutines.delay(300)
+            _searchResults.value = repository.searchPois(query)
         }
     }
 

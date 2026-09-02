@@ -122,10 +122,16 @@ class ReviewRepository {
 
         if (existing.isNotEmpty()) {
             val oldVote = existing.first()
-            val oldVoteId = oldVote.id ?: return VoteResult.AlreadyVoted
+            val oldVoteId = oldVote.id
             if (oldVote.vote_type == voteType) {
-                client.postgrest.from("review_votes").delete {
-                    filter { eq("id", oldVoteId) }
+                try {
+                    if (oldVoteId != null) {
+                        client.postgrest.from("review_votes").delete { filter { eq("id", oldVoteId) } }
+                    } else {
+                        client.postgrest.from("review_votes").delete { filter { eq("review_id", reviewId); eq("user_id", userId) } }
+                    }
+                } catch (_: Exception) {
+                    try { client.postgrest.from("review_votes").delete { filter { eq("review_id", reviewId); eq("user_id", userId) } } } catch (_: Exception) {}
                 }
                 if (voteType == "LIKE") {
                     client.postgrest.from("reviews").update(
@@ -138,9 +144,13 @@ class ReviewRepository {
                 }
                 return VoteResult.Unvoted
             } else {
-                client.postgrest.from("review_votes").delete {
-                    filter { eq("id", oldVoteId) }
-                }
+                try {
+                    if (oldVoteId != null) {
+                        client.postgrest.from("review_votes").delete { filter { eq("id", oldVoteId) } }
+                    } else {
+                        client.postgrest.from("review_votes").delete { filter { eq("review_id", reviewId); eq("user_id", userId) } }
+                    }
+                } catch (_: Exception) {}
                 client.postgrest.from("review_votes").insert(
                     ReviewVoteDto(review_id = reviewId, user_id = userId, vote_type = voteType)
                 )

@@ -33,6 +33,9 @@ class RewardsViewModel(application: Application) : AndroidViewModel(application)
     private val _userPoints = MutableStateFlow(0)
     val userPoints: StateFlow<Int> = _userPoints.asStateFlow()
 
+    private val _userGems = MutableStateFlow(0)
+    val userGems: StateFlow<Int> = _userGems.asStateFlow()
+
     private val _gardenSlots = MutableStateFlow<List<PlantSlotDto>>(emptyList())
     val gardenSlots: StateFlow<List<PlantSlotDto>> = _gardenSlots.asStateFlow()
 
@@ -61,6 +64,7 @@ class RewardsViewModel(application: Application) : AndroidViewModel(application)
                 val actualExp = max(localExp, remoteExp)
 
                 _userPoints.value = actualExp
+                _userGems.value = garden?.current_gems ?: gardenPrefs.getInt("gems_${userId}", 0)
 
                 _tiers.value = rewardRepository.getRewardTiers()
                 _userRewards.value = rewardRepository.getUserRewards(userId)
@@ -98,13 +102,15 @@ class RewardsViewModel(application: Application) : AndroidViewModel(application)
         val remoteSlots = rewardRepository.getGardenSlots(userId)
         return (1..6).map { index ->
             val remote = remoteSlots.find { it.slot_index == index }
-            val localState = gardenPrefs.getString("slot_${userId}_$index", null)
-            val state = if (remote != null && remote.state != "EMPTY_POT") {
-                remote.state
+            val rawLocal = gardenPrefs.getString("slot_${userId}_$index", null)
+            val localState = if (rawLocal == "PLANTED") "GROWING" else rawLocal
+            val remoteState = remote?.state?.let { if (it == "PLANTED") "GROWING" else it }
+            val state = if (remoteState != null && remoteState != "EMPTY_POT") {
+                remoteState
             } else if (localState != null) {
                 localState
             } else {
-                remote?.state ?: "EMPTY_POT"
+                remoteState ?: "EMPTY_POT"
             }
             PlantSlotDto(
                 id = remote?.id ?: "",
@@ -127,7 +133,7 @@ class RewardsViewModel(application: Application) : AndroidViewModel(application)
         val seed = SeedData.getSeedForSlot(slotIndex)
         viewModelScope.launch {
             try {
-                gardenPrefs.edit().putString("slot_${userId}_$slotIndex", "PLANTED").apply()
+                gardenPrefs.edit().putString("slot_${userId}_$slotIndex", "GROWING").apply()
 
                 rewardRepository.claimPlantReward(userId, slotIndex, seed.name)
                 _gardenSlots.value = loadSlotsWithLocalFallback(userId)
@@ -136,7 +142,7 @@ class RewardsViewModel(application: Application) : AndroidViewModel(application)
                 SupabaseModule.triggerRefresh()
             } catch (e: Exception) {
                 Log.e("RewardsViewModel", "Failed to claim plant reward", e)
-                gardenPrefs.edit().putString("slot_${userId}_$slotIndex", "PLANTED").apply()
+                gardenPrefs.edit().putString("slot_${userId}_$slotIndex", "GROWING").apply()
                 _gardenSlots.value = loadSlotsWithLocalFallback(userId)
                 _claimStatus.value = "🌱 ${seed.name} seedling added to your Garden Plot!"
             }
@@ -145,5 +151,47 @@ class RewardsViewModel(application: Application) : AndroidViewModel(application)
 
     fun clearClaimStatus() {
         _claimStatus.value = null
+    }
+
+    fun equipTitle(userId: String, title: String) {
+        viewModelScope.launch {
+            try {
+                com.example.releaf.data.repository.AuthRepository().updateTitle(userId, title)
+                _claimStatus.value = "Title equipped: $title"
+                com.example.releaf.data.remote.SupabaseModule.triggerRefresh()
+            } catch (_: Exception) {}
+        }
+    }
+
+    fun purchaseFrame(userId: String, frameName: String, gemPrice: Int, pointPrice: Int) {
+        viewModelScope.launch {
+            try {
+                if (_userPoints.value < pointPrice || _userGems.value < gemPrice) {
+                    _claimStatus.value = "Not enough Points/Gems"
+                    return@launch
+                }
+                val garden = gardenRepository.getGarden(userId)
+                if (garden != null) {
+                    gardenRepository.updateGarden(userId, com.example.releaf.data.remote.dto.GardenUpdateDto(
+                        current_exp = garden.current_exp,
+                        exp_target = garden.exp_target,
+                        grow_uses_left = garden.grow_uses_left,
+                        fertilize_uses_left = garden.fertilize_uses_left,
+                        current_points = garden.current_points - pointPrice,
+                        current_gems = garden.current_gems - gemPrice
+                    ))
+                }
+                val prefs = getApplication<Application>().getSharedPreferences("frames_$userId", android.content.Context.MODE_PRIVATE)
+                prefs.edit().putBoolean("owned_$frameName", true).apply()
+                prefs.edit().putString("selected_frame", frameName).apply()
+                com.example.releaf.data.repository.AuthRepository().updateAvatarFrame(userId, frameName)
+                _userPoints.value -= pointPrice
+                _userGems.value -= gemPrice
+                _claimStatus.value = "Purchased $frameName frame!"
+                com.example.releaf.data.remote.SupabaseModule.triggerRefresh()
+            } catch (e: Exception) {
+                _claimStatus.value = "Purchase failed: ${e.message}"
+            }
+        }
     }
 }

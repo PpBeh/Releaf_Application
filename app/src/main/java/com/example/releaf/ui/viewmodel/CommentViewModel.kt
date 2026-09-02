@@ -6,6 +6,7 @@ import com.example.releaf.data.remote.dto.ReviewDto
 import com.example.releaf.data.remote.dto.ReviewInsertDto
 import com.example.releaf.data.repository.ReviewRepository
 import com.example.releaf.data.repository.VoteResult
+import io.github.jan.supabase.storage.storage
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -86,24 +87,37 @@ class CommentViewModel : ViewModel() {
                 } catch (_: Exception) {
                     "User"
                 }
+                var uploadedPhotoUrl: String? = null
+                if (photoUri != null && context != null) {
+                    try {
+                        val bytes = try {
+                            context.contentResolver.openInputStream(photoUri)?.use { it.readBytes() }
+                        } catch (_: Exception) {
+                            try { java.io.File(photoUri.path ?: "").readBytes().takeIf { it.isNotEmpty() } } catch (_: Exception) { null }
+                        }
+                        if (bytes != null && bytes.isNotEmpty()) {
+                            val fileName = "review_${userId}_${System.currentTimeMillis()}.jpg"
+                            com.example.releaf.data.remote.SupabaseModule.client.storage.from("poi-photos").upload(
+                                path = fileName,
+                                data = bytes
+                            ) { upsert = true }
+                            uploadedPhotoUrl = com.example.releaf.data.remote.SupabaseModule.client.storage.from("poi-photos").publicUrl(fileName)
+                        }
+                    } catch (e: Exception) {
+                        e.printStackTrace()
+                        android.util.Log.e("CommentVM", "photo upload failed", e)
+                    }
+                }
                 repository.addReview(
                     ReviewInsertDto(
                         poi_id = poiId,
                         user_id = userId,
                         star_rating = starRating,
                         text = text,
-                        reviewer_name = reviewerName
+                        reviewer_name = reviewerName,
+                        photo_url = uploadedPhotoUrl
                     )
                 )
-
-                if (photoUri != null && context != null) {
-                    try {
-                        com.example.releaf.data.repository.PoiRepository()
-                            .uploadPoiPhoto(poiId, userId, photoUri, context)
-                    } catch (e: Exception) {
-                        e.printStackTrace()
-                    }
-                }
 
                 com.example.releaf.data.repository.QuestRepository().incrementQuestsByType(userId, "REVIEW")
 

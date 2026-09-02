@@ -120,20 +120,25 @@ fun MapScreen(
     val enabledCleanliness by viewModel.enabledCleanliness.collectAsState()
     val excludedPaid by viewModel.excludedPaid.collectAsState()
     val showUnverified by viewModel.showUnverified.collectAsState()
+    val context = androidx.compose.ui.platform.LocalContext.current
     var showAddPoiDialog by remember { mutableStateOf(false) }
     var isFetchingLocation by remember { mutableStateOf(false) }
     var currentLat by remember { mutableStateOf(3.1390) }
     var currentLng by remember { mutableStateOf(101.6869) }
     var selectedPhotoUri by remember { mutableStateOf<Uri?>(null) }
     var showSubscriptionDialog by remember { mutableStateOf(false) }
-    var isSubscribed by remember { mutableStateOf(false) }
-    var dailyPointsClaimed by remember { mutableStateOf(false) }
+    var isSubscribed by remember { mutableStateOf(context.getSharedPreferences("billing_prefs", android.content.Context.MODE_PRIVATE).getBoolean("isPro", false)) }
+    var dailyPointsClaimed by remember { mutableStateOf(context.getSharedPreferences("billing_prefs", android.content.Context.MODE_PRIVATE).getBoolean("daily_claimed", false)) }
     var showPhotoSourcePickerForPoi by remember { mutableStateOf(false) }
+
+    LaunchedEffect(Unit) {
+        isSubscribed = context.getSharedPreferences("billing_prefs", android.content.Context.MODE_PRIVATE).getBoolean("isPro", false)
+        dailyPointsClaimed = context.getSharedPreferences("billing_prefs", android.content.Context.MODE_PRIVATE).getBoolean("daily_claimed", false)
+    }
 
     val sheetState = rememberModalBottomSheetState()
     val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
-    val context = androidx.compose.ui.platform.LocalContext.current
 
     val photoPicker = rememberLauncherForActivityResult(
         ActivityResultContracts.GetContent()
@@ -161,7 +166,7 @@ fun MapScreen(
     }
 
     val filteredSearchPois = pois.filter {
-        searchQuery.isBlank() || it.name.contains(searchQuery, ignoreCase = true)
+        searchQuery.isBlank() || it.name.contains(searchQuery, ignoreCase = true) || it.description.contains(searchQuery, ignoreCase = true)
     }
 
     LaunchedEffect(isFetchingLocation) {
@@ -183,6 +188,24 @@ fun MapScreen(
         while (true) {
             kotlinx.coroutines.delay(5000)
             viewModel.loadPois()
+        }
+    }
+
+    // Handle POI deep links arriving via onNewIntent while MapScreen is active
+    val pendingPoiId by com.example.releaf.data.remote.DeepLinkHolder.pendingPoiIdFlow.collectAsState()
+    LaunchedEffect(pendingPoiId) {
+        pendingPoiId?.let { poiId ->
+            kotlinx.coroutines.delay(300)
+            viewModel.openPoiFromDeepLink(poiId)
+            // focus map on the POI after it loads
+            // delay a bit to allow poi fetch, then focus
+            kotlinx.coroutines.delay(400)
+            viewModel.selectedPoi.value?.let { poi ->
+                if (poi.id == poiId) {
+                    focusPoint = org.osmdroid.util.GeoPoint(poi.latitude, poi.longitude)
+                }
+            }
+            com.example.releaf.data.remote.DeepLinkHolder.clearPoiId()
         }
     }
 
@@ -667,6 +690,7 @@ fun MapScreen(
                         Button(
                             onClick = {
                                 isSubscribed = true
+                                context.getSharedPreferences("billing_prefs", android.content.Context.MODE_PRIVATE).edit().putBoolean("isPro", true).apply()
                                 scope.launch {
                                     snackbarHostState.showSnackbar("🎉 Welcome to Releaf Diamond Pro Membership!")
                                 }
@@ -699,7 +723,28 @@ fun MapScreen(
                                 onClick = {
                                     if (!dailyPointsClaimed) {
                                         dailyPointsClaimed = true
+                                        context.getSharedPreferences("billing_prefs", android.content.Context.MODE_PRIVATE).edit().putBoolean("daily_claimed", true).apply()
                                         scope.launch {
+                                            try {
+                                                val gardenRepo = com.example.releaf.data.repository.GardenRepository()
+                                                val authRepo = com.example.releaf.data.repository.AuthRepository()
+                                                val garden = gardenRepo.getGarden(currentUserId)
+                                                if (garden != null) {
+                                                    gardenRepo.updateGarden(currentUserId, com.example.releaf.data.remote.dto.GardenUpdateDto(
+                                                        current_exp = garden.current_exp + 100,
+                                                        exp_target = garden.exp_target,
+                                                        grow_uses_left = garden.grow_uses_left,
+                                                        fertilize_uses_left = garden.fertilize_uses_left,
+                                                        current_points = garden.current_points + 100,
+                                                        current_gems = garden.current_gems + 5
+                                                    ))
+                                                }
+                                                val profile = authRepo.getProfile(currentUserId)
+                                                if (profile != null) {
+                                                    authRepo.updateTotalPoints(currentUserId, (profile.total_points ?: 0) + 100)
+                                                }
+                                                com.example.releaf.data.remote.SupabaseModule.triggerRefresh()
+                                            } catch (_: Exception) {}
                                             snackbarHostState.showSnackbar("🎁 Claimed today's 100 Points & 5 Gems!")
                                         }
                                     }
@@ -729,15 +774,6 @@ fun MapScreen(
     }
 
     if (showAddPoiDialog) {
-        val lm = context.getSystemService(android.content.Context.LOCATION_SERVICE) as? LocationManager
-        if (ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED) {
-            val loc = lm?.getLastKnownLocation(LocationManager.GPS_PROVIDER)
-                ?: lm?.getLastKnownLocation(LocationManager.NETWORK_PROVIDER)
-            if (loc != null) {
-                currentLat = loc.latitude
-                currentLng = loc.longitude
-            }
-        }
         AddPoiDialog(
             lat = currentLat,
             lng = currentLng,

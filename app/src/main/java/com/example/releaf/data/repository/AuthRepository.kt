@@ -3,12 +3,12 @@ package com.example.releaf.data.repository
 import com.example.releaf.data.remote.SupabaseModule
 import com.example.releaf.data.remote.dto.ProfileDto
 import com.example.releaf.data.remote.dto.ProfileUpdateDto
+import io.github.jan.supabase.auth.OtpType
 import io.github.jan.supabase.auth.auth
 import io.github.jan.supabase.auth.providers.builtin.Email
 import io.github.jan.supabase.postgrest.postgrest
 import io.github.jan.supabase.storage.storage
 import kotlinx.serialization.json.buildJsonObject
-import kotlinx.serialization.json.jsonPrimitive
 import kotlinx.serialization.json.put
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -27,11 +27,7 @@ class AuthRepository {
             }
             val user = client.auth.currentUserOrNull() ?: return Result.failure(Exception("No user after login"))
 
-            val emailVerified = try {
-                user.userMetadata?.get("email_verified")?.jsonPrimitive?.content == "true"
-            } catch (_: Exception) {
-                true
-            }
+            val emailVerified = user.emailConfirmedAt != null
             if (!emailVerified) {
                 client.auth.signOut()
                 return Result.failure(Exception("Email not verified. Please click the confirmation link in your email, then try again."))
@@ -80,13 +76,15 @@ class AuthRepository {
         }
     }
 
-    suspend fun resendVerificationEmail(email: String, password: String) {
+    suspend fun resendVerificationEmail(email: String) {
         try {
-            client.auth.signUpWith(Email) {
-                this.email = email
-                this.password = password
-            }
+            client.auth.resendEmail(type = OtpType.Email.SIGNUP, email = email)
         } catch (_: Exception) { }
+    }
+
+    @Deprecated("Use resendVerificationEmail(email) instead")
+    suspend fun resendVerificationEmail(email: String, password: String) {
+        resendVerificationEmail(email)
     }
 
     suspend fun resetPassword(email: String): Result<Unit> {
@@ -183,6 +181,22 @@ class AuthRepository {
             .update(update) { filter { eq("id", userId) } }
     }
 
+    suspend fun updateTitle(userId: String, newTitle: String) {
+        try {
+            client.postgrest.from("profiles").update(
+                mapOf("title" to newTitle)
+            ) { filter { eq("id", userId) } }
+        } catch (_: Exception) { }
+    }
+
+    suspend fun updateAvatarFrame(userId: String, frameId: String) {
+        try {
+            client.postgrest.from("profiles").update(
+                mapOf("avatar_frame" to frameId)
+            ) { filter { eq("id", userId) } }
+        } catch (_: Exception) { }
+    }
+
     suspend fun updateTotalPoints(userId: String, newTotal: Int) {
         try {
             client.postgrest.from("profiles").update(
@@ -212,6 +226,26 @@ class AuthRepository {
             val url = client.storage.from("avatars").publicUrl(fileName)
             client.postgrest.from("profiles").update(
                 mapOf("avatar_url" to url)
+            ) { filter { eq("id", userId) } }
+            url
+        } catch (_: Exception) {
+            null
+        }
+    }
+
+    suspend fun uploadBanner(userId: String, uri: android.net.Uri, context: android.content.Context): String? {
+        return try {
+            val bytes = context.contentResolver.openInputStream(uri)?.use { it.readBytes() } ?: return null
+            val fileName = "banner_${userId}_${System.currentTimeMillis()}.jpg"
+            client.storage.from("avatars").upload(
+                path = fileName,
+                data = bytes
+            ) {
+                upsert = true
+            }
+            val url = client.storage.from("avatars").publicUrl(fileName)
+            client.postgrest.from("profiles").update(
+                mapOf("banner_url" to url)
             ) { filter { eq("id", userId) } }
             url
         } catch (_: Exception) {

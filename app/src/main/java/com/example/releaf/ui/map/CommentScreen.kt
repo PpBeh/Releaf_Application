@@ -493,11 +493,23 @@ fun CommentScreen(
                         .background(MaterialTheme.colorScheme.primaryContainer),
                     contentAlignment = Alignment.Center
                 ) {
-                    Text(
-                        (sheetProfile?.name ?: "U").take(1).uppercase(),
-                        style = MaterialTheme.typography.headlineMedium,
-                        color = MaterialTheme.colorScheme.onPrimaryContainer
-                    )
+                    val sheetAvatar = sheetProfile?.avatar_url.orEmpty()
+                    if (sheetAvatar.isNotBlank()) {
+                        Image(
+                            painter = rememberAsyncImagePainter(model = sheetAvatar),
+                            contentDescription = "Avatar",
+                            modifier = Modifier
+                                .size(72.dp)
+                                .clip(CircleShape),
+                            contentScale = ContentScale.Crop
+                        )
+                    } else {
+                        Text(
+                            (sheetProfile?.name ?: "U").take(1).uppercase(),
+                            style = MaterialTheme.typography.headlineMedium,
+                            color = MaterialTheme.colorScheme.onPrimaryContainer
+                        )
+                    }
                 }
                 Spacer(modifier = Modifier.height(12.dp))
                 Text(
@@ -561,15 +573,28 @@ private fun ReviewRowItem(
     onReport: () -> Unit
 ) {
     var menuExpanded by remember { mutableStateOf(false) }
+    var showFullImage by remember { mutableStateOf(false) }
 
     Column {
         Row(verticalAlignment = Alignment.CenterVertically) {
-            IconButton(onClick = onAvatarClick) {
-                Icon(
-                    Icons.Default.AccountCircle,
-                    contentDescription = "View profile",
-                    modifier = Modifier.size(40.dp)
+            if (review.reviewer_avatar_url.isNotBlank()) {
+                Image(
+                    painter = rememberAsyncImagePainter(model = review.reviewer_avatar_url),
+                    contentDescription = "Avatar",
+                    modifier = Modifier
+                        .size(40.dp)
+                        .clip(CircleShape)
+                        .clickable(onClick = onAvatarClick),
+                    contentScale = ContentScale.Crop
                 )
+            } else {
+                IconButton(onClick = onAvatarClick) {
+                    Icon(
+                        Icons.Default.AccountCircle,
+                        contentDescription = "View profile",
+                        modifier = Modifier.size(40.dp)
+                    )
+                }
             }
             Column(modifier = Modifier.weight(1f)) {
                 Text(
@@ -587,6 +612,20 @@ private fun ReviewRowItem(
                     }
                 }
                 Text(review.text, style = MaterialTheme.typography.bodyMedium)
+                // Photo attached to review — directly under comment text
+                if (!review.photo_url.isNullOrBlank()) {
+                    Spacer(modifier = Modifier.height(6.dp))
+                    Image(
+                        painter = rememberAsyncImagePainter(model = review.photo_url),
+                        contentDescription = "Review photo",
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(160.dp)
+                            .clip(RoundedCornerShape(10.dp))
+                            .clickable { showFullImage = true },
+                        contentScale = ContentScale.Crop
+                    )
+                }
             }
             Box {
                 IconButton(onClick = { menuExpanded = true }, modifier = Modifier.size(32.dp)) {
@@ -627,16 +666,17 @@ private fun ReviewRowItem(
                 }
             }
         }
+        // Likes directly under comment text with thumb icons
         Row(
-            modifier = Modifier.fillMaxWidth().padding(start = 52.dp, top = 4.dp),
+            modifier = Modifier.fillMaxWidth().padding(start = 52.dp, top = 6.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
             Text(
                 com.example.releaf.data.remote.TimeFormatter.formatCommentTime(review.created_at),
                 style = MaterialTheme.typography.labelSmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.weight(1f)
             )
-            Spacer(modifier = Modifier.weight(1f))
             IconButton(
                 onClick = onLike,
                 enabled = !isVoting,
@@ -649,7 +689,7 @@ private fun ReviewRowItem(
                     tint = if (userVote == "LIKE") Color(0xFF4285F4) else MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
-            Text(review.like_count.toString(), style = MaterialTheme.typography.labelSmall)
+            Text(review.like_count.toString(), style = MaterialTheme.typography.labelSmall, modifier = Modifier.padding(start = 2.dp))
             Spacer(modifier = Modifier.width(8.dp))
             IconButton(
                 onClick = onDislike,
@@ -663,7 +703,33 @@ private fun ReviewRowItem(
                     tint = if (userVote == "DISLIKE") Color(0xFFE53935) else MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
-            Text(review.dislike_count.toString(), style = MaterialTheme.typography.labelSmall)
+            Text(review.dislike_count.toString(), style = MaterialTheme.typography.labelSmall, modifier = Modifier.padding(start = 2.dp))
+        }
+    }
+
+    if (showFullImage && !review.photo_url.isNullOrBlank()) {
+        Dialog(onDismissRequest = { showFullImage = false }) {
+            Box(modifier = Modifier.fillMaxSize().clickable { showFullImage = false }, contentAlignment = Alignment.Center) {
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    Image(
+                        painter = rememberAsyncImagePainter(model = review.photo_url),
+                        contentDescription = "Full photo",
+                        modifier = Modifier
+                            .fillMaxWidth(0.95f)
+                            .clip(RoundedCornerShape(16.dp))
+                            .background(Color.White),
+                        contentScale = ContentScale.Fit
+                    )
+                    Spacer(modifier = Modifier.height(12.dp))
+                    Surface(
+                        shape = RoundedCornerShape(50),
+                        color = Color.White.copy(alpha = 0.9f),
+                        modifier = Modifier.clickable { showFullImage = false }
+                    ) {
+                        Text("✕ Close", color = Color.Black, fontWeight = FontWeight.Bold, modifier = Modifier.padding(horizontal = 20.dp, vertical = 10.dp))
+                    }
+                }
+            }
         }
     }
 }

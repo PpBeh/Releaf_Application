@@ -13,6 +13,7 @@ data class ReviewDto(
     val dislike_count: Int = 0,
     val reviewer_name: String = "",
     val reviewer_avatar_url: String = "",
+    val photo_url: String? = null,
     val created_at: String = ""
 )
 
@@ -22,5 +23,6 @@ data class ReviewInsertDto(
     val user_id: String,
     val star_rating: Int,
     val text: String,
-    val reviewer_name: String = ""
+    val reviewer_name: String = "",
+    val photo_url: String? = null
 )

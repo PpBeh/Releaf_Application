@@ -90,6 +90,24 @@ class ProfileViewModel : ViewModel() {
         }
     }
 
+    fun updateTitle(userId: String, newTitle: String) {
+        viewModelScope.launch {
+            try {
+                authRepository.updateTitle(userId, newTitle)
+                _profile.value = authRepository.getProfile(userId)
+            } catch (_: Exception) { }
+        }
+    }
+
+    fun updateAvatarFrame(userId: String, frameId: String) {
+        viewModelScope.launch {
+            try {
+                authRepository.updateAvatarFrame(userId, frameId)
+                _profile.value = authRepository.getProfile(userId)
+            } catch (_: Exception) { }
+        }
+    }
+
     fun uploadAvatar(userId: String, uri: android.net.Uri, context: android.content.Context) {
         viewModelScope.launch {
             try {
@@ -98,6 +116,46 @@ class ProfileViewModel : ViewModel() {
                     _profile.value = authRepository.getProfile(userId)
                 }
             } catch (_: Exception) { }
+        }
+    }
+
+    fun uploadBanner(userId: String, uri: android.net.Uri, context: android.content.Context) {
+        viewModelScope.launch {
+            try {
+                val url = authRepository.uploadBanner(userId, uri, context)
+                if (url != null) {
+                    _profile.value = authRepository.getProfile(userId)
+                }
+            } catch (_: Exception) { }
+        }
+    }
+
+    fun deletePlantSlot(userId: String, slotIndex: Int) {
+        viewModelScope.launch {
+            try {
+                gardenRepository.deletePlantSlot(userId, slotIndex)
+                // Also clear local fallback prefs if any
+                // reload to reflect DB truth
+                loadProfile(userId)
+                com.example.releaf.data.remote.SupabaseModule.triggerRefresh()
+            } catch (e: Exception) {
+                android.util.Log.e("ProfileViewModel", "deletePlantSlot failed", e)
+            }
+        }
+    }
+
+    fun deleteGarden(userId: String) {
+        viewModelScope.launch {
+            try {
+                gardenRepository.deleteGarden(userId)
+                for (i in 1..6) {
+                    try { gardenRepository.deletePlantSlot(userId, i) } catch (_: Exception) { }
+                }
+                loadProfile(userId)
+                com.example.releaf.data.remote.SupabaseModule.triggerRefresh()
+            } catch (e: Exception) {
+                android.util.Log.e("ProfileViewModel", "deleteGarden failed", e)
+            }
         }
     }
 

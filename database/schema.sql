@@ -84,7 +84,28 @@ CREATE TABLE IF NOT EXISTS public.reviews (
     like_count INT DEFAULT 0,
     dislike_count INT DEFAULT 0,
     reviewer_name TEXT DEFAULT '',
+    photo_url TEXT DEFAULT NULL,
     created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- 5b. REVIEW VOTES (like/dislike per user per review)
+CREATE TABLE IF NOT EXISTS public.review_votes (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    review_id UUID NOT NULL REFERENCES public.reviews(id) ON DELETE CASCADE,
+    user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+    vote_type TEXT NOT NULL CHECK (vote_type IN ('LIKE', 'DISLIKE')),
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    UNIQUE(review_id, user_id)
+);
+
+-- 5c. REVIEW REPORTS
+CREATE TABLE IF NOT EXISTS public.review_reports (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    review_id UUID NOT NULL REFERENCES public.reviews(id) ON DELETE CASCADE,
+    user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+    reason TEXT DEFAULT '',
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    UNIQUE(review_id, user_id)
 );
 
 -- ============================================
@@ -255,6 +276,12 @@ CREATE POLICY "Anyone can create POIs" ON public.pois FOR INSERT TO authenticate
 CREATE POLICY "Anyone can update POIs" ON public.pois FOR UPDATE TO authenticated USING (true);
 CREATE POLICY "Anyone can delete POIs" ON public.pois FOR DELETE TO authenticated USING (true);
 
+-- Ensure POIs has description / status columns for legacy DBs
+ALTER TABLE public.pois ADD COLUMN IF NOT EXISTS description TEXT DEFAULT '';
+ALTER TABLE public.pois ADD COLUMN IF NOT EXISTS recent_status TEXT DEFAULT NULL;
+ALTER TABLE public.pois ADD COLUMN IF NOT EXISTS recent_status_time TIMESTAMPTZ DEFAULT NULL;
+ALTER TABLE public.reviews ADD COLUMN IF NOT EXISTS photo_url TEXT DEFAULT NULL;
+
 -- POI Photos: anyone can read, create
 ALTER TABLE public.poi_photos ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "Anyone can read photos" ON public.poi_photos FOR SELECT TO authenticated USING (true);
@@ -270,6 +297,19 @@ ALTER TABLE public.reviews ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "Anyone can read reviews" ON public.reviews FOR SELECT TO authenticated USING (true);
 CREATE POLICY "Anyone can create reviews" ON public.reviews FOR INSERT TO authenticated WITH CHECK (true);
 CREATE POLICY "Anyone can update reviews" ON public.reviews FOR UPDATE TO authenticated USING (true);
+CREATE POLICY "Anyone can delete reviews" ON public.reviews FOR DELETE TO authenticated USING (true);
+
+-- Review votes
+ALTER TABLE public.review_votes ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "Anyone can read review_votes" ON public.review_votes FOR SELECT TO authenticated USING (true);
+CREATE POLICY "Anyone can create review_votes" ON public.review_votes FOR INSERT TO authenticated WITH CHECK (true);
+CREATE POLICY "Anyone can delete review_votes" ON public.review_votes FOR DELETE TO authenticated USING (true);
+CREATE POLICY "Anyone can update review_votes" ON public.review_votes FOR UPDATE TO authenticated USING (true);
+
+-- Review reports
+ALTER TABLE public.review_reports ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "Anyone can read review_reports" ON public.review_reports FOR SELECT TO authenticated USING (true);
+CREATE POLICY "Anyone can create review_reports" ON public.review_reports FOR INSERT TO authenticated WITH CHECK (true);
 
 -- Gardens: users can read/update only their own garden
 ALTER TABLE public.gardens ENABLE ROW LEVEL SECURITY;

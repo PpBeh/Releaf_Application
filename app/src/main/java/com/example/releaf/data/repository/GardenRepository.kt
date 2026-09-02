@@ -33,6 +33,48 @@ class GardenRepository {
             .decodeList()
     }
 
+    suspend fun upsertGarden(garden: GardenDto) {
+        client.postgrest.from("gardens").upsert(garden) {
+            onConflict = "user_id"
+        }
+    }
+
+    suspend fun upsertPlantSlot(slot: PlantSlotDto) {
+        client.postgrest.from("plant_slots").upsert(slot) {
+            onConflict = "user_id,slot_index"
+        }
+    }
+
+    suspend fun upsertPlantSlot(userId: String, slotIndex: Int, state: String, plantType: String? = null) {
+        val data = mutableMapOf<String, Any>(
+            "user_id" to userId,
+            "slot_index" to slotIndex,
+            "state" to state
+        )
+        plantType?.let { data["plant_type"] = it }
+        client.postgrest.from("plant_slots").upsert(data) {
+            onConflict = "user_id,slot_index"
+        }
+    }
+
+    suspend fun deleteGarden(userId: String) {
+        client.postgrest.from("gardens").delete { filter { eq("user_id", userId) } }
+    }
+
+    suspend fun deletePlantSlot(userId: String, slotIndex: Int) {
+        client.postgrest.from("plant_slots").delete {
+            filter {
+                eq("user_id", userId)
+                eq("slot_index", slotIndex)
+            }
+        }
+    }
+
+    suspend fun deletePlantSlotById(slotId: String) {
+        if (slotId.isBlank()) return
+        client.postgrest.from("plant_slots").delete { filter { eq("id", slotId) } }
+    }
+
     suspend fun updateGarden(userId: String, update: GardenUpdateDto) {
         client.postgrest.from("gardens")
             .update(update) { filter { eq("user_id", userId) } }

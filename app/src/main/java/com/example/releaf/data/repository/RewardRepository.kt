@@ -88,7 +88,7 @@ class RewardRepository {
             val data = mutableMapOf<String, Any>(
                 "user_id" to userId,
                 "slot_index" to slotIndex,
-                "state" to "PLANTED"
+                "state" to "GROWING"
             )
             plantType?.let { data["plant_type"] = it }
             client.postgrest.from("plant_slots").upsert(data) {
@@ -96,7 +96,7 @@ class RewardRepository {
             }
         } catch (e: Exception) {
             try {
-                val updateData = mutableMapOf<String, Any>("state" to "PLANTED")
+                val updateData = mutableMapOf<String, Any>("state" to "GROWING")
                 plantType?.let { updateData["plant_type"] = it }
                 client.postgrest.from("plant_slots")
                     .update(updateData) {

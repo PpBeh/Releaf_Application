@@ -201,6 +201,7 @@ fun ReleafNavGraph(
                 email = email,
                 isLoading = authUiState.isLoading,
                 error = authUiState.error,
+                successMessage = authUiState.resendMessage,
                 onVerifyClick = { code ->
                     authViewModel.verifyEmail(email, code)
                 },
@@ -362,7 +363,8 @@ fun ReleafNavGraph(
                 onLogoutClick = {
                     authViewModel.logout()
                     navController.logout()
-                }
+                },
+                onFavouritesClick = { navController.navigate(Screen.Favourites.route) }
             )
         }
     }

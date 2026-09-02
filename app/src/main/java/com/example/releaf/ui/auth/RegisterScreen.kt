@@ -97,13 +97,13 @@ fun RegisterScreen(
             value = name,
             onValueChange = {
                 name = it
-                nameError = null
+                nameError = if (it.isBlank()) "Please enter your name" else null
                 if (error != null) onClearError()
             },
             label = { Text("Name") },
             singleLine = true,
             isError = nameError != null,
-            supportingText = nameError?.let { { Text(it) } },
+            supportingText = nameError?.let { { Text(it, color = MaterialTheme.colorScheme.error) } },
             modifier = Modifier.fillMaxWidth()
         )
 
@@ -113,13 +113,13 @@ fun RegisterScreen(
             value = email,
             onValueChange = {
                 email = it
-                emailError = null
+                emailError = if (it.isNotBlank() && !android.util.Patterns.EMAIL_ADDRESS.matcher(it).matches()) "Invalid email address — e.g. name@example.com" else null
                 if (error != null) onClearError()
             },
             label = { Text("Email") },
             singleLine = true,
             isError = emailError != null,
-            supportingText = emailError?.let { { Text(it) } },
+            supportingText = emailError?.let { { Text(it, color = MaterialTheme.colorScheme.error) } },
             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email),
             modifier = Modifier.fillMaxWidth()
         )
@@ -130,13 +130,17 @@ fun RegisterScreen(
             value = password,
             onValueChange = {
                 password = it
-                passwordError = null
+                passwordError = when {
+                    it.isNotEmpty() && it.length < 6 -> "Password must be at least 6 characters"
+                    it.isNotEmpty() && confirmPassword.isNotEmpty() && it != confirmPassword -> "Passwords do not match"
+                    else -> null
+                }
                 if (error != null) onClearError()
             },
             label = { Text("Password") },
             singleLine = true,
             isError = passwordError != null,
-            supportingText = passwordError?.let { { Text(it) } },
+            supportingText = passwordError?.let { { Text(it, color = MaterialTheme.colorScheme.error) } },
             visualTransformation = if (passwordVisible) VisualTransformation.None else PasswordVisualTransformation(),
             trailingIcon = {
                 IconButton(onClick = { passwordVisible = !passwordVisible }) {
@@ -155,7 +159,7 @@ fun RegisterScreen(
             value = confirmPassword,
             onValueChange = {
                 confirmPassword = it
-                passwordError = null
+                passwordError = if (it.isNotEmpty() && it != password) "Passwords do not match" else if (password.isNotEmpty() && password.length < 6) "Password must be at least 6 characters" else null
                 if (error != null) onClearError()
             },
             label = { Text("Confirm password") },
@@ -163,7 +167,7 @@ fun RegisterScreen(
             isError = confirmPassword.isNotEmpty() && confirmPassword != password,
             supportingText = {
                 if (confirmPassword.isNotEmpty() && confirmPassword != password) {
-                    Text("Passwords do not match")
+                    Text("Passwords do not match", color = MaterialTheme.colorScheme.error)
                 }
             },
             visualTransformation = PasswordVisualTransformation(),

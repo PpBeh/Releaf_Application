@@ -22,10 +22,25 @@ class PoiRepository {
     }
 
     suspend fun searchPois(query: String): List<PoiDto> {
+        if (query.isBlank()) return emptyList()
         return try {
-            client.postgrest.from("pois")
-                .select { filter { ilike("name", "%$query%") } }
-                .decodeList()
+            // Try server-side ilike on name OR description
+            try {
+                client.postgrest.from("pois")
+                    .select {
+                        filter {
+                            or {
+                                ilike("name", "%$query%")
+                                ilike("description", "%$query%")
+                            }
+                        }
+                    }
+                    .decodeList<PoiDto>()
+            } catch (_: Exception) {
+                // Fallback: filter locally after fetching
+                val all = client.postgrest.from("pois").select().decodeList<PoiDto>()
+                all.filter { it.name.contains(query, ignoreCase = true) || it.description.contains(query, ignoreCase = true) }
+            }
         } catch (_: Exception) {
             emptyList()
         }
