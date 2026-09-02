@@ -125,6 +125,8 @@ fun MapScreen(
     var isFetchingLocation by remember { mutableStateOf(false) }
     var currentLat by remember { mutableStateOf(3.1390) }
     var currentLng by remember { mutableStateOf(101.6869) }
+    val lang by themeViewModel.language.collectAsState()
+    fun t(key: String) = com.example.releaf.ui.theme.AppStrings.get(key, lang)
     var selectedPhotoUri by remember { mutableStateOf<Uri?>(null) }
     var showSubscriptionDialog by remember { mutableStateOf(false) }
     val billingPrefs = context.getSharedPreferences("billing_prefs", android.content.Context.MODE_PRIVATE)
@@ -374,7 +376,7 @@ fun MapScreen(
                             Text("💎", fontSize = 16.sp)
                             Spacer(modifier = Modifier.width(4.dp))
                             Text(
-                                if (isSubscribed) "Pro" else "Get Pro",
+                                if (isSubscribed) t("pro") else t("get_pro"),
                                 fontWeight = FontWeight.Bold,
                                 color = if (isSubscribed) Color(0xFF5D4037) else MaterialTheme.colorScheme.onPrimaryContainer,
                                 fontSize = 12.sp
@@ -437,7 +439,8 @@ fun MapScreen(
                         excludedPaid = excludedPaid,
                         onTogglePaid = { viewModel.togglePaid(it) },
                         showUnverified = showUnverified,
-                        onToggleUnverified = { viewModel.toggleUnverified() }
+                        onToggleUnverified = { viewModel.toggleUnverified() },
+                        lang = lang
                     )
                 }
             }
@@ -613,17 +616,19 @@ fun MapScreen(
                     context.startActivity(Intent.createChooser(sendIntent, "Share POI"))
                 },
                 onAddPhotoClick = { showPhotoSourcePickerForPoi = true },
-                actionResult = actionResult
+                actionResult = actionResult,
+                themeViewModel = themeViewModel
             )
         }
     }
 
     if (showPhotoSourcePickerForPoi) {
         PhotoSourcePickerDialog(
-            title = "Upload Facility Photo",
+            title = t("upload_facility_photo"),
             onDismiss = { showPhotoSourcePickerForPoi = false },
             onGalleryClick = { detailPhotoPicker.launch("image/*") },
-            onCameraClick = { cameraPhotoPicker.launch(null) }
+            onCameraClick = { cameraPhotoPicker.launch(null) },
+            lang = lang
         )
     }
 
@@ -740,7 +745,7 @@ fun MapScreen(
                             shape = RoundedCornerShape(16.dp),
                             colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF6A1B9A))
                         ) {
-                            Text("Subscribe Now • $2.99 / mo", fontWeight = FontWeight.Bold, color = Color.White)
+                            Text(t("subscribe_btn"), fontWeight = FontWeight.Bold, color = Color.White)
                         }
                     } else {
                         Column(horizontalAlignment = Alignment.CenterHorizontally) {
@@ -826,6 +831,7 @@ fun MapScreen(
             lat = currentLat,
             lng = currentLng,
             photoUri = selectedPhotoUri,
+            lang = lang,
             onDismiss = {
                 showAddPoiDialog = false
                 selectedPhotoUri = null
@@ -842,18 +848,19 @@ fun MapScreen(
 
     if (showAddPhotoSourcePicker) {
         PhotoSourcePickerDialog(
-            title = "Add New Toilet Photo",
+            title = t("add_new_toilet"),
             onDismiss = { showAddPhotoSourcePicker = false },
             onGalleryClick = { photoPicker.launch("image/*") },
-            onCameraClick = { addPoiCameraPicker.launch(null) }
+            onCameraClick = { addPoiCameraPicker.launch(null) },
+            lang = lang
         )
     }
 
     if (showEnableLocationDialog) {
         androidx.compose.material3.AlertDialog(
             onDismissRequest = { showEnableLocationDialog = false },
-            title = { Text("Location is off") },
-            text = { Text("Turn on GPS / location services to use this feature.") },
+            title = { Text(t("location_off_title")) },
+            text = { Text(t("location_off_text")) },
             confirmButton = {
                 TextButton(onClick = {
                     showEnableLocationDialog = false
@@ -861,12 +868,12 @@ fun MapScreen(
                         context.startActivity(android.content.Intent(android.provider.Settings.ACTION_LOCATION_SOURCE_SETTINGS))
                     } catch (_: Exception) { }
                 }) {
-                    Text("Open Location Settings")
+                    Text(t("open_location_settings"))
                 }
             },
             dismissButton = {
                 TextButton(onClick = { showEnableLocationDialog = false }) {
-                    Text("Cancel")
+                    Text(t("cancel"))
                 }
             }
         )
@@ -893,7 +900,7 @@ fun MapScreen(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Text(
-                        "Notifications",
+                        t("notifications"),
                         style = MaterialTheme.typography.titleLarge,
                         fontWeight = FontWeight.Bold,
                         modifier = Modifier.weight(1f)
@@ -901,7 +908,7 @@ fun MapScreen(
                     TextButton(
                         onClick = { notificationsViewModel.markAllAsRead(currentUserId) }
                     ) {
-                        Text("Mark all read")
+                        Text(t("mark_all_read"))
                     }
                 }
                 Spacer(modifier = Modifier.height(8.dp))
@@ -913,7 +920,7 @@ fun MapScreen(
                             .padding(vertical = 32.dp),
                         horizontalAlignment = Alignment.CenterHorizontally
                     ) {
-                        Text("No notifications yet", style = MaterialTheme.typography.bodyMedium)
+                        Text(t("no_notifications"), style = MaterialTheme.typography.bodyMedium)
                     }
                 } else {
                     LazyColumn(
@@ -1015,8 +1022,10 @@ private fun PhotoSourcePickerDialog(
     title: String,
     onDismiss: () -> Unit,
     onGalleryClick: () -> Unit,
-    onCameraClick: () -> Unit
+    onCameraClick: () -> Unit,
+    lang: com.example.releaf.ui.viewmodel.AppLanguage = com.example.releaf.ui.viewmodel.AppLanguage.ENGLISH
 ) {
+    fun t(key: String) = com.example.releaf.ui.theme.AppStrings.get(key, lang)
     androidx.compose.ui.window.Dialog(onDismissRequest = onDismiss) {
         Surface(
             shape = RoundedCornerShape(20.dp),
@@ -1048,8 +1057,8 @@ private fun PhotoSourcePickerDialog(
                     Icon(Icons.Default.Image, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
                     Spacer(modifier = Modifier.width(16.dp))
                     Column {
-                        Text("Choose from Gallery", fontWeight = FontWeight.Bold)
-                        Text("Select an existing photo from device", style = MaterialTheme.typography.labelSmall, color = Color.Gray)
+                        Text(t("choose_gallery"), fontWeight = FontWeight.Bold)
+                        Text(t("gallery_hint"), style = MaterialTheme.typography.labelSmall, color = Color.Gray)
                     }
                 }
 
@@ -1068,15 +1077,15 @@ private fun PhotoSourcePickerDialog(
                     Icon(Icons.Default.CameraAlt, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
                     Spacer(modifier = Modifier.width(16.dp))
                     Column {
-                        Text("Take Photo with Camera", fontWeight = FontWeight.Bold)
-                        Text("Capture a new photo right now", style = MaterialTheme.typography.labelSmall, color = Color.Gray)
+                        Text(t("take_camera"), fontWeight = FontWeight.Bold)
+                        Text(t("camera_hint"), style = MaterialTheme.typography.labelSmall, color = Color.Gray)
                     }
                 }
 
                 Spacer(modifier = Modifier.height(12.dp))
 
                 TextButton(onClick = onDismiss) {
-                    Text("Cancel")
+                    Text(t("cancel"))
                 }
             }
         }
@@ -1089,10 +1098,12 @@ private fun AddPoiDialog(
     lat: Double,
     lng: Double,
     photoUri: Uri?,
+    lang: com.example.releaf.ui.viewmodel.AppLanguage,
     onDismiss: () -> Unit,
     onPickPhoto: () -> Unit,
     onSubmit: (name: String, category: String, description: String, isPaid: Boolean) -> Unit
 ) {
+    fun tt(key: String) = com.example.releaf.ui.theme.AppStrings.get(key, lang)
     var name by remember { mutableStateOf("") }
     var category by remember { mutableStateOf("TOILET") }
     var description by remember { mutableStateOf("") }
@@ -1100,7 +1111,7 @@ private fun AddPoiDialog(
 
     androidx.compose.material3.AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text(if (category == "TOILET") "Add New Toilet" else "Add New Trash Can") },
+        title = { Text(if (category == "TOILET") tt("add_new_toilet") else tt("add_new_trash")) },
         text = {
             Column {
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -1110,7 +1121,7 @@ private fun AddPoiDialog(
                             containerColor = if (category == "TOILET") Color(0xFFE53935) else MaterialTheme.colorScheme.surfaceVariant
                         )
                     ) {
-                        Text("Toilet")
+                        Text(tt("toilet"))
                     }
                     Button(
                         onClick = { category = "TRASH_CAN" },
@@ -1118,14 +1129,14 @@ private fun AddPoiDialog(
                             containerColor = if (category == "TRASH_CAN") Color(0xFF43A047) else MaterialTheme.colorScheme.surfaceVariant
                         )
                     ) {
-                        Text("Trash Can")
+                        Text(tt("trash_can"))
                     }
                 }
                 Spacer(modifier = Modifier.height(8.dp))
                 OutlinedTextField(
                     value = name,
                     onValueChange = { name = it },
-                    label = { Text("Name *") },
+                    label = { Text(tt("name_required_ast")) },
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth()
                 )
@@ -1133,27 +1144,27 @@ private fun AddPoiDialog(
                 OutlinedTextField(
                     value = description,
                     onValueChange = { description = it },
-                    label = { Text("Location (e.g. Level 1)") },
+                    label = { Text(tt("location_label")) },
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth()
                 )
                 Spacer(modifier = Modifier.height(8.dp))
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text("Paid: ", modifier = Modifier.weight(1f))
+                    Text(tt("filter_paid") + ": ", modifier = Modifier.weight(1f))
                     Button(onClick = { isPaid = !isPaid }) {
-                        Text(if (isPaid) "Yes" else "Free")
+                        Text(if (isPaid) tt("filter_paid") else tt("filter_free"))
                     }
                 }
                 Spacer(modifier = Modifier.height(8.dp))
                 Text(
-                    "GPS: ${"%.4f".format(lat)}, ${"%.4f".format(lng)}",
+                    "GPS: ${String.format(java.util.Locale.US, "%.4f", lat)}, ${String.format(java.util.Locale.US, "%.4f", lng)}",
                     style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
                 Spacer(modifier = Modifier.height(8.dp))
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Button(onClick = onPickPhoto) {
-                        Text(if (photoUri != null) "Change Photo" else "Add Photo")
+                        Text(if (photoUri != null) tt("change_photo") else tt("add_photo"))
                     }
                     if (photoUri != null) {
                         Spacer(modifier = Modifier.width(8.dp))
@@ -1170,10 +1181,10 @@ private fun AddPoiDialog(
             Button(
                 onClick = { onSubmit(name, category, description, isPaid) },
                 enabled = name.isNotBlank()
-            ) { Text("Add") }
+            ) { Text(tt("add")) }
         },
         dismissButton = {
-            Button(onClick = onDismiss) { Text("Cancel") }
+            Button(onClick = onDismiss) { Text(tt("cancel")) }
         }
     )
 }

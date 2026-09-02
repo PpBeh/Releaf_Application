@@ -28,6 +28,8 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -44,8 +46,11 @@ fun VerificationScreen(
     successMessage: String? = null,
     onVerifyClick: () -> Unit,
     onResendClick: () -> Unit,
-    onBackClick: () -> Unit
+    onBackClick: () -> Unit,
+    themeViewModel: com.example.releaf.ui.viewmodel.ThemeViewModel
 ) {
+    val lang by themeViewModel.language.collectAsState()
+    fun t(key: String) = com.example.releaf.ui.theme.AppStrings.get(key, lang)
     val green = Color(0xFF2E7D32)
     Box(
         modifier = Modifier
@@ -83,7 +88,7 @@ fun VerificationScreen(
             Spacer(modifier = Modifier.height(28.dp))
 
             Text(
-                "Verify your email",
+                t("verify_title"),
                 style = MaterialTheme.typography.headlineMedium,
                 fontWeight = FontWeight.Bold,
                 color = MaterialTheme.colorScheme.onBackground
@@ -92,7 +97,7 @@ fun VerificationScreen(
             Spacer(modifier = Modifier.height(8.dp))
 
             Text(
-                "We sent a verification link to",
+                t("verify_sent_prefix"),
                 style = MaterialTheme.typography.bodyMedium,
                 textAlign = TextAlign.Center,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
@@ -140,7 +145,7 @@ fun VerificationScreen(
                     )
                     Spacer(modifier = Modifier.size(12.dp))
                     Text(
-                        "1. Open your email and tap the confirmation link",
+                        "1. " + t("verify_step1").removePrefix("1. "),
                         style = MaterialTheme.typography.bodyMedium,
                         modifier = Modifier.weight(1f)
                     )
@@ -157,7 +162,7 @@ fun VerificationScreen(
                     )
                     Spacer(modifier = Modifier.size(12.dp))
                     Text(
-                        "2. Return to the app and tap Continue below",
+                        "2. " + t("verify_step2").removePrefix("2. "),
                         style = MaterialTheme.typography.bodyMedium,
                         modifier = Modifier.weight(1f)
                     )
@@ -219,7 +224,7 @@ fun VerificationScreen(
                         strokeWidth = 2.dp
                     )
                 } else {
-                    Text("I've verified — Continue", fontWeight = FontWeight.Bold)
+                    Text(t("verified_continue"), fontWeight = FontWeight.Bold)
                 }
             }
 
@@ -230,7 +235,7 @@ fun VerificationScreen(
                 enabled = !isLoading
             ) {
                 Text(
-                    "Resend verification email",
+                    t("resend_email_btn"),
                     color = green,
                     fontWeight = FontWeight.Medium
                 )

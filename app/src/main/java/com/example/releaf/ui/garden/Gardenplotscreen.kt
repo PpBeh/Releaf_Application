@@ -74,6 +74,8 @@ fun GardenPlotScreen(
     onBackClick: () -> Unit
 ) {
     val context = LocalContext.current
+    val lang by themeViewModel.language.collectAsState()
+    fun t(key: String) = com.example.releaf.ui.theme.AppStrings.get(key, lang)
     val currentExp by viewModel.currentExp.collectAsState()
     val plantSlots by viewModel.plantSlots.collectAsState()
     val waterUsesLeft by viewModel.waterUsesLeft.collectAsState()
@@ -138,7 +140,8 @@ fun GardenPlotScreen(
                             color = if (isPlanted) Color(0xFFE8F5E9) else MaterialTheme.colorScheme.surfaceVariant
                         ) {
                             Text(
-                                if (isPlanted) "Slot ${slot.slot_index}: Active Plant" else "Slot ${slot.slot_index}: Empty Pot",
+                                if (isPlanted) String.format(java.util.Locale.US, t("active_plant"), slot.slot_index)
+                                else String.format(java.util.Locale.US, t("slot_empty"), slot.slot_index),
                                 style = MaterialTheme.typography.labelMedium,
                                 fontWeight = FontWeight.Bold,
                                 color = if (isPlanted) Color(0xFF2E7D32) else MaterialTheme.colorScheme.onSurfaceVariant,
@@ -308,7 +311,7 @@ fun GardenPlotScreen(
                             shape = RoundedCornerShape(16.dp),
                             colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF2196F3))
                         ) {
-                            Text("💧 Water +50 EXP", fontSize = 12.sp)
+                            Text(t("water_dialog"), fontSize = 12.sp)
                         }
 
                         Button(
@@ -320,7 +323,7 @@ fun GardenPlotScreen(
                             shape = RoundedCornerShape(16.dp),
                             colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF4CAF50))
                         ) {
-                            Text("🌱 Fertilize +50 EXP", fontSize = 12.sp)
+                            Text(t("fertilize_dialog"), fontSize = 12.sp)
                         }
                     }
                     if (isPlanted) {
@@ -435,13 +438,13 @@ fun GardenPlotScreen(
                         Spacer(modifier = Modifier.width(6.dp))
                         Column {
                             Text(
-                                "Water",
+                                t("water"),
                                 style = MaterialTheme.typography.labelMedium,
                                 fontWeight = FontWeight.Bold,
                                 color = if (waterUsesLeft > 0) Color(0xFF1565C0) else Color.Gray
                             )
                             Text(
-                                "Uses left today: $waterUsesLeft",
+                                t("uses_left_today") + "$waterUsesLeft",
                                 style = MaterialTheme.typography.labelSmall,
                                 color = Color.Gray
                             )
@@ -462,13 +465,13 @@ fun GardenPlotScreen(
                         Spacer(modifier = Modifier.width(6.dp))
                         Column {
                             Text(
-                                "Fertilize",
+                                t("fertilize"),
                                 style = MaterialTheme.typography.labelMedium,
                                 fontWeight = FontWeight.Bold,
                                 color = if (fertilizeUsesLeft > 0) Color(0xFF2E7D32) else Color.Gray
                             )
                             Text(
-                                "Uses left today: $fertilizeUsesLeft",
+                                t("uses_left_today") + "$fertilizeUsesLeft",
                                 style = MaterialTheme.typography.labelSmall,
                                 color = Color.Gray
                             )
@@ -480,7 +483,7 @@ fun GardenPlotScreen(
             Spacer(modifier = Modifier.height(6.dp))
 
             Text(
-                "Tap any plant below to water or fertilize it.",
+                t("plot_tap_hint"),
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )

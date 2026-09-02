@@ -83,6 +83,8 @@ fun SettingsScreen(
     val prefs = remember { context.getSharedPreferences("settings_prefs", android.content.Context.MODE_PRIVATE) }
     var notificationsEnabled by remember { mutableStateOf(prefs.getBoolean("notifications_enabled", true)) }
     var showLogoutConfirm by remember { mutableStateOf(false) }
+    val lang by themeViewModel.language.collectAsState()
+    fun t(key: String) = com.example.releaf.ui.theme.AppStrings.get(key, lang)
 
     val avatarPicker = androidx.activity.compose.rememberLauncherForActivityResult(
         androidx.activity.result.contract.ActivityResultContracts.GetContent()
@@ -208,15 +210,15 @@ fun SettingsScreen(
     }
 
     val rows = listOf(
-        SettingsRowData(R.drawable.ic_favorite, "Favourite Toilets", "favourites"),
-        SettingsRowData(R.drawable.ic_person, "Account", "account"),
-        SettingsRowData(R.drawable.ic_info, "About Us", "about"),
-        SettingsRowData(R.drawable.ic_notifications, "Notification Settings", "notifications"),
-        SettingsRowData(R.drawable.ic_delete, "Clear Cache", "clear_cache"),
-        SettingsRowData(R.drawable.ic_refresh, "Updates", "updates"),
-        SettingsRowData(R.drawable.ic_palette, string("theme", themeViewModel), "theme"),
-        SettingsRowData(R.drawable.ic_translate, string("language", themeViewModel), "language"),
-        SettingsRowData(R.drawable.ic_logout, string("logout", themeViewModel), "logout")
+        SettingsRowData(R.drawable.ic_favorite, t("favourite_toilets"), "favourites"),
+        SettingsRowData(R.drawable.ic_person, t("settings_account"), "account"),
+        SettingsRowData(R.drawable.ic_info, t("settings_about"), "about"),
+        SettingsRowData(R.drawable.ic_notifications, t("settings_notify"), "notifications"),
+        SettingsRowData(R.drawable.ic_delete, t("settings_clear_cache"), "clear_cache"),
+        SettingsRowData(R.drawable.ic_refresh, t("settings_updates"), "updates"),
+        SettingsRowData(R.drawable.ic_palette, t("theme"), "theme"),
+        SettingsRowData(R.drawable.ic_translate, t("language"), "language"),
+        SettingsRowData(R.drawable.ic_logout, t("logout"), "logout")
     )
 
     if (showLogoutConfirm) {
@@ -307,7 +309,7 @@ fun SettingsScreen(
             }
 
             Text(
-                "Settings",
+                t("settings"),
                 style = MaterialTheme.typography.titleMedium,
                 fontWeight = FontWeight.Bold,
                 modifier = Modifier.padding(20.dp)

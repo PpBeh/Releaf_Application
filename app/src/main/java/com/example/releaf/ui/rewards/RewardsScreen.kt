@@ -55,6 +55,8 @@ fun RewardsScreen(
 ) {
     val tiers by viewModel.tiers.collectAsState()
     val userRewards by viewModel.userRewards.collectAsState()
+    val lang by themeViewModel.language.collectAsState()
+    fun t(key: String) = com.example.releaf.ui.theme.AppStrings.get(key, lang)
     val userPoints by viewModel.userPoints.collectAsState()
     val userGems by viewModel.userGems.collectAsState()
     val walletPoints by viewModel.walletPoints.collectAsState()
@@ -134,7 +136,7 @@ fun RewardsScreen(
 
             Spacer(modifier = Modifier.height(24.dp))
 
-            Text("Garden Seeds", style = MaterialTheme.typography.titleMedium)
+            Text(t("garden_seeds_title"), style = MaterialTheme.typography.titleMedium)
             Spacer(modifier = Modifier.height(8.dp))
 
             Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -153,7 +155,7 @@ fun RewardsScreen(
 
             Spacer(modifier = Modifier.height(32.dp))
 
-            Text("Claimable Titles", style = MaterialTheme.typography.titleMedium)
+            Text(t("claimable_titles_title"), style = MaterialTheme.typography.titleMedium)
             Spacer(modifier = Modifier.height(8.dp))
             val equippedTitle by viewModel.equippedTitle.collectAsState()
             val titles = listOf(
@@ -174,9 +176,9 @@ fun RewardsScreen(
                                 Text(titleName, fontWeight = FontWeight.Bold, style = MaterialTheme.typography.bodyMedium)
                                 Text(
                                     when {
-                                        isEquipped -> "Currently equipped"
-                                        isUnlocked -> "Unlocked - tap to equip"
-                                        else -> "Requires $req EXP"
+                                        isEquipped -> t("currently_equipped")
+                                        isUnlocked -> t("unlocked_tap_equip")
+                                        else -> String.format(java.util.Locale.US, t("requires_exp_fmt"), req)
                                     },
                                     style = MaterialTheme.typography.labelSmall,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant
@@ -188,7 +190,7 @@ fun RewardsScreen(
                                     enabled = !isEquipped,
                                     shape = RoundedCornerShape(8.dp)
                                 ) {
-                                    Text(if (isEquipped) "Equipped ✓" else "Equip")
+                                    Text(if (isEquipped) t("equipped_ok") else t("equip"))
                                 }
                             }
                         }
@@ -198,16 +200,16 @@ fun RewardsScreen(
 
             Spacer(modifier = Modifier.height(32.dp))
 
-            Text("Avatar Frames", style = MaterialTheme.typography.titleMedium)
+            Text(t("avatar_frames_title"), style = MaterialTheme.typography.titleMedium)
             Spacer(modifier = Modifier.height(4.dp))
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Text("💎 $userGems Gems", fontWeight = FontWeight.Bold, color = Color(0xFF00ACC1))
+                Text("💎 $userGems " + t("gems"), fontWeight = FontWeight.Bold, color = Color(0xFF00ACC1))
                 Spacer(modifier = Modifier.width(8.dp))
-                Text("🪙 $walletPoints Points", fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
+                Text("🪙 $walletPoints " + t("points"), fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
             }
             Spacer(modifier = Modifier.height(2.dp))
             Text(
-                "Frames are bought with 💎 Gems + 🪙 spendable Points (earn 🪙 by watering & quests, 💎 by watering and Pro daily rewards).",
+                t("frames_buy_hint"),
                 style = MaterialTheme.typography.labelSmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
@@ -230,8 +232,8 @@ fun RewardsScreen(
                             Column(modifier = Modifier.weight(1f)) {
                                 Text(frameName, fontWeight = FontWeight.Bold)
                                 Text(
-                                    if (alreadyOwned) "Owned - pick it in Profile → frame picker"
-                                    else "💎 $gemPrice Gems • 🪙 $pointPrice Points",
+                                    if (alreadyOwned) t("frames_owned_hint")
+                                    else "💎 $gemPrice " + t("gems") + " • 🪙 $pointPrice " + t("points"),
                                     style = MaterialTheme.typography.labelSmall
                                 )
                             }
@@ -242,9 +244,9 @@ fun RewardsScreen(
                             ) {
                                 Text(
                                     when {
-                                        alreadyOwned -> "Owned ✓"
-                                        canAfford -> "Buy"
-                                        else -> "Locked"
+                                        alreadyOwned -> t("owned_ok")
+                                        canAfford -> t("buy")
+                                        else -> t("locked")
                                     }
                                 )
                             }

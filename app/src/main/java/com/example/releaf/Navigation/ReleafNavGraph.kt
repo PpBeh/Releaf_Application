@@ -114,7 +114,8 @@ fun ReleafNavGraph(
                 },
                 onRegisterClick = { navController.navigate(Screen.Register.route) },
                 onForgotPasswordClick = { navController.navigate(Screen.ForgotPassword.route) },
-                onClearError = { authViewModel.clearError() }
+                onClearError = { authViewModel.clearError() },
+                themeViewModel = themeViewModel
             )
         }
         composable(Screen.ForgotPassword.route) {
@@ -138,7 +139,8 @@ fun ReleafNavGraph(
                         launchSingleTop = true
                     }
                 },
-                onClearError = { authViewModel.clearResetState() }
+                onClearError = { authViewModel.clearResetState() },
+                themeViewModel = themeViewModel
             )
         }
         composable(Screen.SetNewPassword.route) {
@@ -154,7 +156,8 @@ fun ReleafNavGraph(
                         navController.logout()
                     }
                 },
-                onClearError = { authViewModel.clearError() }
+                onClearError = { authViewModel.clearError() },
+                themeViewModel = themeViewModel
             )
         }
         composable(Screen.Register.route) {
@@ -185,7 +188,8 @@ fun ReleafNavGraph(
                         launchSingleTop = true
                     }
                 },
-                onClearError = { authViewModel.clearError() }
+                onClearError = { authViewModel.clearError() },
+                themeViewModel = themeViewModel
             )
         }
         composable(
@@ -221,7 +225,8 @@ fun ReleafNavGraph(
                         popUpTo(Screen.Login.route) { inclusive = false }
                         launchSingleTop = true
                     }
-                }
+                },
+                themeViewModel = themeViewModel
             )
         }
         composable(
@@ -295,7 +300,8 @@ fun ReleafNavGraph(
                 viewModel = commentViewModel,
                 currentUserId = userId,
                 onBackClick = { navController.popBackStack() },
-                onAvatarClick = { userId -> navController.navigate(Screen.Profile.createRoute(userId)) }
+                onAvatarClick = { userId -> navController.navigate(Screen.Profile.createRoute(userId)) },
+                themeViewModel = themeViewModel
             )
         }
         composable(Screen.Rewards.route) {

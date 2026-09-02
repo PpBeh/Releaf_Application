@@ -23,6 +23,7 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -45,8 +46,11 @@ fun LoginScreen(
     onLoginClick: (email: String, password: String) -> Unit,
     onRegisterClick: () -> Unit,
     onForgotPasswordClick: () -> Unit,
-    onClearError: () -> Unit
+    onClearError: () -> Unit,
+    themeViewModel: com.example.releaf.ui.viewmodel.ThemeViewModel
 ) {
+    val lang by themeViewModel.language.collectAsState()
+    fun t(key: String) = com.example.releaf.ui.theme.AppStrings.get(key, lang)
     var email by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
     var passwordVisible by remember { mutableStateOf(false) }
@@ -69,7 +73,7 @@ fun LoginScreen(
         Spacer(modifier = Modifier.height(16.dp))
         Text("Releaf", style = MaterialTheme.typography.displaySmall, fontWeight = FontWeight.Bold)
         Spacer(modifier = Modifier.height(4.dp))
-        Text("Log in to keep your garden growing", style = MaterialTheme.typography.bodyMedium)
+        Text(com.example.releaf.ui.theme.string("login_subtitle", themeViewModel), style = MaterialTheme.typography.bodyMedium)
 
         Spacer(modifier = Modifier.height(32.dp))
 
@@ -80,7 +84,7 @@ fun LoginScreen(
                 emailError = null
                 if (error != null) onClearError()
             },
-            label = { Text("Email") },
+            label = { Text(com.example.releaf.ui.theme.string("email_label", themeViewModel)) },
             singleLine = true,
             isError = emailError != null,
             supportingText = emailError?.let { { Text(it) } },
@@ -96,7 +100,7 @@ fun LoginScreen(
                 password = it
                 if (error != null) onClearError()
             },
-            label = { Text("Password") },
+            label = { Text(com.example.releaf.ui.theme.string("password_label", themeViewModel)) },
             singleLine = true,
             visualTransformation = if (passwordVisible) VisualTransformation.None else PasswordVisualTransformation(),
             trailingIcon = {
@@ -114,7 +118,7 @@ fun LoginScreen(
             onClick = onForgotPasswordClick,
             modifier = Modifier.align(Alignment.End)
         ) {
-            Text("Forgot password?")
+            Text(com.example.releaf.ui.theme.string("forgot_password", themeViewModel))
         }
 
         if (error != null) {
@@ -131,7 +135,7 @@ fun LoginScreen(
         Button(
             onClick = {
                 if (!android.util.Patterns.EMAIL_ADDRESS.matcher(email).matches()) {
-                    emailError = "Invalid email address"
+                    emailError = t("invalid_email_fmt")
                     return@Button
                 }
                 onLoginClick(email, password)
@@ -148,16 +152,16 @@ fun LoginScreen(
                     strokeWidth = 2.dp
                 )
             } else {
-                Text("Log In")
+                Text(com.example.releaf.ui.theme.string("login_btn", themeViewModel))
             }
         }
 
         Spacer(modifier = Modifier.height(24.dp))
 
         Row(verticalAlignment = Alignment.CenterVertically) {
-            Text("Don't have an account?")
+            Text(com.example.releaf.ui.theme.string("dont_have_account", themeViewModel))
             TextButton(onClick = onRegisterClick) {
-                Text("Register")
+                Text(com.example.releaf.ui.theme.string("register_btn", themeViewModel))
             }
         }
     }

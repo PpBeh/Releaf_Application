@@ -34,6 +34,7 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -66,9 +67,12 @@ fun PoiDetailSheet(
     onFavoriteClick: () -> Unit,
     onShareClick: () -> Unit,
     onAddPhotoClick: () -> Unit,
-    actionResult: PoiActionResult?
+    actionResult: PoiActionResult?,
+    themeViewModel: com.example.releaf.ui.viewmodel.ThemeViewModel
 ) {
     val context = LocalContext.current
+    val lang by themeViewModel.language.collectAsState()
+    fun t(key: String) = com.example.releaf.ui.theme.AppStrings.get(key, lang)
     val validPhotos = photos.filter { !it.photo_url.isNullOrBlank() }
 
     Column(modifier = Modifier.padding(horizontal = 20.dp, vertical = 8.dp)) {
@@ -99,14 +103,14 @@ fun PoiDetailSheet(
             Spacer(modifier = Modifier.width(8.dp))
             if (!poi.is_verified) {
                 Text(
-                    "(Unverified)",
+                    t("unverified"),
                     style = MaterialTheme.typography.labelSmall,
                     color = Color(0xFFFF9800),
                     fontWeight = FontWeight.Bold,
                     maxLines = 1
                 )
             } else {
-                Icon(Icons.Default.Verified, contentDescription = "Verified", tint = Color(0xFF4CAF50))
+                Icon(Icons.Default.Verified, contentDescription = null, tint = Color(0xFF4CAF50))
             }
         }
 
@@ -172,7 +176,7 @@ fun PoiDetailSheet(
 
         Spacer(modifier = Modifier.height(12.dp))
 
-        Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+            Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
             Button(
                 onClick = onDirectionClick,
                 shape = RoundedCornerShape(50),
@@ -180,14 +184,14 @@ fun PoiDetailSheet(
             ) {
                 Icon(Icons.Default.Directions, contentDescription = null)
                 Spacer(modifier = Modifier.width(6.dp))
-                Text("Direction")
+                Text(t("direction"))
             }
             Button(
                 onClick = onCommentClick,
                 shape = RoundedCornerShape(50),
                 colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
             ) {
-                Text("Comment")
+                Text(t("comment"))
             }
         }
 
@@ -203,11 +207,11 @@ fun PoiDetailSheet(
                 if (isProcessing) {
                     CircularProgressIndicator(color = Color.White, strokeWidth = 2.dp, modifier = Modifier.size(18.dp))
                     Spacer(modifier = Modifier.width(6.dp))
-                    Text("Updating...")
+                    Text(t("updating"))
                 } else {
                     Icon(Icons.Default.Verified, contentDescription = null)
                     Spacer(modifier = Modifier.width(6.dp))
-                    Text("Verify")
+                    Text(t("verify"))
                 }
             }
             Button(
@@ -221,7 +225,7 @@ fun PoiDetailSheet(
                 } else {
                     Icon(Icons.Default.Report, contentDescription = null)
                     Spacer(modifier = Modifier.width(6.dp))
-                    Text("Not Exist")
+                    Text(t("not_exist"))
                 }
             }
         }
@@ -233,17 +237,17 @@ fun PoiDetailSheet(
                     text = when {
                         it.message.startsWith("too_far_") -> {
                             val meters = it.message.removePrefix("too_far_")
-                            "You must be at the location to do this (you are ${meters}m away)."
+                            t("too_far_fmt").replace("%s", meters)
                         }
-                        it.message == "already_verified" -> "You already verified this POI."
-                        it.message == "now_verified" -> "POI is now verified!"
-                        it.message == "verification_counted" -> "Verification recorded."
-                        it.message == "verify_failed" -> "Could not record your verification. Check your connection and try again."
-                        it.message == "already_reported" -> "You already reported this POI."
-                        it.message == "now_unverified" -> "Too many reports. POI is now unverified."
-                        it.message == "removed" -> "POI has been removed due to reports."
-                        it.message == "report_counted" -> "Report recorded."
-                        it.message == "report_failed" -> "Could not record your report. Check your connection and try again."
+                        it.message == "already_verified" -> t("already_verified")
+                        it.message == "now_verified" -> t("now_verified")
+                        it.message == "verification_counted" -> t("verification_counted")
+                        it.message == "verify_failed" -> t("verify_failed")
+                        it.message == "already_reported" -> t("already_reported")
+                        it.message == "now_unverified" -> t("now_unverified")
+                        it.message == "removed" -> t("removed_poi")
+                        it.message == "report_counted" -> t("report_counted")
+                        it.message == "report_failed" -> t("report_failed")
                         else -> it.message
                     },
                     style = MaterialTheme.typography.bodySmall,

@@ -82,6 +82,8 @@ fun ProfileScreen(
     onBackClick: (() -> Unit)? = null
 ) {
     val context = LocalContext.current
+    val lang by themeViewModel.language.collectAsState()
+    fun t(key: String) = com.example.releaf.ui.theme.AppStrings.get(key, lang)
     val profile by viewModel.profile.collectAsState()
     val userAchievements by viewModel.achievements.collectAsState()
     val userGarden by viewModel.userGarden.collectAsState()
@@ -444,7 +446,7 @@ fun ProfileScreen(
         // GARDEN PLANTS COLLECTION
         Column(modifier = Modifier.fillMaxWidth()) {
             Text(
-                "Garden Plants Collection",
+                t("garden_plants_collection"),
                 style = MaterialTheme.typography.titleSmall,
                 fontWeight = FontWeight.SemiBold,
                 modifier = Modifier.padding(horizontal = 20.dp)
@@ -507,7 +509,7 @@ fun ProfileScreen(
                             Spacer(modifier = Modifier.height(8.dp))
 
                             Text(
-                                "Slot $slotIndex: ${seedInfo.name}",
+                                String.format(java.util.Locale.US, t("slot_label_fmt"), slotIndex, seedInfo.name),
                                 fontWeight = FontWeight.Bold,
                                 style = MaterialTheme.typography.bodySmall,
                                 maxLines = 1,
@@ -532,7 +534,7 @@ fun ProfileScreen(
                                 color = if (isPlanted) Color(0xFFC8E6C9) else MaterialTheme.colorScheme.surfaceVariant
                             ) {
                                 Text(
-                                    text = if (isPlanted) "Planted" else "Empty Pot",
+                                    text = if (isPlanted) t("planted") else t("empty_pot"),
                                     style = MaterialTheme.typography.labelSmall,
                                     fontWeight = FontWeight.Bold,
                                     color = if (isPlanted) Color(0xFF2E7D32) else MaterialTheme.colorScheme.onSurfaceVariant,
@@ -556,11 +558,11 @@ fun ProfileScreen(
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Text(
-                    "Achievements ($unlockedCount/${achievementItems.size})",
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold
-                )
+            Text(
+                String.format(java.util.Locale.US, t("achievements_fmt"), unlockedCount, achievementItems.size),
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.Bold
+            )
             }
 
             Spacer(modifier = Modifier.height(8.dp))
@@ -680,7 +682,7 @@ fun ProfileScreen(
                     .padding(horizontal = 20.dp)
             ) {
                 Text(
-                    "Quick Options",
+                    t("quick_options"),
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.Bold
                 )
@@ -705,7 +707,7 @@ fun ProfileScreen(
                                 tint = MaterialTheme.colorScheme.primary
                             )
                             Spacer(modifier = Modifier.width(16.dp))
-                            Text("Favourite Locations", modifier = Modifier.weight(1f), fontWeight = FontWeight.Medium)
+                            Text(t("favourite_locations"), modifier = Modifier.weight(1f), fontWeight = FontWeight.Medium)
                             Icon(
                                 painter = painterResource(id = R.drawable.ic_chevron_right),
                                 contentDescription = null,
@@ -726,7 +728,7 @@ fun ProfileScreen(
                                 tint = MaterialTheme.colorScheme.primary
                             )
                             Spacer(modifier = Modifier.width(16.dp))
-                            Text("Settings & App Preferences", modifier = Modifier.weight(1f), fontWeight = FontWeight.Medium)
+                            Text(t("settings_prefs"), modifier = Modifier.weight(1f), fontWeight = FontWeight.Medium)
                             Icon(
                                 painter = painterResource(id = R.drawable.ic_chevron_right),
                                 contentDescription = null,
@@ -747,7 +749,7 @@ fun ProfileScreen(
                                 tint = MaterialTheme.colorScheme.error
                             )
                             Spacer(modifier = Modifier.width(16.dp))
-                            Text("Logout", modifier = Modifier.weight(1f), color = MaterialTheme.colorScheme.error, fontWeight = FontWeight.Medium)
+                            Text(t("logout"), modifier = Modifier.weight(1f), color = MaterialTheme.colorScheme.error, fontWeight = FontWeight.Medium)
                             Icon(
                                 painter = painterResource(id = R.drawable.ic_chevron_right),
                                 contentDescription = null,

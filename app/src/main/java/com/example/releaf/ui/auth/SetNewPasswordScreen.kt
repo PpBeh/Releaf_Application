@@ -22,6 +22,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -39,13 +40,16 @@ fun SetNewPasswordScreen(
     isLoading: Boolean,
     error: String?,
     onSubmit: (password: String) -> Unit,
-    onClearError: () -> Unit
+    onClearError: () -> Unit,
+    themeViewModel: com.example.releaf.ui.viewmodel.ThemeViewModel
 ) {
+    val lang by themeViewModel.language.collectAsState()
+    fun t(key: String) = com.example.releaf.ui.theme.AppStrings.get(key, lang)
     var password by remember { mutableStateOf("") }
     var confirmPassword by remember { mutableStateOf("") }
     var passwordVisible by remember { mutableStateOf(false) }
 
-    val passwordError = if (password.isNotEmpty() && password.length < 6) "Password must be at least 6 characters" else null
+    val passwordError = if (password.isNotEmpty() && password.length < 6) t("pw_too_short") else null
     val valid = password.length >= 6 && password == confirmPassword
 
     Column(
@@ -64,13 +68,13 @@ fun SetNewPasswordScreen(
         )
         Spacer(modifier = Modifier.height(24.dp))
         Text(
-            "Set New Password",
+            t("setpw_title"),
             style = MaterialTheme.typography.headlineSmall,
             fontWeight = FontWeight.Bold
         )
         Spacer(modifier = Modifier.height(8.dp))
         Text(
-            "Email verified! Choose a new password for your account.",
+            t("setpw_intro"),
             style = MaterialTheme.typography.bodyMedium,
             textAlign = TextAlign.Center
         )
@@ -82,7 +86,7 @@ fun SetNewPasswordScreen(
                 password = it
                 if (error != null) onClearError()
             },
-            label = { Text("New password") },
+            label = { Text(t("new_password_label")) },
             singleLine = true,
             isError = passwordError != null,
             supportingText = passwordError?.let { { Text(it, color = MaterialTheme.colorScheme.error) } },
@@ -106,12 +110,12 @@ fun SetNewPasswordScreen(
                 confirmPassword = it
                 if (error != null) onClearError()
             },
-            label = { Text("Confirm new password") },
+            label = { Text(t("confirm_new_password_label")) },
             singleLine = true,
             isError = confirmPassword.isNotEmpty() && confirmPassword != password,
             supportingText = {
                 if (confirmPassword.isNotEmpty() && confirmPassword != password) {
-                    Text("Passwords do not match", color = MaterialTheme.colorScheme.error)
+                    Text(t("pw_mismatch"), color = MaterialTheme.colorScheme.error)
                 }
             },
             visualTransformation = PasswordVisualTransformation(),
@@ -143,7 +147,7 @@ fun SetNewPasswordScreen(
                     strokeWidth = 2.dp
                 )
             } else {
-                Text("Save Password")
+                Text(t("save_password_btn"))
             }
         }
     }

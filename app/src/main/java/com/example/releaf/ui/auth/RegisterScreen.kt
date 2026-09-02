@@ -25,6 +25,7 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -45,8 +46,11 @@ fun RegisterScreen(
     error: String?,
     onRegisterClick: (name: String, email: String, password: String) -> Unit,
     onLoginClick: () -> Unit,
-    onClearError: () -> Unit
+    onClearError: () -> Unit,
+    themeViewModel: com.example.releaf.ui.viewmodel.ThemeViewModel
 ) {
+    val lang by themeViewModel.language.collectAsState()
+    fun t(key: String) = com.example.releaf.ui.theme.AppStrings.get(key, lang)
     var name by remember { mutableStateOf("") }
     var email by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
@@ -87,9 +91,9 @@ fun RegisterScreen(
             animated = true
         )
         Spacer(modifier = Modifier.height(16.dp))
-        Text("Create account", style = MaterialTheme.typography.displaySmall, fontWeight = FontWeight.Bold)
+        Text(t("create_account"), style = MaterialTheme.typography.displaySmall, fontWeight = FontWeight.Bold)
         Spacer(modifier = Modifier.height(4.dp))
-        Text("Join Releaf and start growing", style = MaterialTheme.typography.bodyMedium)
+        Text(t("join_releaf"), style = MaterialTheme.typography.bodyMedium)
 
         Spacer(modifier = Modifier.height(32.dp))
 
@@ -97,10 +101,10 @@ fun RegisterScreen(
             value = name,
             onValueChange = {
                 name = it
-                nameError = if (it.isBlank()) "Please enter your name" else null
+                nameError = if (it.isBlank()) t("name_required") else null
                 if (error != null) onClearError()
             },
-            label = { Text("Name") },
+            label = { Text(t("name_label")) },
             singleLine = true,
             isError = nameError != null,
             supportingText = nameError?.let { { Text(it, color = MaterialTheme.colorScheme.error) } },
@@ -113,10 +117,10 @@ fun RegisterScreen(
             value = email,
             onValueChange = {
                 email = it
-                emailError = if (it.isNotBlank() && !android.util.Patterns.EMAIL_ADDRESS.matcher(it).matches()) "Invalid email address — e.g. name@example.com" else null
+                emailError = if (it.isNotBlank() && !android.util.Patterns.EMAIL_ADDRESS.matcher(it).matches()) t("invalid_email_fmt") else null
                 if (error != null) onClearError()
             },
-            label = { Text("Email") },
+            label = { Text(t("email_label")) },
             singleLine = true,
             isError = emailError != null,
             supportingText = emailError?.let { { Text(it, color = MaterialTheme.colorScheme.error) } },
@@ -131,12 +135,12 @@ fun RegisterScreen(
             onValueChange = {
                 password = it
                 passwordError = when {
-                    it.isNotEmpty() && it.length < 6 -> "Password must be at least 6 characters"
+                    it.isNotEmpty() && it.length < 6 -> t("pw_too_short")
                     else -> null
                 }
                 if (error != null) onClearError()
             },
-            label = { Text("Password") },
+            label = { Text(t("password_label")) },
             singleLine = true,
             isError = passwordError != null,
             supportingText = passwordError?.let { { Text(it, color = MaterialTheme.colorScheme.error) } },
@@ -160,15 +164,15 @@ fun RegisterScreen(
                 confirmPassword = it
                 if (error != null) onClearError()
             },
-            label = { Text("Confirm password") },
+            label = { Text(t("confirm_password_label")) },
             singleLine = true,
             isError = confirmPassword.isNotEmpty() && confirmPassword != password,
             supportingText = {
                 when {
                     confirmPassword.isNotEmpty() && confirmPassword != password ->
-                        Text("Passwords do not match", color = MaterialTheme.colorScheme.error)
+                        Text(t("pw_mismatch"), color = MaterialTheme.colorScheme.error)
                     confirmPassword.isNotEmpty() && password.length < 6 ->
-                        Text("Password must be at least 6 characters", color = MaterialTheme.colorScheme.error)
+                        Text(t("pw_too_short"), color = MaterialTheme.colorScheme.error)
                 }
             },
             visualTransformation = PasswordVisualTransformation(),
@@ -189,19 +193,19 @@ fun RegisterScreen(
         Button(
             onClick = {
                 if (name.isBlank()) {
-                    nameError = "Please enter your name"
+                    nameError = t("name_required")
                     return@Button
                 }
                 if (!android.util.Patterns.EMAIL_ADDRESS.matcher(email).matches()) {
-                    emailError = "Invalid email address — e.g. name@example.com"
+                    emailError = t("invalid_email_fmt")
                     return@Button
                 }
                 if (password.length < 6) {
-                    passwordError = "Password must be at least 6 characters"
+                    passwordError = t("pw_too_short")
                     return@Button
                 }
                 if (password != confirmPassword) {
-                    passwordError = "Passwords do not match"
+                    passwordError = t("pw_mismatch")
                     return@Button
                 }
                 onRegisterClick(name, email, password)
@@ -218,16 +222,16 @@ fun RegisterScreen(
                     strokeWidth = 2.dp
                 )
             } else {
-                Text("Register")
+                Text(t("register_btn"))
             }
         }
 
         Spacer(modifier = Modifier.height(24.dp))
 
         Row(verticalAlignment = Alignment.CenterVertically) {
-            Text("Already have an account?")
+            Text(t("already_have_account"))
             TextButton(onClick = onLoginClick) {
-                Text("Log In")
+                Text(t("login_btn"))
             }
         }
     }

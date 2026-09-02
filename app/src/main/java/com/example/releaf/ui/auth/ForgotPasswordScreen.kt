@@ -24,6 +24,7 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -43,14 +44,17 @@ fun ForgotPasswordScreen(
     error: String?,
     onSendClick: (email: String) -> Unit,
     onBackClick: () -> Unit,
-    onClearError: () -> Unit
+    onClearError: () -> Unit,
+    themeViewModel: com.example.releaf.ui.viewmodel.ThemeViewModel
 ) {
+    val lang by themeViewModel.language.collectAsState()
+    fun t(key: String) = com.example.releaf.ui.theme.AppStrings.get(key, lang)
     var email by remember { mutableStateOf("") }
     var emailError by remember { mutableStateOf<String?>(null) }
 
     Column(modifier = Modifier.fillMaxSize()) {
         TopAppBar(
-            title = { Text("Forgot Password") },
+            title = { Text(t("forgot_title")) },
             navigationIcon = {
                 IconButton(onClick = onBackClick) {
                     Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
@@ -74,19 +78,19 @@ fun ForgotPasswordScreen(
                 )
                 Spacer(modifier = Modifier.height(24.dp))
                 Text(
-                    "Check your email",
+                    t("check_email_title"),
                     style = MaterialTheme.typography.headlineSmall,
                     fontWeight = FontWeight.Bold
                 )
                 Spacer(modifier = Modifier.height(8.dp))
                 Text(
-                    "We sent a password reset link to $email. Click the link to set a new password, then come back and log in.",
+                    t("reset_sent_prefix") + email + t("reset_sent_suffix"),
                     style = MaterialTheme.typography.bodyMedium,
                     textAlign = TextAlign.Center
                 )
                 Spacer(modifier = Modifier.height(24.dp))
                 Button(onClick = onBackClick) {
-                    Text("Back to Login")
+                    Text(t("back_to_login"))
                 }
             }
         } else {
@@ -99,13 +103,13 @@ fun ForgotPasswordScreen(
                 verticalArrangement = Arrangement.Center
             ) {
                 Text(
-                    "Reset your password",
+                    t("forgot_title"),
                     style = MaterialTheme.typography.headlineSmall,
                     fontWeight = FontWeight.Bold
                 )
                 Spacer(modifier = Modifier.height(8.dp))
                 Text(
-                    "Enter your email and we'll send you a link to reset your password.",
+                    t("forgot_intro"),
                     style = MaterialTheme.typography.bodyMedium,
                     textAlign = TextAlign.Center
                 )
@@ -119,7 +123,7 @@ fun ForgotPasswordScreen(
                         } else null
                         if (error != null) onClearError()
                     },
-                    label = { Text("Email") },
+                    label = { Text(t("email_label")) },
                     singleLine = true,
                     isError = emailError != null,
                     supportingText = emailError?.let { { Text(it, color = MaterialTheme.colorScheme.error) } },
@@ -141,7 +145,7 @@ fun ForgotPasswordScreen(
                 Button(
                     onClick = {
                         if (!android.util.Patterns.EMAIL_ADDRESS.matcher(email).matches()) {
-                            emailError = "Invalid email address — e.g. name@example.com"
+                            emailError = t("invalid_email_fmt")
                             return@Button
                         }
                         onSendClick(email)
@@ -158,7 +162,7 @@ fun ForgotPasswordScreen(
                             strokeWidth = 2.dp
                         )
                     } else {
-                        Text("Send Reset Link")
+                        Text(t("send_reset_btn"))
                     }
                 }
             }

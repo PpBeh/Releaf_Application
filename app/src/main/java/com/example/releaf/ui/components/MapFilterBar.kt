@@ -25,17 +25,19 @@ fun MapFilterBar(
     excludedPaid: Boolean?,
     onTogglePaid: (Boolean?) -> Unit,
     showUnverified: Boolean,
-    onToggleUnverified: () -> Unit
+    onToggleUnverified: () -> Unit,
+    lang: com.example.releaf.ui.viewmodel.AppLanguage = com.example.releaf.ui.viewmodel.AppLanguage.ENGLISH
 ) {
+    fun t(key: String) = com.example.releaf.ui.theme.AppStrings.get(key, lang)
     Column {
         Row(
             modifier = Modifier.horizontalScroll(rememberScrollState()),
             horizontalArrangement = Arrangement.spacedBy(6.dp)
         ) {
-            ToggleChip("All", enabledCategories.size == 2) { onResetCategories() }
-            ToggleChip("Toilet", "TOILET" in enabledCategories) { onToggleCategory("TOILET") }
-            ToggleChip("Trash can", "TRASH_CAN" in enabledCategories) { onToggleCategory("TRASH_CAN") }
-            ToggleChip("Unverified", showUnverified) { onToggleUnverified() }
+            ToggleChip(t("all"), enabledCategories.size == 2) { onResetCategories() }
+            ToggleChip(t("toilet"), "TOILET" in enabledCategories) { onToggleCategory("TOILET") }
+            ToggleChip(t("trash_can"), "TRASH_CAN" in enabledCategories) { onToggleCategory("TRASH_CAN") }
+            ToggleChip(t("unverified"), showUnverified) { onToggleUnverified() }
         }
 
         Row(
@@ -44,15 +46,15 @@ fun MapFilterBar(
                 .horizontalScroll(rememberScrollState()),
             horizontalArrangement = Arrangement.spacedBy(6.dp)
         ) {
-            ToggleChip("All", enabledCleanliness.size == 3) { onResetCleanliness() }
-            ToggleChip("Clean", "CLEAN" in enabledCleanliness) { onToggleCleanliness("CLEAN") }
-            ToggleChip("Average", "AVERAGE" in enabledCleanliness) { onToggleCleanliness("AVERAGE") }
-            ToggleChip("Dirty", "DIRTY" in enabledCleanliness) { onToggleCleanliness("DIRTY") }
-            ToggleChip("All", excludedPaid == null) { onTogglePaid(null) }
-            ToggleChip("Paid", excludedPaid == false) {
+            ToggleChip(t("all"), enabledCleanliness.size == 3) { onResetCleanliness() }
+            ToggleChip(t("clean"), "CLEAN" in enabledCleanliness) { onToggleCleanliness("CLEAN") }
+            ToggleChip(t("average"), "AVERAGE" in enabledCleanliness) { onToggleCleanliness("AVERAGE") }
+            ToggleChip(t("dirty"), "DIRTY" in enabledCleanliness) { onToggleCleanliness("DIRTY") }
+            ToggleChip(t("all"), excludedPaid == null) { onTogglePaid(null) }
+            ToggleChip(t("filter_paid"), excludedPaid == false) {
                 onTogglePaid(if (excludedPaid == false) null else false)
             }
-            ToggleChip("Free", excludedPaid == true) {
+            ToggleChip(t("filter_free"), excludedPaid == true) {
                 onTogglePaid(if (excludedPaid == true) null else true)
             }
         }

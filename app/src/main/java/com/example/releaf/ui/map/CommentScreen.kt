@@ -93,8 +93,11 @@ fun CommentScreen(
     viewModel: CommentViewModel,
     currentUserId: String,
     onBackClick: () -> Unit,
-    onAvatarClick: (String) -> Unit
+    onAvatarClick: (String) -> Unit,
+    themeViewModel: com.example.releaf.ui.viewmodel.ThemeViewModel
 ) {
+    val lang by themeViewModel.language.collectAsState()
+    fun t(key: String) = com.example.releaf.ui.theme.AppStrings.get(key, lang)
     val reviews by viewModel.reviews.collectAsState()
     val isLoading by viewModel.isLoading.collectAsState()
     val userVotes by viewModel.userVotes.collectAsState()
@@ -181,7 +184,7 @@ fun CommentScreen(
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {
                     Text(
-                        "Attach Photo",
+                        t("attach_photo_title"),
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.Bold
                     )
@@ -201,8 +204,8 @@ fun CommentScreen(
                         Icon(Icons.Default.Image, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
                         Spacer(modifier = Modifier.width(16.dp))
                         Column {
-                            Text("Choose from Gallery", fontWeight = FontWeight.Bold)
-                            Text("Select an existing photo from device", style = MaterialTheme.typography.labelSmall, color = Color.Gray)
+                            Text(t("choose_gallery"), fontWeight = FontWeight.Bold)
+                            Text(t("gallery_hint"), style = MaterialTheme.typography.labelSmall, color = Color.Gray)
                         }
                     }
 
@@ -221,15 +224,15 @@ fun CommentScreen(
                         Icon(Icons.Default.CameraAlt, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
                         Spacer(modifier = Modifier.width(16.dp))
                         Column {
-                            Text("Take Photo with Camera", fontWeight = FontWeight.Bold)
-                            Text("Capture a new photo right now", style = MaterialTheme.typography.labelSmall, color = Color.Gray)
+                            Text(t("take_camera"), fontWeight = FontWeight.Bold)
+                            Text(t("camera_hint"), style = MaterialTheme.typography.labelSmall, color = Color.Gray)
                         }
                     }
 
                     Spacer(modifier = Modifier.height(12.dp))
 
                     TextButton(onClick = { showPhotoSourcePicker = false }) {
-                        Text("Cancel")
+                        Text(t("cancel"))
                     }
                 }
             }
@@ -238,7 +241,7 @@ fun CommentScreen(
 
     Column(modifier = Modifier.fillMaxSize()) {
         TopAppBar(
-            title = { Text("Comments") },
+            title = { Text(t("comments_title")) },
             navigationIcon = {
                 IconButton(onClick = onBackClick) {
                     Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
@@ -299,7 +302,7 @@ fun CommentScreen(
                 Spacer(modifier = Modifier.width(12.dp))
 
                 Text(
-                    "Photo attached to comment ✓",
+                    t("photo_attached"),
                     style = MaterialTheme.typography.labelSmall,
                     color = Color(0xFF2E7D32),
                     fontWeight = FontWeight.Bold
@@ -318,7 +321,7 @@ fun CommentScreen(
                     if (errorMessage != null) viewModel.clearError()
                 },
                 modifier = Modifier.weight(1f),
-                placeholder = { Text("Add a comment...") },
+                placeholder = { Text(t("add_comment_hint")) },
                 singleLine = false,
                 maxLines = 3,
                 isError = isWordLimitExceeded
@@ -364,7 +367,7 @@ fun CommentScreen(
         ) {
             if (isWordLimitExceeded) {
                 Text(
-                    "Word limit exceeded! (Max 500 words)",
+                    t("word_limit_exceeded"),
                     color = MaterialTheme.colorScheme.error,
                     style = MaterialTheme.typography.labelSmall,
                     fontWeight = FontWeight.Bold
@@ -374,7 +377,7 @@ fun CommentScreen(
             }
 
             Text(
-                "$wordCount / 500 words",
+                String.format(java.util.Locale.US, "%d / 500 words", wordCount),
                 style = MaterialTheme.typography.labelSmall,
                 color = if (isWordLimitExceeded) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant,
                 fontWeight = if (isWordLimitExceeded) FontWeight.Bold else FontWeight.Normal
@@ -416,6 +419,7 @@ fun CommentScreen(
                         isOwnComment = review.user_id == currentUserId,
                         userVote = userVotes[review.id],
                         isVoting = isVoting,
+                        themeViewModel = themeViewModel,
                         onAvatarClick = { sheetUserId = review.user_id },
                         onLike = { viewModel.toggleLike(review) },
                         onDislike = { viewModel.toggleDislike(review) },
@@ -430,7 +434,7 @@ fun CommentScreen(
 
                         AlertDialog(
                             onDismissRequest = { if (!isProcessing) showEditDialog = false },
-                            title = { Text("Edit Comment") },
+                            title = { Text(t("edit_comment")) },
                             text = {
                                 Column {
                                     OutlinedTextField(
@@ -443,7 +447,7 @@ fun CommentScreen(
                                     )
                                     Spacer(modifier = Modifier.height(4.dp))
                                     Text(
-                                        "$editWordCount / 500 words",
+                                        String.format(java.util.Locale.US, "%d / 500 words", editWordCount),
                                         style = MaterialTheme.typography.labelSmall,
                                         color = if (isEditExceeded) MaterialTheme.colorScheme.error else Color.Gray
                                     )
@@ -462,7 +466,7 @@ fun CommentScreen(
                                     if (isProcessing) {
                                         CircularProgressIndicator(strokeWidth = 2.dp, modifier = Modifier.size(18.dp))
                                     } else {
-                                        Text("Save")
+                                        Text(t("save"))
                                     }
                                 }
                             },
@@ -470,7 +474,7 @@ fun CommentScreen(
                                 TextButton(
                                     onClick = { showEditDialog = false },
                                     enabled = !isProcessing
-                                ) { Text("Cancel") }
+                                ) { Text(t("cancel")) }
                             }
                         )
                     }
@@ -482,7 +486,7 @@ fun CommentScreen(
                             modifier = Modifier.fillMaxWidth().padding(32.dp),
                             horizontalAlignment = Alignment.CenterHorizontally
                         ) {
-                            Text("No comments yet", style = MaterialTheme.typography.bodyLarge)
+                            Text(t("no_comments"), style = MaterialTheme.typography.bodyLarge)
                         }
                     }
                 }
@@ -582,6 +586,7 @@ private fun ReviewRowItem(
     isOwnComment: Boolean,
     userVote: String?,
     isVoting: Boolean = false,
+    themeViewModel: com.example.releaf.ui.viewmodel.ThemeViewModel,
     onAvatarClick: () -> Unit,
     onLike: () -> Unit,
     onDislike: () -> Unit,
@@ -589,6 +594,8 @@ private fun ReviewRowItem(
     onDelete: () -> Unit,
     onReport: () -> Unit
 ) {
+    val lang by themeViewModel.language.collectAsState()
+    fun t(key: String) = com.example.releaf.ui.theme.AppStrings.get(key, lang)
     var menuExpanded by remember { mutableStateOf(false) }
     var showFullImage by remember { mutableStateOf(false) }
 
@@ -661,14 +668,14 @@ private fun ReviewRowItem(
                         ) {
                             if (isOwnComment) {
                                 androidx.compose.material3.DropdownMenuItem(
-                                    text = { Text("Edit") },
+                                    text = { Text(t("edit")) },
                                     onClick = {
                                         menuExpanded = false
                                         onEdit()
                                     }
                                 )
                                 androidx.compose.material3.DropdownMenuItem(
-                                    text = { Text("Delete", color = Color(0xFFE53935)) },
+                                    text = { Text(t("delete"), color = Color(0xFFE53935)) },
                                     onClick = {
                                         menuExpanded = false
                                         onDelete()
@@ -676,7 +683,7 @@ private fun ReviewRowItem(
                                 )
                             } else {
                                 androidx.compose.material3.DropdownMenuItem(
-                                    text = { Text("Report", color = Color(0xFFE53935)) },
+                                    text = { Text(t("report"), color = Color(0xFFE53935)) },
                                     onClick = {
                                         menuExpanded = false
                                         onReport()

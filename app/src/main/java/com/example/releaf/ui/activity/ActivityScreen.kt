@@ -54,6 +54,8 @@ fun ActivityScreen(
     themeViewModel: ThemeViewModel
 ) {
     val context = LocalContext.current
+    val lang by themeViewModel.language.collectAsState()
+    fun t(key: String) = com.example.releaf.ui.theme.AppStrings.get(key, lang)
     val userQuests by viewModel.userQuests.collectAsState()
     val isLoading by viewModel.isLoading.collectAsState()
     val errorMessage by viewModel.errorMessage.collectAsState()
@@ -110,7 +112,7 @@ fun ActivityScreen(
                     Spacer(modifier = Modifier.width(8.dp))
                     if (showRefreshed) {
                         Text(
-                            "Refreshed ✓",
+                            t("refreshed_ok"),
                             style = MaterialTheme.typography.labelMedium,
                             fontWeight = FontWeight.Bold,
                             color = Color(0xFF2E7D32)
@@ -165,7 +167,7 @@ fun ActivityScreen(
                     Column(horizontalAlignment = Alignment.CenterHorizontally) {
                         androidx.compose.material3.CircularProgressIndicator()
                         Spacer(modifier = Modifier.height(16.dp))
-                        Text("Loading daily quests...", style = MaterialTheme.typography.bodyLarge)
+                        Text(t("loading_quests"), style = MaterialTheme.typography.bodyLarge)
                     }
                 }
             }
@@ -185,7 +187,7 @@ fun ActivityScreen(
                             viewModel.loadQuests(userId)
                             gardenViewModel.loadGarden(userId, context)
                         }) {
-                            Text("Retry")
+                            Text(t("retry"))
                         }
                     }
                 }
@@ -196,13 +198,13 @@ fun ActivityScreen(
                     contentAlignment = Alignment.Center
                 ) {
                     Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                        Text("No quests available right now.", style = MaterialTheme.typography.bodyLarge)
+                        Text(t("no_quests"), style = MaterialTheme.typography.bodyLarge)
                         Spacer(modifier = Modifier.height(12.dp))
                         Button(onClick = {
                             viewModel.loadQuests(userId)
                             gardenViewModel.loadGarden(userId, context)
                         }) {
-                            Text("Refresh")
+                            Text(t("refresh"))
                         }
                     }
                 }
@@ -216,8 +218,7 @@ fun ActivityScreen(
                         QuestCard(
                             userQuest = userQuest,
                             themeViewModel = themeViewModel,
-                            onActionClick = {
-                                when (userQuest.status) {
+                            onActionClick = {                                when (userQuest.status) {
                                     "CLAIMABLE" -> viewModel.claimQuest(userQuest.quest_id, userId)
                                     "IN_PROGRESS" -> { }
                                 }
@@ -236,6 +237,8 @@ private fun QuestCard(
     themeViewModel: ThemeViewModel,
     onActionClick: () -> Unit
 ) {
+    val lang by themeViewModel.language.collectAsState()
+    fun t(key: String) = com.example.releaf.ui.theme.AppStrings.get(key, lang)
     val quest = userQuest.quest ?: return
     val cardColor = when (quest.difficulty) {
         "HARD" -> Color(0xFFE53935)
@@ -282,7 +285,7 @@ private fun QuestCard(
                         Text("🪙", style = MaterialTheme.typography.bodyLarge)
                         Spacer(modifier = Modifier.width(6.dp))
                         Text(
-                            "+ ${quest.reward_count} Points",
+                            "+ ${quest.reward_count} " + t("points"),
                             color = Color.White,
                             fontWeight = FontWeight.Bold,
                             style = MaterialTheme.typography.bodyLarge
@@ -290,7 +293,7 @@ private fun QuestCard(
                     }
                     Spacer(modifier = Modifier.height(2.dp))
                     Text(
-                        "+ ${quest.reward_count} 🌟 EXP",
+                        "+ ${quest.reward_count} 🌟 " + t("exp_label"),
                         color = Color.White.copy(alpha = 0.8f),
                         style = MaterialTheme.typography.labelMedium
                     )
@@ -320,8 +323,8 @@ private fun QuestCard(
                     ) {
                         Text(
                             when (userQuest.status) {
-                                "CLAIMABLE" -> "CLAIM REWARD"
-                                "CLAIMED" -> "COMPLETED"
+                                "CLAIMABLE" -> t("quest_reward_claim")
+                                "CLAIMED" -> t("quest_completed")
                                 else -> "${userQuest.progress_current}/${userQuest.quest?.progress_target ?: 1}"
                             },
                             fontWeight = FontWeight.Bold

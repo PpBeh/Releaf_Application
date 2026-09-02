@@ -111,6 +111,8 @@ fun ReleafApp(themeViewModel: ThemeViewModel) {
     val isChecking by authViewModel.isCheckingSession.collectAsState()
     val session by authViewModel.session.collectAsState()
     val pendingPoiId by DeepLinkHolder.pendingPoiIdFlow.collectAsState()
+    val lang by themeViewModel.language.collectAsState()
+    fun t(key: String) = com.example.releaf.ui.theme.AppStrings.get(key, lang)
 
     androidx.compose.runtime.LaunchedEffect(pendingPoiId, isChecking, session) {
         if (!isChecking && pendingPoiId != null && session is com.example.releaf.data.repository.SessionState.LoggedIn) {
@@ -146,8 +148,8 @@ fun ReleafApp(themeViewModel: ThemeViewModel) {
     if (!isOnline && !offlinePromptShown) {
         androidx.compose.material3.AlertDialog(
             onDismissRequest = { offlinePromptShown = true },
-            title = { androidx.compose.material3.Text("No internet connection") },
-            text = { androidx.compose.material3.Text("Releaf needs Wi-Fi or mobile data. Please turn on Wi-Fi or mobile data and try again.") },
+            title = { androidx.compose.material3.Text(t("no_internet_title")) },
+            text = { androidx.compose.material3.Text(t("no_internet_text")) },
             confirmButton = {
                 androidx.compose.material3.TextButton(onClick = {
                     offlinePromptShown = true
@@ -155,12 +157,12 @@ fun ReleafApp(themeViewModel: ThemeViewModel) {
                         context.startActivity(android.content.Intent(android.provider.Settings.ACTION_WIRELESS_SETTINGS))
                     } catch (_: Exception) { }
                 }) {
-                    androidx.compose.material3.Text("Open Settings")
+                    androidx.compose.material3.Text(t("open_settings"))
                 }
             },
             dismissButton = {
                 androidx.compose.material3.TextButton(onClick = { offlinePromptShown = true }) {
-                    androidx.compose.material3.Text("OK")
+                    androidx.compose.material3.Text(t("ok"))
                 }
             }
         )
