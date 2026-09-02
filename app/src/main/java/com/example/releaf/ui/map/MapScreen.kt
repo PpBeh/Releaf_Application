@@ -124,14 +124,24 @@ fun MapScreen(
     var selectedPhotoUri by remember { mutableStateOf<Uri?>(null) }
     var showSubscriptionDialog by remember { mutableStateOf(false) }
     val billingPrefs = context.getSharedPreferences("billing_prefs", android.content.Context.MODE_PRIVATE)
-    var isSubscribed by remember { mutableStateOf(billingPrefs.getBoolean("isPro", false)) }
-    var dailyPointsClaimed by remember { mutableStateOf(isDailyRewardClaimedToday(billingPrefs)) }
+    var isSubscribed by remember { mutableStateOf(false) }
+    var isSubscribing by remember { mutableStateOf(false) }
+    var dailyPointsClaimed by remember { mutableStateOf(isDailyRewardClaimedToday(billingPrefs, currentUserId)) }
     var isClaimingDaily by remember { mutableStateOf(false) }
     var showPhotoSourcePickerForPoi by remember { mutableStateOf(false) }
 
-    LaunchedEffect(Unit) {
-        isSubscribed = billingPrefs.getBoolean("isPro", false)
-        dailyPointsClaimed = isDailyRewardClaimedToday(billingPrefs)
+    LaunchedEffect(currentUserId) {
+        dailyPointsClaimed = isDailyRewardClaimedToday(billingPrefs, currentUserId)
+        // Pro status lives on the account (server), not on this device.
+        if (currentUserId.isNotBlank()) {
+            isSubscribed = try {
+                com.example.releaf.data.repository.AuthRepository().getProfile(currentUserId)?.is_pro == true
+            } catch (_: Exception) {
+                false
+            }
+        } else {
+            isSubscribed = false
+        }
     }
 
     val sheetState = rememberModalBottomSheetState()
@@ -729,12 +739,23 @@ fun MapScreen(
                     if (!isSubscribed) {
                         Button(
                             onClick = {
-                                isSubscribed = true
-                                billingPrefs.edit().putBoolean("isPro", true).apply()
+                                if (isSubscribing) return@Button
+                                isSubscribing = true
                                 scope.launch {
-                                    snackbarHostState.showSnackbar("🎉 Welcome to Releaf Diamond Pro Membership!")
+                                    try {
+                                        // Mock subscription: flags THIS account as Pro on the server,
+                                        // so it follows the account across devices/accounts.
+                                        com.example.releaf.data.repository.AuthRepository().setProStatus(currentUserId, true)
+                                        isSubscribed = true
+                                        snackbarHostState.showSnackbar("🎉 Welcome to Releaf Diamond Pro Membership!")
+                                    } catch (e: Exception) {
+                                        snackbarHostState.showSnackbar("Could not activate Pro. Check your connection and try again.")
+                                    } finally {
+                                        isSubscribing = false
+                                    }
                                 }
                             },
+                            enabled = !isSubscribing,
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .height(50.dp),
@@ -782,7 +803,7 @@ fun MapScreen(
                                                 if (profile != null) {
                                                     authRepo.updateTotalPoints(currentUserId, (profile.total_points ?: 0) + 100)
                                                 }
-                                                markDailyRewardClaimed(billingPrefs)
+                                                markDailyRewardClaimed(billingPrefs, currentUserId)
                                                 dailyPointsClaimed = true
                                                 com.example.releaf.data.remote.SupabaseModule.triggerRefresh()
                                                 snackbarHostState.showSnackbar("🎁 Claimed today's 100 Points & 5 Gems!")
@@ -1130,14 +1151,14 @@ private fun dailyDateKey(): String {
     return fmt.format(java.util.Date())
 }
 
-private fun isDailyRewardClaimedToday(prefs: android.content.SharedPreferences): Boolean {
-    // New installs / pre-dating users have no date stamp and may claim once today.
-    return prefs.getString("daily_claimed_date", null) == dailyDateKey()
+private fun isDailyRewardClaimedToday(prefs: android.content.SharedPreferences, userId: String): Boolean {
+    // Per-account so switching accounts on the same device starts a fresh claim.
+    return prefs.getString("daily_claimed_date_$userId", null) == dailyDateKey()
 }
 
-private fun markDailyRewardClaimed(prefs: android.content.SharedPreferences) {
+private fun markDailyRewardClaimed(prefs: android.content.SharedPreferences, userId: String) {
     prefs.edit()
-        .putBoolean("daily_claimed", true)
-        .putString("daily_claimed_date", dailyDateKey())
+        .putBoolean("daily_claimed_$userId", true)
+        .putString("daily_claimed_date_$userId", dailyDateKey())
         .apply()
 }

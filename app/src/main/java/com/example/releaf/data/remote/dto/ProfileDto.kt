@@ -13,6 +13,7 @@ data class ProfileDto(
     val banner_url: String? = "",
     val avatar_frame: String? = "",
     val total_points: Int? = 0,
+    val is_pro: Boolean = false,
     val created_at: String? = ""
 )
 

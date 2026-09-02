@@ -104,7 +104,9 @@ fun ProfileScreen(
             viewModel.uploadBanner(userId, uri, context)
         }
     }
-    val isVip = remember { context.getSharedPreferences("billing_prefs", android.content.Context.MODE_PRIVATE).getBoolean("isPro", false) }
+    // Pro/VIP is an account property stored on the server (profiles.is_pro),
+    // so a new account on the same device is not automatically VIP.
+    val isVip = profile?.is_pro == true
 
     LaunchedEffect(userId) {
         if (userId.isNotBlank()) {

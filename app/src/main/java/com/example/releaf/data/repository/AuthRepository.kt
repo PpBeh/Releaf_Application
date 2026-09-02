@@ -283,6 +283,16 @@ class AuthRepository {
         }
     }
 
+    suspend fun setProStatus(userId: String, isPro: Boolean) {
+        try {
+            client.postgrest.from("profiles").update(
+                mapOf("is_pro" to isPro)
+            ) { filter { eq("id", userId) } }
+        } catch (e: Exception) {
+            android.util.Log.e("AuthRepository", "Error updating pro status", e)
+        }
+    }
+
     suspend fun getProfile(userId: String): ProfileDto? {
         return client.postgrest.from("profiles")
             .select { filter { eq("id", userId) } }
