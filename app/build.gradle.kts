@@ -13,6 +13,22 @@ val localProperties = Properties().apply {
     }
 }
 
+// Credentials are read from machine-local local.properties first; the committed
+// supabase.properties (anon key - public by design) guarantees any clone runs.
+val projectProperties = Properties().apply {
+    val file = rootProject.file("supabase.properties")
+    if (file.exists()) {
+        file.inputStream().use { load(it) }
+    }
+}
+
+val supabaseUrl = localProperties.getProperty("supabase.url")
+    ?: projectProperties.getProperty("supabase.url")
+    ?: ""
+val supabaseAnonKey = localProperties.getProperty("supabase.anon.key")
+    ?: projectProperties.getProperty("supabase.anon.key")
+    ?: ""
+
 android {
     namespace = "com.example.releaf"
     compileSdk {
@@ -30,9 +46,10 @@ android {
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 
-        // Supabase credentials come from the machine-local (git-ignored) local.properties.
-        buildConfigField("String", "SUPABASE_URL", "\"${localProperties.getProperty("supabase.url") ?: ""}\"")
-        buildConfigField("String", "SUPABASE_ANON_KEY", "\"${localProperties.getProperty("supabase.anon.key") ?: ""}\"")
+        // Supabase credentials: overridable via git-ignored local.properties, with
+        // committed defaults in supabase.properties so clones work out of the box.
+        buildConfigField("String", "SUPABASE_URL", "\"$supabaseUrl\"")
+        buildConfigField("String", "SUPABASE_ANON_KEY", "\"$supabaseAnonKey\"")
     }
 
     buildTypes {
