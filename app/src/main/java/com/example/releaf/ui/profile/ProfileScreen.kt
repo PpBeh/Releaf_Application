@@ -121,29 +121,8 @@ fun ProfileScreen(
     val email = profile?.email?.takeIf { it.isNotBlank() } ?: "N/A"
     val isOwnProfile = userId == currentUserId
 
-    // Calculate garden tree stage and stats
+    // Garden EXP (used for the title unlocks)
     val gardenExp = userGarden?.current_exp ?: profile?.total_points ?: 0
-    val treeStage = when {
-        gardenExp >= 5000 -> 3
-        gardenExp >= 2000 -> 2
-        else -> 1
-    }
-    val targetExp = when (treeStage) {
-        1 -> 2000
-        2 -> 5000
-        else -> 10000
-    }
-    val expProgress = (gardenExp.toFloat() / targetExp.toFloat()).coerceIn(0f, 1f)
-    val stageTitle = when (treeStage) {
-        1 -> "Stage 1: Seedling Tree"
-        2 -> "Stage 2: Growing Tree"
-        else -> "Stage 3: Full Bloom Tree"
-    }
-    val treeStageIcon = when (treeStage) {
-        1 -> R.drawable.ic_tree_stage_1
-        2 -> R.drawable.ic_tree_stage_2
-        else -> R.drawable.ic_tree_stage_3
-    }
 
     // Build achievements list with progress
     val defaultMasterAchievements = listOf(
@@ -459,87 +438,10 @@ fun ProfileScreen(
             }
         }
 
-        Spacer(modifier = Modifier.height(16.dp))
+        Spacer(modifier = Modifier.height(24.dp))
 
-        // SECTION 1: GARDEN & PLANTS INFO
+        // GARDEN PLANTS COLLECTION
         Column(modifier = Modifier.fillMaxWidth()) {
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 20.dp),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text(
-                    if (isOwnProfile) "My Garden & Plants" else "$displayName's Garden",
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold
-                )
-            }
-
-            Spacer(modifier = Modifier.height(8.dp))
-
-            // Garden Overview Card
-            ElevatedCard(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 20.dp),
-                shape = RoundedCornerShape(16.dp),
-                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
-            ) {
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(16.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Image(
-                        painter = painterResource(id = treeStageIcon),
-                        contentDescription = "Tree Stage",
-                        modifier = Modifier.size(54.dp)
-                    )
-
-                    Spacer(modifier = Modifier.width(16.dp))
-
-                    Column(modifier = Modifier.weight(1f)) {
-                        Text(
-                            stageTitle,
-                            fontWeight = FontWeight.Bold,
-                            style = MaterialTheme.typography.titleSmall
-                        )
-                        Spacer(modifier = Modifier.height(4.dp))
-                        LinearProgressIndicator(
-                            progress = { expProgress },
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .height(8.dp)
-                                .clip(RoundedCornerShape(4.dp)),
-                            color = Color(0xFF4CAF50),
-                            trackColor = MaterialTheme.colorScheme.outlineVariant
-                        )
-                        Spacer(modifier = Modifier.height(4.dp))
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween
-                        ) {
-                            Text(
-                                "$gardenExp / $targetExp EXP",
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                            Text(
-                                "💎 ${userGarden?.current_gems ?: 0} Gems",
-                                style = MaterialTheme.typography.bodySmall,
-                                fontWeight = FontWeight.Bold
-                            )
-                        }
-                    }
-                }
-            }
-
-            Spacer(modifier = Modifier.height(16.dp))
-
-            // Plants Info Row
             Text(
                 "Garden Plants Collection",
                 style = MaterialTheme.typography.titleSmall,
@@ -599,7 +501,6 @@ fun ProfileScreen(
                                     contentDescription = seedInfo.name,
                                     modifier = Modifier.size(44.dp)
                                 )
-
                             }
 
                             Spacer(modifier = Modifier.height(8.dp))
@@ -637,7 +538,6 @@ fun ProfileScreen(
                                     modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp)
                                 )
                             }
-
                         }
                     }
                 }
