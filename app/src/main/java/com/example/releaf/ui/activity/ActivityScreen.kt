@@ -31,6 +31,10 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -62,6 +66,16 @@ fun ActivityScreen(
         gardenViewModel.loadGarden(userId, context)
     }
 
+    var refreshTick by remember { mutableIntStateOf(0) }
+    var showRefreshed by remember { mutableStateOf(false) }
+    LaunchedEffect(refreshTick) {
+        if (refreshTick > 0) {
+            showRefreshed = true
+            kotlinx.coroutines.delay(2000)
+            showRefreshed = false
+        }
+    }
+
     val treeStage = gardenViewModel.getTreeStage(currentExp)
     val nextTargetExp = when (treeStage) {
         1 -> 2000
@@ -86,6 +100,7 @@ fun ActivityScreen(
                     .background(MaterialTheme.colorScheme.surface, RoundedCornerShape(24.dp))
                     .padding(horizontal = 20.dp, vertical = 12.dp)
                     .clickable {
+                        refreshTick++
                         viewModel.loadQuests(userId)
                         gardenViewModel.loadGarden(userId, context)
                     }
@@ -93,7 +108,21 @@ fun ActivityScreen(
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Text(string("activity", themeViewModel), style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
                     Spacer(modifier = Modifier.width(8.dp))
-                    Icon(Icons.Default.Refresh, contentDescription = "Refresh", modifier = Modifier.size(16.dp))
+                    if (showRefreshed) {
+                        Text(
+                            "Refreshed ✓",
+                            style = MaterialTheme.typography.labelMedium,
+                            fontWeight = FontWeight.Bold,
+                            color = Color(0xFF2E7D32)
+                        )
+                    } else if (isLoading && userQuests.isNotEmpty()) {
+                        androidx.compose.material3.CircularProgressIndicator(
+                            modifier = Modifier.size(16.dp),
+                            strokeWidth = 2.dp
+                        )
+                    } else {
+                        Icon(Icons.Default.Refresh, contentDescription = "Refresh", modifier = Modifier.size(16.dp))
+                    }
                 }
             }
 

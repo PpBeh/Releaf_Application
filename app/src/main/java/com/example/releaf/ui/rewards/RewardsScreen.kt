@@ -155,26 +155,41 @@ fun RewardsScreen(
 
             Text("Claimable Titles", style = MaterialTheme.typography.titleMedium)
             Spacer(modifier = Modifier.height(8.dp))
+            val equippedTitle by viewModel.equippedTitle.collectAsState()
             val titles = listOf(
                 "Gardener" to 0, "Sprout" to 500, "Green Thumb" to 2000, "Expert Gardener" to 5000, "Master Gardener" to 10000
             )
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 titles.forEach { (titleName, req) ->
                     val isUnlocked = userPoints >= req
-                    val isEquipped = false
+                    val isEquipped = titleName == equippedTitle
                     Card(
                         shape = RoundedCornerShape(12.dp),
                         colors = CardDefaults.cardColors(containerColor = if (isUnlocked) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceVariant),
                         modifier = Modifier.fillMaxWidth()
                     ) {
                         Row(modifier = Modifier.padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
-                            Text(if (isUnlocked) "✓" else "🔒", modifier = Modifier.padding(end = 8.dp))
+                            Text(if (isEquipped) "⭐" else if (isUnlocked) "✓" else "🔒", modifier = Modifier.padding(end = 8.dp))
                             Column(modifier = Modifier.weight(1f)) {
                                 Text(titleName, fontWeight = FontWeight.Bold, style = MaterialTheme.typography.bodyMedium)
-                                Text(if (isUnlocked) "Unlocked - tap to equip" else "Requires $req EXP", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                Text(
+                                    when {
+                                        isEquipped -> "Currently equipped"
+                                        isUnlocked -> "Unlocked - tap to equip"
+                                        else -> "Requires $req EXP"
+                                    },
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
                             }
                             if (isUnlocked) {
-                                Button(onClick = { viewModel.equipTitle(userId, titleName) }, shape = RoundedCornerShape(8.dp)) { Text("Equip") }
+                                Button(
+                                    onClick = { viewModel.equipTitle(userId, titleName) },
+                                    enabled = !isEquipped,
+                                    shape = RoundedCornerShape(8.dp)
+                                ) {
+                                    Text(if (isEquipped) "Equipped ✓" else "Equip")
+                                }
                             }
                         }
                     }

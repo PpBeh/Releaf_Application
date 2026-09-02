@@ -416,79 +416,11 @@ fun GardenPlotScreen(
 
             Spacer(modifier = Modifier.height(8.dp))
 
-            // GARDEN CARE ACTION BAR
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(10.dp)
-            ) {
-                ElevatedCard(
-                    modifier = Modifier
-                        .weight(1f)
-                        .clickable(enabled = waterUsesLeft > 0 && hasPlantedPlant) {
-                            viewModel.waterPlant(userId, context)
-                        },
-                    shape = RoundedCornerShape(16.dp),
-                    colors = CardDefaults.cardColors(
-                        containerColor = if (waterUsesLeft > 0 && hasPlantedPlant) Color(0xFFE3F2FD) else MaterialTheme.colorScheme.surfaceVariant
-                    )
-                ) {
-                    Row(
-                        modifier = Modifier.padding(vertical = 10.dp, horizontal = 12.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.Center
-                    ) {
-                        Text("💧", fontSize = 18.sp)
-                        Spacer(modifier = Modifier.width(6.dp))
-                        Column {
-                            Text(
-                                "Water Plant",
-                                style = MaterialTheme.typography.labelMedium,
-                                fontWeight = FontWeight.Bold,
-                                color = if (waterUsesLeft > 0 && hasPlantedPlant) Color(0xFF1565C0) else Color.Gray
-                            )
-                            Text(
-                                "Uses: $waterUsesLeft left",
-                                style = MaterialTheme.typography.labelSmall,
-                                color = Color.Gray
-                            )
-                        }
-                    }
-                }
-
-                ElevatedCard(
-                    modifier = Modifier
-                        .weight(1f)
-                        .clickable(enabled = fertilizeUsesLeft > 0 && hasPlantedPlant) {
-                            viewModel.fertilizePlant(userId, context)
-                        },
-                    shape = RoundedCornerShape(16.dp),
-                    colors = CardDefaults.cardColors(
-                        containerColor = if (fertilizeUsesLeft > 0 && hasPlantedPlant) Color(0xFFE8F5E9) else MaterialTheme.colorScheme.surfaceVariant
-                    )
-                ) {
-                    Row(
-                        modifier = Modifier.padding(vertical = 10.dp, horizontal = 12.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.Center
-                    ) {
-                        Text("🌱", fontSize = 18.sp)
-                        Spacer(modifier = Modifier.width(6.dp))
-                        Column {
-                            Text(
-                                "Fertilize",
-                                style = MaterialTheme.typography.labelMedium,
-                                fontWeight = FontWeight.Bold,
-                                color = if (fertilizeUsesLeft > 0 && hasPlantedPlant) Color(0xFF2E7D32) else Color.Gray
-                            )
-                            Text(
-                                "Uses: $fertilizeUsesLeft left",
-                                style = MaterialTheme.typography.labelSmall,
-                                color = Color.Gray
-                            )
-                        }
-                    }
-                }
-            }
+            Text(
+                "Tap any plant below to water or fertilize it.",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
         }
 
         // GRID OF PLANT POT TILES WITH PERSONALITY INFO

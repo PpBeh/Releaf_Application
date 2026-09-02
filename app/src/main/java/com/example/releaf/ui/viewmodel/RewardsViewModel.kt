@@ -45,6 +45,9 @@ class RewardsViewModel(application: Application) : AndroidViewModel(application)
     private val _claimStatus = MutableStateFlow<String?>(null)
     val claimStatus: StateFlow<String?> = _claimStatus.asStateFlow()
 
+    private val _equippedTitle = MutableStateFlow("Gardener")
+    val equippedTitle: StateFlow<String> = _equippedTitle.asStateFlow()
+
     private var currentUserId = ""
 
     init {
@@ -73,6 +76,11 @@ class RewardsViewModel(application: Application) : AndroidViewModel(application)
                 _tiers.value = rewardRepository.getRewardTiers()
                 _userRewards.value = rewardRepository.getUserRewards(userId)
                 _gardenSlots.value = loadSlotsWithLocalFallback(userId)
+
+                try {
+                    _equippedTitle.value = com.example.releaf.data.repository.AuthRepository()
+                        .getProfile(userId)?.title?.takeIf { it.isNotBlank() } ?: "Gardener"
+                } catch (_: Exception) { }
 
                 // Check and notify available rewards
                 try {
@@ -159,9 +167,12 @@ class RewardsViewModel(application: Application) : AndroidViewModel(application)
         viewModelScope.launch {
             try {
                 com.example.releaf.data.repository.AuthRepository().updateTitle(userId, title)
+                _equippedTitle.value = title
                 _claimStatus.value = "Title equipped: $title"
                 com.example.releaf.data.remote.SupabaseModule.triggerRefresh()
-            } catch (_: Exception) {}
+            } catch (e: Exception) {
+                _claimStatus.value = "Could not equip title. Check your connection and try again."
+            }
         }
     }
 

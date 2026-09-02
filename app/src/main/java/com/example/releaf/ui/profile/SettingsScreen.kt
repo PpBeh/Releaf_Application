@@ -226,66 +226,71 @@ fun SettingsScreen(
                 modifier = Modifier
                     .fillMaxWidth()
                     .background(MaterialTheme.colorScheme.primary)
-                    .padding(bottom = 20.dp)
             ) {
-                IconButton(onClick = onBackClick, modifier = Modifier.padding(8.dp)) {
-
-                    Icon(
-                        painter = painterResource(id = R.drawable.ic_arrow_back),
-                        contentDescription = "Back",
-                        tint = Color.White
-                    )
-                }
-                Row(
-                    modifier = Modifier
-                        .align(Alignment.BottomStart)
-                        .padding(20.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Box(
-                        modifier = Modifier
-                            .size(64.dp)
-                            .clip(CircleShape)
-                            .background(MaterialTheme.colorScheme.surface)
-                            .clickable { avatarPicker.launch("image/*") },
-                        contentAlignment = Alignment.Center
+                Column {
+                    Row(
+                        modifier = Modifier.fillMaxWidth().padding(top = 8.dp, end = 8.dp),
+                        verticalAlignment = Alignment.CenterVertically
                     ) {
-                        val avatarUrl = profile?.avatar_url.orEmpty()
-                        if (avatarUrl.isNotBlank()) {
-                            androidx.compose.foundation.Image(
-                                painter = coil.compose.rememberAsyncImagePainter(model = avatarUrl),
-                                contentDescription = "Avatar",
-                                modifier = Modifier.size(64.dp).clip(CircleShape),
-                                contentScale = androidx.compose.ui.layout.ContentScale.Crop
-                            )
-                        } else {
+                        IconButton(onClick = onBackClick, modifier = Modifier.padding(4.dp)) {
                             Icon(
-                                painter = painterResource(id = R.drawable.ic_person),
-                                contentDescription = "Avatar",
-                                tint = MaterialTheme.colorScheme.onSurfaceVariant
+                                painter = painterResource(id = R.drawable.ic_arrow_back),
+                                contentDescription = "Back",
+                                tint = Color.White
                             )
                         }
                     }
-                    Spacer(modifier = Modifier.width(16.dp))
-                    Column {
-                        Text(
-                            profile?.name?.takeIf { it.isNotBlank() } ?: "User",
-                            color = Color.White,
-                            fontWeight = FontWeight.Bold,
-                            style = MaterialTheme.typography.titleMedium
-                        )
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(start = 20.dp, end = 20.dp, top = 4.dp, bottom = 20.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .size(64.dp)
+                                .clip(CircleShape)
+                                .background(MaterialTheme.colorScheme.surface)
+                                .clickable { avatarPicker.launch("image/*") },
+                            contentAlignment = Alignment.Center
+                        ) {
+                            val avatarUrl = profile?.avatar_url.orEmpty()
+                            if (avatarUrl.isNotBlank()) {
+                                androidx.compose.foundation.Image(
+                                    painter = coil.compose.rememberAsyncImagePainter(model = avatarUrl),
+                                    contentDescription = "Avatar",
+                                    modifier = Modifier.size(64.dp).clip(CircleShape),
+                                    contentScale = androidx.compose.ui.layout.ContentScale.Crop
+                                )
+                            } else {
+                                Icon(
+                                    painter = painterResource(id = R.drawable.ic_person),
+                                    contentDescription = "Avatar",
+                                    tint = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                        }
+                        Spacer(modifier = Modifier.width(16.dp))
+                        Column {
+                            Text(
+                                profile?.name?.takeIf { it.isNotBlank() } ?: "User",
+                                color = Color.White,
+                                fontWeight = FontWeight.Bold,
+                                style = MaterialTheme.typography.titleMedium
+                            )
 
-                        Text(
-                            profile?.phone?.takeIf { it.isNotBlank() } ?: "N/A",
-                            color = Color.White,
-                            style = MaterialTheme.typography.bodySmall
-                        )
+                            Text(
+                                profile?.phone?.takeIf { it.isNotBlank() } ?: "N/A",
+                                color = Color.White,
+                                style = MaterialTheme.typography.bodySmall
+                            )
 
-                        Text(
-                            profile?.email?.takeIf { it.isNotBlank() } ?: "N/A",
-                            color = Color.White,
-                            style = MaterialTheme.typography.bodySmall
-                        )
+                            Text(
+                                profile?.email?.takeIf { it.isNotBlank() } ?: "N/A",
+                                color = Color.White,
+                                style = MaterialTheme.typography.bodySmall
+                            )
+                        }
                     }
                 }
             }

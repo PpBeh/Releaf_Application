@@ -13,8 +13,10 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -25,6 +27,8 @@ import androidx.compose.foundation.layout.asPaddingValues
 import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
@@ -908,11 +912,18 @@ fun MapScreen(
 
     if (showNotifications) {
         ModalBottomSheet(
-            onDismissRequest = { showNotifications = false }
+            onDismissRequest = { showNotifications = false },
+            // Open fully expanded: the whole notification list is visible and
+            // scrollable; drag the sheet down to close it.
+            sheetState = rememberModalBottomSheetState(
+                skipPartiallyExpanded = true,
+                confirmValueChange = { true }
+            )
         ) {
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
+                    .fillMaxHeight()
                     .padding(horizontal = 20.dp, vertical = 8.dp)
             ) {
                 Row(
@@ -943,53 +954,68 @@ fun MapScreen(
                         Text("No notifications yet", style = MaterialTheme.typography.bodyMedium)
                     }
                 } else {
-                    notifications.forEach { notification ->
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(vertical = 10.dp)
-                                .background(
-                                    if (!notification.is_read && notification.user_id != null)
-                                        Color(0xFFE3F2FD) else Color.Transparent,
-                                    RoundedCornerShape(8.dp)
+                    LazyColumn(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .weight(1f),
+                        verticalArrangement = Arrangement.spacedBy(4.dp),
+                        contentPadding = PaddingValues(bottom = 16.dp)
+                    ) {
+                        items(notifications, key = { it.id }) { notification ->
+                            val isRead = notification.is_read
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(vertical = 10.dp)
+                                    .background(
+                                        if (!isRead && notification.user_id != null)
+                                            Color(0xFFE3F2FD) else Color.Transparent,
+                                        RoundedCornerShape(8.dp)
+                                    )
+                                    .padding(12.dp)
+                                    .clickable {
+                                        notificationsViewModel.markAsRead(notification, currentUserId)
+                                    },
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Icon(
+                                    when (notification.type) {
+                                        "ANNOUNCEMENT" -> Icons.Default.Notifications
+                                        "LIKE" -> Icons.Default.ThumbUp
+                                        else -> Icons.Default.Info
+                                    },
+                                    contentDescription = null,
+                                    tint = if (isRead) {
+                                        Color(0xFFB0BEC5)
+                                    } else if (notification.type == "ANNOUNCEMENT") {
+                                        Color(0xFF1E88E5)
+                                    } else {
+                                        Color(0xFF43A047)
+                                    }
                                 )
-                                .padding(12.dp)
-                                .clickable {
-                                    notificationsViewModel.markAsRead(notification, currentUserId)
-                                },
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Icon(
-                                when (notification.type) {
-                                    "ANNOUNCEMENT" -> Icons.Default.Notifications
-                                    "LIKE" -> Icons.Default.ThumbUp
-                                    else -> Icons.Default.Info
-                                },
-                                contentDescription = null,
-                                tint = if (notification.type == "ANNOUNCEMENT") Color(0xFF1E88E5) else Color(0xFF43A047)
-                            )
-                            Spacer(modifier = Modifier.width(12.dp))
-                            Column(modifier = Modifier.weight(1f)) {
-                                Text(
-                                    notification.title,
-                                    style = MaterialTheme.typography.bodyMedium,
-                                    fontWeight = FontWeight.Bold
-                                )
-                                Text(
-                                    notification.body,
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                                )
-                                Text(
-                                    com.example.releaf.data.remote.TimeFormatter.formatCommentTime(notification.created_at),
-                                    style = MaterialTheme.typography.labelSmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                                )
+                                Spacer(modifier = Modifier.width(12.dp))
+                                Column(modifier = Modifier.weight(1f)) {
+                                    Text(
+                                        notification.title,
+                                        style = MaterialTheme.typography.bodyMedium,
+                                        fontWeight = if (isRead) FontWeight.Normal else FontWeight.Bold,
+                                        color = if (isRead) Color(0xFF9E9E9E) else MaterialTheme.colorScheme.onSurface
+                                    )
+                                    Text(
+                                        notification.body,
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = if (isRead) Color(0xFFBDBDBD) else MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                    Text(
+                                        com.example.releaf.data.remote.TimeFormatter.formatCommentTime(notification.created_at),
+                                        style = MaterialTheme.typography.labelSmall,
+                                        color = if (isRead) Color(0xFFBDBDBD) else MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                }
                             }
                         }
                     }
                 }
-                Spacer(modifier = Modifier.height(16.dp))
             }
         }
     }
