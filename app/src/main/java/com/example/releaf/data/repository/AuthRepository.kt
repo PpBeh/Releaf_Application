@@ -9,6 +9,7 @@ import io.github.jan.supabase.auth.providers.builtin.Email
 import io.github.jan.supabase.postgrest.postgrest
 import io.github.jan.supabase.storage.storage
 import kotlinx.serialization.json.buildJsonObject
+import kotlinx.serialization.json.jsonPrimitive
 import kotlinx.serialization.json.put
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -76,10 +77,29 @@ class AuthRepository {
         }
     }
 
-    suspend fun resendVerificationEmail(email: String) {
-        try {
-            client.auth.resendEmail(type = OtpType.Email.SIGNUP, email = email)
-        } catch (_: Exception) { }
+    suspend fun resendVerificationEmail(email: String): Result<Unit> {
+        return try {
+            if (email.isBlank() || !android.util.Patterns.EMAIL_ADDRESS.matcher(email).matches()) {
+                return Result.failure(Exception("Please enter a valid email address"))
+            }
+            try {
+                val existing = client.postgrest.from("profiles").select {
+                    filter { eq("email", email) }
+                }.decodeList<ProfileDto>()
+                if (existing.isEmpty()) {
+                    return Result.failure(Exception("This email is not registered. Please sign up first."))
+                }
+            } catch (_: Exception) { }
+            client.auth.resendEmail(type = io.github.jan.supabase.auth.OtpType.Email.SIGNUP, email = email)
+            Result.success(Unit)
+        } catch (e: Exception) {
+            val msg = e.message ?: ""
+            if (msg.contains("already", ignoreCase = true)) {
+                Result.success(Unit)
+            } else {
+                Result.failure(e)
+            }
+        }
     }
 
     @Deprecated("Use resendVerificationEmail(email) instead")

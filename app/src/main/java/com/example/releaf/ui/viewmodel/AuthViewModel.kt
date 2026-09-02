@@ -163,12 +163,15 @@ class AuthViewModel : ViewModel() {
     fun resendVerification(email: String) {
         viewModelScope.launch {
             _uiState.value = _uiState.value.copy(isLoading = true)
-            try {
-                repository.resendVerificationEmail(email)
-                _uiState.value = AuthUiState(resendSuccess = true, resendMessage = "Verification email resent. Please check your inbox.")
-            } catch (e: Exception) {
-                _uiState.value = AuthUiState(error = e.message ?: "Failed to resend email")
-            }
+            val result = repository.resendVerificationEmail(email)
+            result.fold(
+                onSuccess = {
+                    _uiState.value = AuthUiState(resendSuccess = true, resendMessage = "Verification email resent. Please check your inbox.")
+                },
+                onFailure = { e ->
+                    _uiState.value = AuthUiState(error = e.message ?: "Failed to resend email")
+                }
+            )
         }
     }
 
