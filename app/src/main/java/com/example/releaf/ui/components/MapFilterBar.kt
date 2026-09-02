@@ -48,11 +48,12 @@ fun MapFilterBar(
             ToggleChip("Clean", "CLEAN" in enabledCleanliness) { onToggleCleanliness("CLEAN") }
             ToggleChip("Average", "AVERAGE" in enabledCleanliness) { onToggleCleanliness("AVERAGE") }
             ToggleChip("Dirty", "DIRTY" in enabledCleanliness) { onToggleCleanliness("DIRTY") }
-            ToggleChip("Paid", excludedPaid != true) {
-                onTogglePaid(if (excludedPaid == true) null else true)
-            }
-            ToggleChip("Free", excludedPaid != false) {
+            ToggleChip("All", excludedPaid == null) { onTogglePaid(null) }
+            ToggleChip("Paid", excludedPaid == false) {
                 onTogglePaid(if (excludedPaid == false) null else false)
+            }
+            ToggleChip("Free", excludedPaid == true) {
+                onTogglePaid(if (excludedPaid == true) null else true)
             }
         }
     }

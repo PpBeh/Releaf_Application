@@ -5,10 +5,11 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 
 object DeepLinkHolder {
-    var accessToken: String? = null
-    var refreshToken: String? = null
-    var type: String? = null
+    private var accessToken: String? = null
+    private var refreshToken: String? = null
+    private var type: String? = null
     var pendingName: String? = null
+    var pendingEmail: String? = null
 
     private val _pendingPoiId = MutableStateFlow<String?>(null)
     val pendingPoiIdFlow: StateFlow<String?> = _pendingPoiId.asStateFlow()
@@ -17,10 +18,28 @@ object DeepLinkHolder {
         get() = _pendingPoiId.value
         set(value) { _pendingPoiId.value = value }
 
+    @Synchronized
+    fun consumeTokens(): Triple<String?, String?, String?> {
+        val tokens = Triple(accessToken, refreshToken, type)
+        accessToken = null
+        refreshToken = null
+        type = null
+        return tokens
+    }
+
+    @Synchronized
+    fun setTokens(access: String, refresh: String, tokenType: String?) {
+        accessToken = access
+        refreshToken = refresh
+        type = tokenType
+    }
+
     fun clear() {
         accessToken = null
         refreshToken = null
         type = null
+        pendingName = null
+        pendingEmail = null
     }
 
     fun clearPoiId() {

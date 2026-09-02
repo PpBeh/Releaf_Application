@@ -42,9 +42,11 @@ fun ForgotPasswordScreen(
     isSuccess: Boolean,
     error: String?,
     onSendClick: (email: String) -> Unit,
-    onBackClick: () -> Unit
+    onBackClick: () -> Unit,
+    onClearError: () -> Unit
 ) {
     var email by remember { mutableStateOf("") }
+    var emailError by remember { mutableStateOf<String?>(null) }
 
     Column(modifier = Modifier.fillMaxSize()) {
         TopAppBar(
@@ -110,9 +112,17 @@ fun ForgotPasswordScreen(
                 Spacer(modifier = Modifier.height(32.dp))
                 OutlinedTextField(
                     value = email,
-                    onValueChange = { email = it },
+                    onValueChange = {
+                        email = it
+                        emailError = if (it.isNotBlank() && !android.util.Patterns.EMAIL_ADDRESS.matcher(it).matches()) {
+                            "Invalid email address — e.g. name@example.com"
+                        } else null
+                        if (error != null) onClearError()
+                    },
                     label = { Text("Email") },
                     singleLine = true,
+                    isError = emailError != null,
+                    supportingText = emailError?.let { { Text(it, color = MaterialTheme.colorScheme.error) } },
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email),
                     modifier = Modifier.fillMaxWidth()
                 )
@@ -129,8 +139,14 @@ fun ForgotPasswordScreen(
                 Spacer(modifier = Modifier.height(24.dp))
 
                 Button(
-                    onClick = { onSendClick(email) },
-                    enabled = email.isNotBlank() && !isLoading,
+                    onClick = {
+                        if (!android.util.Patterns.EMAIL_ADDRESS.matcher(email).matches()) {
+                            emailError = "Invalid email address — e.g. name@example.com"
+                            return@Button
+                        }
+                        onSendClick(email)
+                    },
+                    enabled = email.isNotBlank() && emailError == null && !isLoading,
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(50.dp)

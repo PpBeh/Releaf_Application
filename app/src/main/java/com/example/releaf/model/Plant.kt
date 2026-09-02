@@ -37,6 +37,10 @@ data class SeedInfo(
     val drawableRes: Int
 )
 
+fun isPlantedState(state: String?): Boolean {
+    return state in setOf("PLANTED", "GROWING", "FULLY_GROWN")
+}
+
 object SeedData {
     val seedList = listOf(
         SeedInfo(

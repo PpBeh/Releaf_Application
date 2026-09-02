@@ -113,7 +113,11 @@ fun PoiDetailSheet(
         Row(verticalAlignment = Alignment.CenterVertically) {
             Icon(Icons.Default.Star, contentDescription = null, tint = Color(0xFFFFC107))
             Spacer(modifier = Modifier.width(4.dp))
-            Text(text = String.format("%.1f", poi.rating), fontWeight = FontWeight.Bold, style = MaterialTheme.typography.titleLarge)
+            Text(
+                text = String.format(java.util.Locale.US, "%.1f", poi.rating),
+                fontWeight = FontWeight.Bold,
+                style = MaterialTheme.typography.titleLarge
+            )
             Spacer(modifier = Modifier.width(12.dp))
             Text(
                 text = "${poi.cleanliness} | ${if (poi.is_paid) "Paid" else "Free"} | $reviewCount comments",
@@ -146,7 +150,7 @@ fun PoiDetailSheet(
                 Spacer(modifier = Modifier.width(8.dp))
                 Text(
                     buildString {
-                        append("Users reported this toilet $status")
+                        append("Users reported this ${if (poi.category == "TRASH_CAN") "trash can" else "toilet"} $status")
                         val time = com.example.releaf.data.remote.TimeFormatter.formatHour(statusTime.orEmpty())
                         if (time != null) append(" at $time")
                         append(".")
@@ -234,10 +238,12 @@ fun PoiDetailSheet(
                         it.message == "already_verified" -> "You already verified this POI."
                         it.message == "now_verified" -> "POI is now verified!"
                         it.message == "verification_counted" -> "Verification recorded."
+                        it.message == "verify_failed" -> "Could not record your verification. Check your connection and try again."
                         it.message == "already_reported" -> "You already reported this POI."
                         it.message == "now_unverified" -> "Too many reports. POI is now unverified."
                         it.message == "removed" -> "POI has been removed due to reports."
                         it.message == "report_counted" -> "Report recorded."
+                        it.message == "report_failed" -> "Could not record your report. Check your connection and try again."
                         else -> it.message
                     },
                     style = MaterialTheme.typography.bodySmall,
@@ -250,29 +256,32 @@ fun PoiDetailSheet(
 
         var selectedFullUrl by remember { mutableStateOf<String?>(null) }
 
-        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-            if (validPhotos.isNotEmpty()) {
-                validPhotos.take(3).forEach { photo ->
-                    PhotoTile(url = photo.photo_url, modifier = Modifier.weight(1f), onClick = { selectedFullUrl = photo.photo_url })
-                }
-                if (validPhotos.size < 2) {
-                    repeat(2 - validPhotos.size) {
-                        PhotoTile(url = null, modifier = Modifier.weight(1f))
-                    }
-                }
-            } else {
-                PhotoTile(url = null, modifier = Modifier.weight(1f))
-                PhotoTile(url = null, modifier = Modifier.weight(1f))
-            }
-            AddPhotoTile(modifier = Modifier.weight(1f), onClick = onAddPhotoClick)
+        // Photo grid: 3 tiles per row; the "add photo" tile fills the last free cell.
+        val photoRows = validPhotos.chunked(3).toMutableList()
+        if (photoRows.isEmpty()) photoRows.add(emptyList())
+        val addRowIndex = if (photoRows.last().size < 3) photoRows.size - 1 else {
+            photoRows.add(emptyList())
+            photoRows.size - 1
         }
-        Spacer(modifier = Modifier.height(12.dp))
-        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-            if (validPhotos.size > 3) {
-                PhotoTile(url = validPhotos[3].photo_url, modifier = Modifier.weight(1f), onClick = { selectedFullUrl = validPhotos[3].photo_url })
-                Spacer(modifier = Modifier.weight(2f))
-            } else {
-                Spacer(modifier = Modifier.weight(1f))
+        photoRows.forEachIndexed { rowIndex, rowPhotos ->
+            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                rowPhotos.forEach { photo ->
+                    PhotoTile(
+                        url = photo.photo_url,
+                        modifier = Modifier.weight(1f),
+                        onClick = { selectedFullUrl = photo.photo_url }
+                    )
+                }
+                val addCellCount = if (rowIndex == addRowIndex) 1 else 0
+                if (addCellCount == 1) {
+                    AddPhotoTile(modifier = Modifier.weight(1f), onClick = onAddPhotoClick)
+                }
+                repeat(3 - rowPhotos.size - addCellCount) {
+                    PhotoTile(url = null, modifier = Modifier.weight(1f))
+                }
+            }
+            if (rowIndex != photoRows.lastIndex) {
+                Spacer(modifier = Modifier.height(12.dp))
             }
         }
         Spacer(modifier = Modifier.height(20.dp))

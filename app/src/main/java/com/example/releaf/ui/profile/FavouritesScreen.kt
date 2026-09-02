@@ -164,7 +164,7 @@ private fun FavoritePoiCard(poi: PoiDto, onRemove: () -> Unit, onClick: () -> Un
                 Icon(Icons.Default.Star, contentDescription = null, tint = Color(0xFFFFC107))
                 Spacer(modifier = Modifier.width(4.dp))
                 Text(
-                    String.format("%.1f", poi.rating),
+                    String.format(java.util.Locale.US, "%.1f", poi.rating),
                     style = MaterialTheme.typography.titleSmall,
                     fontWeight = FontWeight.Bold
                 )
@@ -181,7 +181,7 @@ private fun FavoritePoiCard(poi: PoiDto, onRemove: () -> Unit, onClick: () -> Un
 
             Spacer(modifier = Modifier.height(4.dp))
             Text(
-                "%.5f, %.5f".format(poi.latitude, poi.longitude),
+                String.format(java.util.Locale.US, "%.5f, %.5f", poi.latitude, poi.longitude),
                 style = MaterialTheme.typography.labelSmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )

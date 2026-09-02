@@ -2,14 +2,13 @@ package com.example.releaf.ui.map
 
 import android.Manifest
 import android.content.pm.PackageManager
-import android.graphics.Canvas
 import android.graphics.Color
-import android.graphics.Paint
 import android.location.LocationManager
 import android.widget.TextView
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -37,10 +36,22 @@ fun OsmMap(
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
-    var locationOverlay by remember { mutableStateOf<MyLocationNewOverlay?>(null) }
     var hasLocationPermission by remember { mutableStateOf(false) }
     var mapViewRef by remember { mutableStateOf<MapView?>(null) }
     var userLocation by remember { mutableStateOf(GeoPoint(3.1390, 101.6869)) }
+
+    val locationManager = context.getSystemService(android.content.Context.LOCATION_SERVICE) as? LocationManager
+    val registeredListeners = remember { mutableListOf<android.location.LocationListener>() }
+
+    // Never leave location listeners behind when the map leaves composition.
+    DisposableEffect(Unit) {
+        onDispose {
+            registeredListeners.forEach {
+                try { locationManager?.removeUpdates(it) } catch (_: Exception) { }
+            }
+            registeredListeners.clear()
+        }
+    }
 
     val permissionLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.RequestMultiplePermissions()
@@ -58,75 +69,68 @@ fun OsmMap(
         }
     }
 
-    LaunchedEffect(hasLocationPermission) {
-        if (hasLocationPermission && mapViewRef != null) {
-            val map = mapViewRef ?: return@LaunchedEffect
-            val lm = context.getSystemService(android.content.Context.LOCATION_SERVICE) as? LocationManager
-            val mainLooper = android.os.Looper.getMainLooper()
-            val now = System.currentTimeMillis()
-            val freshThreshold = 2 * 60 * 1000L
+    LaunchedEffect(hasLocationPermission, mapViewRef) {
+        if (hasLocationPermission) {
+            val map = mapViewRef
+            if (map != null) {
+                val mainLooper = android.os.Looper.getMainLooper()
+                val now = System.currentTimeMillis()
+                val freshThreshold = 2 * 60 * 1000L
 
-            val listener = object : android.location.LocationListener {
-                override fun onLocationChanged(location: android.location.Location) {
-                    userLocation = GeoPoint(location.latitude, location.longitude)
-                    mapViewRef?.let { centerPlain(it, userLocation) }
-                    try {
-                        lm?.removeUpdates(this)
-                    } catch (_: Exception) { }
+                val listener = object : android.location.LocationListener {
+                    override fun onLocationChanged(location: android.location.Location) {
+                        userLocation = GeoPoint(location.latitude, location.longitude)
+                        mapViewRef?.let { centerPlain(it, userLocation) }
+                        try {
+                            locationManager?.removeUpdates(this)
+                        } catch (_: Exception) { }
+                        registeredListeners.remove(this)
+                    }
+
+                    @Deprecated("Deprecated in Java")
+                    override fun onStatusChanged(provider: String?, status: Int, extras: android.os.Bundle?) {}
+                    override fun onProviderEnabled(provider: String) {}
+                    override fun onProviderDisabled(provider: String) {}
                 }
 
-                @Deprecated("Deprecated in Java")
-                override fun onStatusChanged(provider: String?, status: Int, extras: android.os.Bundle?) {}
-                override fun onProviderEnabled(provider: String) {}
-                override fun onProviderDisabled(provider: String) {}
+                try {
+                    val gps = locationManager?.getLastKnownLocation(LocationManager.GPS_PROVIDER)
+                    val network = locationManager?.getLastKnownLocation(LocationManager.NETWORK_PROVIDER)
+
+                    val fresh = listOfNotNull(gps, network)
+                        .filter { now - it.time < freshThreshold }
+                        .maxByOrNull { it.time }
+
+                    if (fresh != null) {
+                        userLocation = GeoPoint(fresh.latitude, fresh.longitude)
+                        centerPlain(map, userLocation)
+                    } else {
+                        try {
+                            locationManager?.requestLocationUpdates(LocationManager.GPS_PROVIDER, 0L, 0f, listener, mainLooper)
+                            locationManager?.requestLocationUpdates(LocationManager.NETWORK_PROVIDER, 0L, 0f, listener, mainLooper)
+                            registeredListeners.add(listener)
+                        } catch (_: SecurityException) { }
+                    }
+                } catch (_: SecurityException) { }
+                try {
+                    val overlay = MyLocationNewOverlay(GpsMyLocationProvider(context), map)
+                    overlay.enableMyLocation()
+                    map.overlays.add(overlay)
+                } catch (_: Exception) { }
             }
-
-            try {
-                val gps = lm?.getLastKnownLocation(LocationManager.GPS_PROVIDER)
-                val network = lm?.getLastKnownLocation(LocationManager.NETWORK_PROVIDER)
-
-                val fresh = listOfNotNull(gps, network)
-                    .filter { now - it.time < freshThreshold }
-                    .maxByOrNull { it.time }
-
-                if (fresh != null) {
-                    userLocation = GeoPoint(fresh.latitude, fresh.longitude)
-                    centerPlain(map, userLocation)
-                } else {
-                    lm?.requestLocationUpdates(LocationManager.GPS_PROVIDER, 0L, 0f, listener, mainLooper)
-                    lm?.requestLocationUpdates(LocationManager.NETWORK_PROVIDER, 0L, 0f, listener, mainLooper)
-                }
-            } catch (_: SecurityException) { }
-            try {
-                val overlay = MyLocationNewOverlay(GpsMyLocationProvider(context), map)
-                overlay.enableMyLocation()
-                map.overlays.add(overlay)
-                locationOverlay = overlay
-            } catch (_: Exception) { }
         }
     }
 
-    var locationListenerRef by remember { mutableStateOf<android.location.LocationListener?>(null) }
-
-    LaunchedEffect(centerOnLocation) {
-        val lm = context.getSystemService(android.content.Context.LOCATION_SERVICE) as? LocationManager
-        if (!centerOnLocation || !hasLocationPermission) {
-            locationListenerRef?.let {
-                try { lm?.removeUpdates(it) } catch (_: Exception) { }
-            }
-            locationListenerRef = null
+    LaunchedEffect(centerOnLocation, hasLocationPermission, mapViewRef) {
+        if (!centerOnLocation || !hasLocationPermission || mapViewRef == null) {
             return@LaunchedEffect
         }
-
         val mainLooper = android.os.Looper.getMainLooper()
 
         val listener = object : android.location.LocationListener {
             override fun onLocationChanged(location: android.location.Location) {
                 userLocation = GeoPoint(location.latitude, location.longitude)
                 mapViewRef?.let { centerPlain(it, userLocation) }
-                try {
-                    lm?.removeUpdates(this)
-                } catch (_: Exception) { }
             }
 
             @Deprecated("Deprecated in Java")
@@ -134,14 +138,13 @@ fun OsmMap(
             override fun onProviderEnabled(provider: String) {}
             override fun onProviderDisabled(provider: String) {}
         }
-        locationListenerRef = listener
 
         try {
             val now = System.currentTimeMillis()
             val freshThreshold = 2 * 60 * 1000L
 
-            val gps = lm?.getLastKnownLocation(LocationManager.GPS_PROVIDER)
-            val network = lm?.getLastKnownLocation(LocationManager.NETWORK_PROVIDER)
+            val gps = locationManager?.getLastKnownLocation(LocationManager.GPS_PROVIDER)
+            val network = locationManager?.getLastKnownLocation(LocationManager.NETWORK_PROVIDER)
 
             val fresh = listOfNotNull(gps, network)
                 .filter { now - it.time < freshThreshold }
@@ -152,10 +155,15 @@ fun OsmMap(
                 mapViewRef?.let { centerPlain(it, userLocation) }
             }
 
-            lm?.requestLocationUpdates(LocationManager.GPS_PROVIDER, 0L, 0f, listener, mainLooper)
-            lm?.requestLocationUpdates(LocationManager.NETWORK_PROVIDER, 0L, 0f, listener, mainLooper)
+            locationManager?.requestLocationUpdates(LocationManager.GPS_PROVIDER, 0L, 0f, listener, mainLooper)
+            locationManager?.requestLocationUpdates(LocationManager.NETWORK_PROVIDER, 0L, 0f, listener, mainLooper)
+            registeredListeners.add(listener)
         } catch (_: SecurityException) { }
     }
+
+    // Rebuild the marker overlay only when the POI data actually changes, not on
+    // every recomposition (search keystrokes, filter toggles, snackbars, polls).
+    var lastPoisKey by remember { mutableStateOf<String?>(null) }
 
     LaunchedEffect(focusPoint) {
         if (focusPoint != null) {
@@ -192,8 +200,13 @@ fun OsmMap(
         update = { view ->
             if (view is MapView) {
                 try {
-                    view.overlays.removeIf { it is Marker || it is PoiMarkersOverlay }
-                    view.overlays.add(PoiMarkersOverlay(pois, onPoiClick))
+                    val poisKey = pois.joinToString(",") { "${it.id}:${it.is_verified}:${it.cleanliness}:${it.rating}" }
+                    if (poisKey != lastPoisKey) {
+                        lastPoisKey = poisKey
+                        view.overlays.removeIf { it is PoiMarkersOverlay }
+                        view.overlays.add(PoiMarkersOverlay(pois, onPoiClick))
+                        view.invalidate()
+                    }
 
                     val filter = if (isDarkMode) {
                         // Google Maps style Dark Mode Matrix
@@ -206,8 +219,6 @@ fun OsmMap(
                         android.graphics.ColorMatrixColorFilter(matrix)
                     } else null
                     view.overlayManager.tilesOverlay.setColorFilter(filter)
-
-                    view.invalidate()
                 } catch (_: Exception) { }
             }
         }
@@ -221,52 +232,4 @@ private fun centerPlain(mapView: MapView, point: GeoPoint) {
             mapView.controller.setZoom(19.0)
         } catch (_: Exception) { }
     }
-}
-
-private fun createMarkerIcon(category: String, verified: Boolean): android.graphics.drawable.Drawable {
-    val size = 96
-    val bitmap = android.graphics.Bitmap.createBitmap(size, size, android.graphics.Bitmap.Config.ARGB_8888)
-    val canvas = Canvas(bitmap)
-
-    val pinColor = if (category == "TOILET") Color.parseColor("#E53935") else Color.parseColor("#43A047")
-
-    val pinPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply { this.color = pinColor; style = Paint.Style.FILL }
-    canvas.drawCircle(size / 2f, size / 2f - 4f, size / 2.5f, pinPaint)
-
-    val triangle = android.graphics.Path().apply {
-        moveTo(size / 2f - 10f, size / 2f + 8f)
-        lineTo(size / 2f + 10f, size / 2f + 8f)
-        lineTo(size / 2f, size / 2f + 22f)
-        close()
-    }
-    val triPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply { this.color = pinColor; style = Paint.Style.FILL }
-    canvas.drawPath(triangle, triPaint)
-
-    if (category == "TOILET") {
-        val figurePaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-            this.color = Color.WHITE; style = Paint.Style.STROKE; strokeWidth = 2.5f
-        }
-        canvas.drawCircle(size / 2f - 7f, size / 2f - 12f, 6f, figurePaint)
-        canvas.drawCircle(size / 2f + 7f, size / 2f - 12f, 6f, figurePaint)
-        canvas.drawLine(size / 2f - 7f, size / 2f - 6f, size / 2f + 7f, size / 2f - 6f, figurePaint)
-        canvas.drawLine(size / 2f, size / 2f - 18f, size / 2f, size / 2f + 2f, figurePaint)
-    } else {
-        val textPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-            this.color = Color.WHITE; textSize = 24f; textAlign = Paint.Align.CENTER; isFakeBoldText = true
-        }
-        canvas.drawText("TC", size / 2f, size / 2f + 2f, textPaint)
-    }
-
-    if (!verified) {
-        val badgePaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-            this.color = Color.parseColor("#FF9800"); style = Paint.Style.FILL
-        }
-        canvas.drawCircle(size - 14f, 14f, 12f, badgePaint)
-        val exPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-            this.color = Color.WHITE; textSize = 18f; textAlign = Paint.Align.CENTER; isFakeBoldText = true
-        }
-        canvas.drawText("!", size - 14f, 20f, exPaint)
-    }
-
-    return android.graphics.drawable.BitmapDrawable(null, bitmap)
 }

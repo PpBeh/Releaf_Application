@@ -27,3 +27,9 @@ data class ReviewInsertDto(
     val reviewer_name: String = "",
     val photo_url: String? = null
 )
+
+@Serializable
+data class ReviewCountDto(
+    val like_count: Int = 0,
+    val dislike_count: Int = 0
+)

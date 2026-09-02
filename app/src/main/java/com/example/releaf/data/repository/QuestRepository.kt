@@ -45,8 +45,17 @@ class QuestRepository {
     }
 
     suspend fun claimQuest(questId: String, userId: String): UserQuestDto? {
-        updateUserQuest(questId, userId, UserQuestUpdateDto(progress_current = 0, status = "CLAIMED"))
-        return getUserQuests(userId).find { it.quest_id == questId }
+        // Only claim quests that are actually claimable (prevents double-claims).
+        client.postgrest.from("user_quests")
+            .update(UserQuestUpdateDto(progress_current = 0, status = "CLAIMED")) {
+                filter {
+                    eq("quest_id", questId)
+                    eq("user_id", userId)
+                    eq("status", "CLAIMABLE")
+                }
+            }
+        val updated = getUserQuests(userId).find { it.quest_id == questId }
+        return updated?.takeIf { it.status == "CLAIMED" }
     }
 
     suspend fun assignQuestToUser(userId: String, questId: String) {

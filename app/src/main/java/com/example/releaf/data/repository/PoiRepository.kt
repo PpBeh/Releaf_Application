@@ -66,22 +66,24 @@ class PoiRepository {
     }
 
     suspend fun uploadPoiPhoto(poiId: String, userId: String, uri: android.net.Uri, context: android.content.Context): Boolean {
-        return try {
-            val bytes = context.contentResolver.openInputStream(uri)?.use { it.readBytes() } ?: return false
-            val fileName = "${poiId}_${System.currentTimeMillis()}.jpg"
-            client.storage.from("poi-photos").upload(
-                path = fileName,
-                data = bytes
-            ) {
-                upsert = true
+        return kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+            try {
+                val bytes = context.contentResolver.openInputStream(uri)?.use { it.readBytes() } ?: return@withContext false
+                val fileName = "${poiId}_${System.currentTimeMillis()}.jpg"
+                client.storage.from("poi-photos").upload(
+                    path = fileName,
+                    data = bytes
+                ) {
+                    upsert = true
+                }
+                val url = client.storage.from("poi-photos").publicUrl(fileName)
+                client.postgrest.from("poi_photos").insert(
+                    PoiPhotoDto(poi_id = poiId, photo_url = url, uploaded_by = userId)
+                )
+                true
+            } catch (_: Exception) {
+                false
             }
-            val url = client.storage.from("poi-photos").publicUrl(fileName)
-            client.postgrest.from("poi_photos").insert(
-                PoiPhotoDto(poi_id = poiId, photo_url = url, uploaded_by = userId)
-            )
-            true
-        } catch (_: Exception) {
-            false
         }
     }
 
@@ -94,8 +96,8 @@ class PoiRepository {
     suspend fun getReviewCount(poiId: String): Int {
         return try {
             val reviews = client.postgrest.from("reviews")
-                .select { filter { eq("poi_id", poiId) } }
-                .decodeList<com.example.releaf.data.remote.dto.ReviewDto>()
+                .select(io.github.jan.supabase.postgrest.query.Columns.raw("id")) { filter { eq("poi_id", poiId) } }
+                .decodeList<kotlinx.serialization.json.JsonObject>()
             reviews.size
         } catch (_: Exception) {
             0
@@ -135,7 +137,7 @@ class PoiRepository {
     suspend fun getFavoritePois(userId: String): List<PoiDto> {
         return try {
             val favPoiIds = client.postgrest.from("favorites")
-                .select { filter { eq("user_id", userId) } }
+                .select(io.github.jan.supabase.postgrest.query.Columns.raw("poi_id")) { filter { eq("user_id", userId) } }
                 .decodeList<kotlinx.serialization.json.JsonObject>()
                 .mapNotNull { it["poi_id"]?.toString()?.removeSurrounding("\"") }
 
@@ -146,6 +148,14 @@ class PoiRepository {
         } catch (_: Exception) {
             emptyList()
         }
+    }
+
+    suspend fun removeFavorite(poiId: String, userId: String) {
+        try {
+            client.postgrest.from("favorites").delete {
+                filter { eq("poi_id", poiId); eq("user_id", userId) }
+            }
+        } catch (_: Exception) { }
     }
 
     suspend fun verifyPoi(poiId: String, userId: String): VerifyResult {
@@ -160,17 +170,24 @@ class PoiRepository {
                 PoiVerificationDto(poi_id = poiId, user_id = userId, action = "VERIFY")
             )
 
-            kotlinx.coroutines.delay(800)
-
-            val updated = getPoi(poiId)
-            if (updated == null) return VerifyResult.Counted(0)
-            if (updated.is_verified) {
+            // The database trigger updates the counters asynchronously; poll briefly
+            // instead of sleeping a fixed amount and guessing.
+            var updated = getPoi(poiId)
+            repeat(4) {
+                updated = getPoi(poiId)
+                val u = updated
+                if (u != null && u.verification_count > 0) return@repeat
+                kotlinx.coroutines.delay(300)
+            }
+            val poi = updated
+            if (poi == null) return VerifyResult.Error
+            if (poi.is_verified) {
                 VerifyResult.NowVerified
             } else {
-                VerifyResult.Counted(updated.verification_count)
+                VerifyResult.Counted(poi.verification_count)
             }
         } catch (_: Exception) {
-            VerifyResult.Counted(-1)
+            VerifyResult.Error
         }
     }
 
@@ -186,17 +203,26 @@ class PoiRepository {
                 PoiVerificationDto(poi_id = poiId, user_id = userId, action = "REPORT")
             )
 
-            kotlinx.coroutines.delay(800)
+            // The database trigger updates the counters asynchronously; poll briefly.
+            var updated = getPoi(poiId)
+            repeat(4) {
+                updated = getPoi(poiId)
+                val u = updated
+                if (u != null && u.report_count > 0) return@repeat
+                kotlinx.coroutines.delay(300)
+            }
+            val poi = updated ?: return ReportResult.Removed
 
-            val updated = getPoi(poiId)
-            if (updated == null) return ReportResult.Removed
-
-            if (updated.report_count >= 5 && !updated.is_verified && updated.verification_count == 0) {
-                ReportResult.NowUnverified
-            } else if (!updated.is_verified && updated.report_count >= 3) {
+            // Five users say it doesn't exist and nobody has ever verified it -> remove.
+            if (!poi.is_verified && poi.verification_count == 0 && poi.report_count >= 5) {
+                try {
+                    client.postgrest.from("pois").delete { filter { eq("id", poiId) } }
+                } catch (_: Exception) { }
                 ReportResult.Removed
+            } else if (!poi.is_verified && poi.report_count >= 3) {
+                ReportResult.NowUnverified
             } else {
-                ReportResult.Counted(updated.report_count)
+                ReportResult.Counted(poi.report_count)
             }
         } catch (_: Exception) {
             ReportResult.Error
@@ -216,12 +242,26 @@ class PoiRepository {
             .decodeList<PoiVerificationDto>()
         return result.isNotEmpty()
     }
+
+    suspend fun countUserVerifications(userId: String): Int {
+        return try {
+            client.postgrest.from("poi_verifications")
+                .select(io.github.jan.supabase.postgrest.query.Columns.raw("id")) {
+                    filter { eq("user_id", userId); eq("action", "VERIFY") }
+                }
+                .decodeList<kotlinx.serialization.json.JsonObject>()
+                .size
+        } catch (_: Exception) {
+            0
+        }
+    }
 }
 
 sealed class VerifyResult {
     data object AlreadyVerified : VerifyResult()
     data object NowVerified : VerifyResult()
     data class Counted(val count: Int) : VerifyResult()
+    data object Error : VerifyResult()
 }
 
 sealed class ReportResult {

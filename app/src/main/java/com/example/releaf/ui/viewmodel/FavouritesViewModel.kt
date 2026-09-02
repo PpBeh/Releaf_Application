@@ -26,7 +26,9 @@ class FavouritesViewModel : ViewModel() {
     fun removeFavorite(poiId: String, userId: String) {
         viewModelScope.launch {
             try {
-                repository.toggleFavorite(poiId, userId)
+                // Optimistically remove so a double-tap cannot re-add the item.
+                _favorites.value = _favorites.value.filterNot { it.id == poiId }
+                repository.removeFavorite(poiId, userId)
                 _favorites.value = repository.getFavoritePois(userId)
             } catch (_: Exception) { }
         }

@@ -57,6 +57,7 @@ fun RewardsScreen(
     val userRewards by viewModel.userRewards.collectAsState()
     val userPoints by viewModel.userPoints.collectAsState()
     val userGems by viewModel.userGems.collectAsState()
+    val walletPoints by viewModel.walletPoints.collectAsState()
     val gardenSlots by viewModel.gardenSlots.collectAsState()
     val claimStatus by viewModel.claimStatus.collectAsState()
 
@@ -196,7 +197,7 @@ fun RewardsScreen(
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 frames.forEach { (frameName, price, icon) ->
                     val (gemPrice, pointPrice) = price
-                    val canAfford = userGems >= gemPrice && userPoints >= pointPrice
+                    val canAfford = userGems >= gemPrice && walletPoints >= pointPrice
                     Card(shape = RoundedCornerShape(12.dp), modifier = Modifier.fillMaxWidth()) {
                         Row(modifier = Modifier.padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
                             Text(icon, fontSize = 24.sp, modifier = Modifier.padding(end = 12.dp))

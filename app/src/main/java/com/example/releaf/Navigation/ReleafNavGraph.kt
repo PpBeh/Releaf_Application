@@ -33,7 +33,6 @@ import com.example.releaf.ui.auth.SetNewPasswordScreen
 import com.example.releaf.ui.auth.VerificationScreen
 import com.example.releaf.ui.garden.GardenPlotScreen
 import com.example.releaf.ui.map.CommentScreen
-import com.example.releaf.ui.map.DirectionScreen
 import com.example.releaf.ui.map.MapScreen
 import com.example.releaf.ui.profile.FavouritesScreen
 import com.example.releaf.ui.profile.ProfileScreen
@@ -138,10 +137,15 @@ fun ReleafNavGraph(
                         popUpTo(Screen.Login.route) { inclusive = false }
                         launchSingleTop = true
                     }
-                }
+                },
+                onClearError = { authViewModel.clearResetState() }
             )
         }
         composable(Screen.SetNewPassword.route) {
+            androidx.activity.compose.BackHandler {
+                authViewModel.clearAuthSuccess()
+                navController.logout()
+            }
             SetNewPasswordScreen(
                 isLoading = authUiState.isLoading,
                 error = authUiState.error,
@@ -149,7 +153,8 @@ fun ReleafNavGraph(
                     authViewModel.updatePassword(password) {
                         navController.logout()
                     }
-                }
+                },
+                onClearError = { authViewModel.clearError() }
             )
         }
         composable(Screen.Register.route) {
@@ -159,8 +164,11 @@ fun ReleafNavGraph(
                     launchSingleTop = true
                 }
             }
-            LaunchedEffect(authUiState.isRegistrationSuccess) {
-                if (authUiState.isRegistrationSuccess) {
+            LaunchedEffect(authUiState.isRegistrationSuccess, authUiState.isLoginSuccess) {
+                if (authUiState.isLoginSuccess) {
+                    authViewModel.clearAuthSuccess()
+                    navController.enterAppAfterAuth()
+                } else if (authUiState.isRegistrationSuccess) {
                     authViewModel.clearAuthSuccess()
                     navController.navigate(Screen.Verify.createRoute(authUiState.registeredEmail))
                 }
@@ -202,8 +210,8 @@ fun ReleafNavGraph(
                 isLoading = authUiState.isLoading,
                 error = authUiState.error,
                 successMessage = authUiState.resendMessage,
-                onVerifyClick = { code ->
-                    authViewModel.verifyEmail(email, code)
+                onVerifyClick = {
+                    authViewModel.verifyEmail(email)
                 },
                 onResendClick = {
                     authViewModel.resendVerification(email)
@@ -269,27 +277,10 @@ fun ReleafNavGraph(
             MapScreen(
                 viewModel = mapViewModel,
                 notificationsViewModel = notificationsViewModel,
-                onDirectionClick = { poiId ->
-                    navController.navigate(
-                        Screen.Direction.createRoute(
-                            poiId
-                        )
-                    )
-                },
                 onCommentClick = { poiId -> navController.navigate(Screen.Comment.createRoute(poiId)) },
                 currentUserId = (session as? SessionState.LoggedIn)?.userId ?: "",
                 isDarkMode = isDarkMode,
                 themeViewModel = themeViewModel
-            )
-        }
-        composable(
-            route = Screen.Direction.route,
-            arguments = listOf(navArgument("poiId") { type = NavType.StringType })
-        ) { backStackEntry ->
-            val poiId = backStackEntry.arguments?.getString("poiId").orEmpty()
-            DirectionScreen(
-                poiId = poiId,
-                onBackClick = { navController.popBackStack() }
             )
         }
         composable(
@@ -385,12 +376,13 @@ fun ReleafNavGraph(
 
 fun NavHostController.navigateToGardenSection(toPlot: Boolean) {
     val current = currentBackStackEntry?.destination?.route
-    val target = if (toPlot) Screen.GardenPlot.route else Screen.Garden.route
+    val target = if (toPlot) Screen.GardenPlot.createRoute() else Screen.Garden.createRoute()
     val inGardenSection = current == Screen.Garden.route || current == Screen.GardenPlot.route
-
     navigate(target) {
-        if (inGardenSection && current != null) {
-            popUpTo(current) { inclusive = true }
+        if (inGardenSection) {
+            current?.let { route ->
+                popUpTo(route) { inclusive = true }
+            }
         }
         launchSingleTop = true
     }

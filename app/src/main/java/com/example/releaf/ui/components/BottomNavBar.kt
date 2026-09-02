@@ -72,8 +72,8 @@ fun BottomNavBar(navController: NavHostController, themeViewModel: ThemeViewMode
                         launchSingleTop = true
                     }
                 },
-                icon = { Icon(Icons.Default.EmojiEvents, contentDescription = "Rewards") },
-                label = { Text("Rewards") }
+                icon = { Icon(Icons.Default.EmojiEvents, contentDescription = string("rewards", themeViewModel)) },
+                label = { Text(string("rewards", themeViewModel)) }
             )
             // Profile
             NavigationBarItem(

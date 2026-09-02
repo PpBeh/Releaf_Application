@@ -51,6 +51,8 @@ fun ActivityScreen(
 ) {
     val context = LocalContext.current
     val userQuests by viewModel.userQuests.collectAsState()
+    val isLoading by viewModel.isLoading.collectAsState()
+    val errorMessage by viewModel.errorMessage.collectAsState()
 
     val gardenViewModel: com.example.releaf.ui.viewmodel.GardenViewModel = androidx.lifecycle.viewmodel.compose.viewModel()
     val currentExp by gardenViewModel.currentExp.collectAsState()
@@ -125,33 +127,74 @@ fun ActivityScreen(
                 )
             }
         }
-        if (userQuests.isEmpty()) {
-            Box(
-                modifier = Modifier.fillMaxSize(),
-                contentAlignment = Alignment.Center
-            ) {
-                Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    androidx.compose.material3.CircularProgressIndicator()
-                    Spacer(modifier = Modifier.height(16.dp))
-                    Text("Loading daily quests...", style = MaterialTheme.typography.bodyLarge)
+        when {
+            isLoading && userQuests.isEmpty() -> {
+                Box(
+                    modifier = Modifier.fillMaxSize(),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        androidx.compose.material3.CircularProgressIndicator()
+                        Spacer(modifier = Modifier.height(16.dp))
+                        Text("Loading daily quests...", style = MaterialTheme.typography.bodyLarge)
+                    }
                 }
             }
-        } else {
-            LazyColumn(
-                contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
-                verticalArrangement = Arrangement.spacedBy(16.dp)
-            ) {
-                items(userQuests) { userQuest ->
-                    QuestCard(
-                        userQuest = userQuest,
-                        themeViewModel = themeViewModel,
-                        onActionClick = {
-                            when (userQuest.status) {
-                                "CLAIMABLE" -> viewModel.claimQuest(userQuest.quest_id, userId)
-                                "IN_PROGRESS" -> { }
-                            }
+            errorMessage != null && userQuests.isEmpty() -> {
+                Box(
+                    modifier = Modifier.fillMaxSize(),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        Text(
+                            errorMessage ?: "",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.error
+                        )
+                        Spacer(modifier = Modifier.height(12.dp))
+                        Button(onClick = {
+                            viewModel.loadQuests(userId)
+                            gardenViewModel.loadGarden(userId, context)
+                        }) {
+                            Text("Retry")
                         }
-                    )
+                    }
+                }
+            }
+            userQuests.isEmpty() -> {
+                Box(
+                    modifier = Modifier.fillMaxSize(),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        Text("No quests available right now.", style = MaterialTheme.typography.bodyLarge)
+                        Spacer(modifier = Modifier.height(12.dp))
+                        Button(onClick = {
+                            viewModel.loadQuests(userId)
+                            gardenViewModel.loadGarden(userId, context)
+                        }) {
+                            Text("Refresh")
+                        }
+                    }
+                }
+            }
+            else -> {
+                LazyColumn(
+                    contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
+                    verticalArrangement = Arrangement.spacedBy(16.dp)
+                ) {
+                    items(userQuests) { userQuest ->
+                        QuestCard(
+                            userQuest = userQuest,
+                            themeViewModel = themeViewModel,
+                            onActionClick = {
+                                when (userQuest.status) {
+                                    "CLAIMABLE" -> viewModel.claimQuest(userQuest.quest_id, userId)
+                                    "IN_PROGRESS" -> { }
+                                }
+                            }
+                        )
+                    }
                 }
             }
         }

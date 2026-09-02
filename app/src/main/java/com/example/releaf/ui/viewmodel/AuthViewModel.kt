@@ -4,6 +4,8 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.releaf.data.remote.DeepLinkHolder
 import com.example.releaf.data.repository.AuthRepository
+import com.example.releaf.data.repository.EmailAlreadyRegisteredException
+import com.example.releaf.data.repository.RegisterResult
 import com.example.releaf.data.repository.SessionState
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -56,9 +58,7 @@ class AuthViewModel : ViewModel() {
     }
 
     private suspend fun handleDeepLinkTokens() {
-        val token = DeepLinkHolder.accessToken
-        val refresh = DeepLinkHolder.refreshToken
-        val type = DeepLinkHolder.type
+        val (token, refresh, type) = DeepLinkHolder.consumeTokens()
         if (token != null && refresh != null) {
             val imported = repository.importSession(token, refresh)
             if (imported) {
@@ -71,12 +71,12 @@ class AuthViewModel : ViewModel() {
                     repository.completeProfileSetup(userId, name)
                     _registeredName.value = null
                     DeepLinkHolder.pendingName = null
+                    DeepLinkHolder.pendingEmail = null
                     _session.value = SessionState.LoggedIn(userId)
                 } else {
                     _session.value = SessionState.LoggedIn(userId)
                 }
             }
-            DeepLinkHolder.clear()
         }
     }
 
@@ -84,7 +84,10 @@ class AuthViewModel : ViewModel() {
         viewModelScope.launch {
             try {
                 repository.updatePassword(newPassword)
+                repository.logout()
                 _needsPasswordReset.value = false
+                _session.value = SessionState.LoggedOut
+                _uiState.value = AuthUiState()
                 onDone()
             } catch (e: Exception) {
                 _uiState.value = AuthUiState(error = e.message ?: "Failed to update password")
@@ -101,12 +104,7 @@ class AuthViewModel : ViewModel() {
             val result = repository.login(email, password)
             result.fold(
                 onSuccess = { userId ->
-                    val pendingName = _registeredName.value
-                    if (pendingName != null) {
-                        repository.completeProfileSetup(userId, pendingName)
-                        _registeredName.value = null
-                    }
-
+                    _registeredName.value = null
                     _uiState.value = AuthUiState(isLoginSuccess = true)
                     _session.value = SessionState.LoggedIn(userId)
                 },
@@ -127,34 +125,49 @@ class AuthViewModel : ViewModel() {
 
             val result = repository.register(name, email, password)
             result.fold(
-                onSuccess = {
-                    _uiState.value = AuthUiState(isRegistrationSuccess = true, registeredEmail = email)
+                onSuccess = { registerResult ->
+                    when (registerResult) {
+                        is RegisterResult.VerificationPending -> {
+                            _registeredPassword.value = null
+                            _uiState.value = AuthUiState(isRegistrationSuccess = true, registeredEmail = email)
+                        }
+                        is RegisterResult.AccountReady -> {
+                            _registeredPassword.value = null
+                            _registeredName.value = null
+                            _uiState.value = AuthUiState(isLoginSuccess = true)
+                            _session.value = SessionState.LoggedIn(registerResult.userId)
+                        }
+                    }
                 },
                 onFailure = { error ->
-                    _uiState.value = AuthUiState(error = error.message ?: "Registration failed")
+                    _registeredPassword.value = null
+                    val message = if (error is EmailAlreadyRegisteredException) {
+                        error.message ?: "This email is already registered. Please log in instead."
+                    } else {
+                        error.message ?: "Registration failed. Please check your internet connection and try again."
+                    }
+                    _uiState.value = AuthUiState(error = message)
                 }
             )
         }
     }
 
-    fun verifyEmail(email: String, code: String) {
+    fun verifyEmail(email: String) {
         viewModelScope.launch {
             _uiState.value = AuthUiState(isLoading = true)
             val password = _registeredPassword.value ?: ""
-            val name = _registeredName.value ?: "User"
 
             val result = repository.login(email, password)
             result.fold(
                 onSuccess = { userId ->
-                    repository.completeProfileSetup(userId, name)
-
                     _session.value = SessionState.LoggedIn(userId)
                     _registeredPassword.value = null
                     _registeredName.value = null
                     _uiState.value = AuthUiState(isLoginSuccess = true)
                 },
                 onFailure = { error ->
-                    _uiState.value = AuthUiState(error = "Email not verified yet. Check your inbox, click the confirmation link, then tap Continue.")
+                    val message = error.message ?: "Email not verified yet. Check your inbox, click the confirmation link, then tap Continue."
+                    _uiState.value = AuthUiState(error = message)
                 }
             )
         }
@@ -178,6 +191,10 @@ class AuthViewModel : ViewModel() {
     fun logout() {
         viewModelScope.launch {
             repository.logout()
+            _registeredPassword.value = null
+            _registeredName.value = null
+            DeepLinkHolder.pendingName = null
+            DeepLinkHolder.pendingEmail = null
             _session.value = SessionState.LoggedOut
             _uiState.value = AuthUiState()
         }

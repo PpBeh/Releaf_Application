@@ -98,10 +98,20 @@ fun GardenPlotScreen(
         List(6) { i -> PlantSlotDto(user_id = userId, slot_index = i + 1, state = "EMPTY_POT") }
     }
 
+    val hasPlantedPlant = slots.any { com.example.releaf.model.isPlantedState(it.state) }
+
+    // Auto-dismiss transient status banners
+    LaunchedEffect(statusMessage) {
+        if (!statusMessage.isNullOrBlank()) {
+            kotlinx.coroutines.delay(4000)
+            viewModel.clearStatusMessage()
+        }
+    }
+
     if (selectedSlotForDetails != null) {
         val slot = selectedSlotForDetails!!
         val seedInfo = SeedData.getSeedForSlot(slot.slot_index)
-        val isPlanted = slot.state != "EMPTY_POT"
+        val isPlanted = com.example.releaf.model.isPlantedState(slot.state)
 
         Dialog(onDismissRequest = { selectedSlotForDetails = null }) {
             Surface(
@@ -293,7 +303,7 @@ fun GardenPlotScreen(
                             onClick = {
                                 viewModel.waterPlant(userId, context)
                             },
-                            enabled = waterUsesLeft > 0,
+                            enabled = waterUsesLeft > 0 && hasPlantedPlant,
                             modifier = Modifier.weight(1f),
                             shape = RoundedCornerShape(16.dp),
                             colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF2196F3))
@@ -305,7 +315,7 @@ fun GardenPlotScreen(
                             onClick = {
                                 viewModel.fertilizePlant(userId, context)
                             },
-                            enabled = fertilizeUsesLeft > 0,
+                            enabled = fertilizeUsesLeft > 0 && hasPlantedPlant,
                             modifier = Modifier.weight(1f),
                             shape = RoundedCornerShape(16.dp),
                             colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF4CAF50))
@@ -414,12 +424,12 @@ fun GardenPlotScreen(
                 ElevatedCard(
                     modifier = Modifier
                         .weight(1f)
-                        .clickable(enabled = waterUsesLeft > 0) {
+                        .clickable(enabled = waterUsesLeft > 0 && hasPlantedPlant) {
                             viewModel.waterPlant(userId, context)
                         },
                     shape = RoundedCornerShape(16.dp),
                     colors = CardDefaults.cardColors(
-                        containerColor = if (waterUsesLeft > 0) Color(0xFFE3F2FD) else MaterialTheme.colorScheme.surfaceVariant
+                        containerColor = if (waterUsesLeft > 0 && hasPlantedPlant) Color(0xFFE3F2FD) else MaterialTheme.colorScheme.surfaceVariant
                     )
                 ) {
                     Row(
@@ -434,7 +444,7 @@ fun GardenPlotScreen(
                                 "Water Plant",
                                 style = MaterialTheme.typography.labelMedium,
                                 fontWeight = FontWeight.Bold,
-                                color = if (waterUsesLeft > 0) Color(0xFF1565C0) else Color.Gray
+                                color = if (waterUsesLeft > 0 && hasPlantedPlant) Color(0xFF1565C0) else Color.Gray
                             )
                             Text(
                                 "Uses: $waterUsesLeft left",
@@ -448,12 +458,12 @@ fun GardenPlotScreen(
                 ElevatedCard(
                     modifier = Modifier
                         .weight(1f)
-                        .clickable(enabled = fertilizeUsesLeft > 0) {
+                        .clickable(enabled = fertilizeUsesLeft > 0 && hasPlantedPlant) {
                             viewModel.fertilizePlant(userId, context)
                         },
                     shape = RoundedCornerShape(16.dp),
                     colors = CardDefaults.cardColors(
-                        containerColor = if (fertilizeUsesLeft > 0) Color(0xFFE8F5E9) else MaterialTheme.colorScheme.surfaceVariant
+                        containerColor = if (fertilizeUsesLeft > 0 && hasPlantedPlant) Color(0xFFE8F5E9) else MaterialTheme.colorScheme.surfaceVariant
                     )
                 ) {
                     Row(
@@ -468,7 +478,7 @@ fun GardenPlotScreen(
                                 "Fertilize",
                                 style = MaterialTheme.typography.labelMedium,
                                 fontWeight = FontWeight.Bold,
-                                color = if (fertilizeUsesLeft > 0) Color(0xFF2E7D32) else Color.Gray
+                                color = if (fertilizeUsesLeft > 0 && hasPlantedPlant) Color(0xFF2E7D32) else Color.Gray
                             )
                             Text(
                                 "Uses: $fertilizeUsesLeft left",
@@ -507,7 +517,7 @@ private fun PlantPotTileWithPersonality(
     onClick: () -> Unit
 ) {
     val seedInfo = SeedData.getSeedForSlot(slot.slot_index)
-    val isPlanted = slot.state != "EMPTY_POT"
+    val isPlanted = com.example.releaf.model.isPlantedState(slot.state)
 
     val imageRes = if (isPlanted) {
         when (slot.slot_index) {

@@ -31,7 +31,7 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         Configuration.getInstance().apply {
-            userAgentValue = "ReleafToiletFinder/1.0"
+            userAgentValue = "Releaf/1.0"
             osmdroidBasePath = filesDir
             osmdroidTileCache = filesDir.resolve("tiles").also {
                 it.mkdirs()
@@ -52,37 +52,36 @@ class MainActivity : ComponentActivity() {
         super.onNewIntent(intent)
         setIntent(intent)
         handleDeepLink(intent)
-        // Re-check AuthViewModel deep link (e.g., login-callback arriving while app is alive)
+        // Deep link arriving while the app is already running
         authViewModel.handleDeepLink()
     }
 
     private fun handleDeepLink(intent: Intent?) {
         val data = intent?.data ?: return
         if (data.scheme == "releaf" && data.host == "login-callback") {
-            val fragment = data.encodedFragment ?: ""
-            val query = data.encodedQuery ?: ""
-            // Support both fragment (#access_token=...) and query (?access_token=...)
-            val combined = if (fragment.isNotBlank()) fragment else query
-            // Also check raw query params as fallback
-            val paramsFromUri = mutableMapOf<String, String>()
-            if (combined.isNotBlank()) {
-                combined.split("&").forEach { part ->
+            // Support both fragment (#access_token=...) and query (?access_token=...) forms
+            val params = mutableMapOf<String, String>()
+            listOfNotNull(data.encodedFragment, data.encodedQuery).forEach { raw ->
+                raw.split("&").forEach { part ->
                     val kv = part.split("=", limit = 2)
-                    if (kv.size == 2) paramsFromUri[kv[0]] = kv[1]
+                    if (kv.size == 2 && params[kv[0]] == null) {
+                        params[kv[0]] = android.net.Uri.decode(kv[1])
+                    }
                 }
             }
-            // Fallback to Uri getQueryParameter
-            if (paramsFromUri["access_token"] == null) {
-                data.getQueryParameter("access_token")?.let { paramsFromUri["access_token"] = it }
-                data.getQueryParameter("refresh_token")?.let { paramsFromUri["refresh_token"] = it }
-                data.getQueryParameter("type")?.let { paramsFromUri["type"] = it }
+            // Raw query params as fallback
+            if (params["access_token"] == null) {
+                data.getQueryParameter("access_token")?.let { params["access_token"] = android.net.Uri.decode(it) }
+                data.getQueryParameter("refresh_token")?.let { params["refresh_token"] = android.net.Uri.decode(it) }
+                data.getQueryParameter("type")?.let { params["type"] = android.net.Uri.decode(it) }
             }
-            // Fragment params may also be accessible via data.fragment? fallback already handled
-            DeepLinkHolder.accessToken = paramsFromUri["access_token"]?.let { android.net.Uri.decode(it) }
-            DeepLinkHolder.refreshToken = paramsFromUri["refresh_token"]?.let { android.net.Uri.decode(it) }
-            DeepLinkHolder.type = paramsFromUri["type"]?.let { android.net.Uri.decode(it) } ?: data.getQueryParameter("type")
-            // Notify AuthViewModel if already initialized (cold start will be handled in init)
-            try { authViewModel.handleDeepLink() } catch (_: Exception) { }
+            if (params["access_token"] != null && params["refresh_token"] != null) {
+                DeepLinkHolder.setTokens(
+                    params.getValue("access_token"),
+                    params.getValue("refresh_token"),
+                    params["type"]
+                )
+            }
         } else if (data.scheme == "releaf" && data.host == "poi") {
             val poiId = data.pathSegments.firstOrNull() ?: data.lastPathSegment ?: ""
             if (poiId.isNotBlank()) {
@@ -106,16 +105,14 @@ fun ReleafApp(themeViewModel: ThemeViewModel) {
     val currentRoute = navBackStackEntry?.destination?.route
 
     val isChecking by authViewModel.isCheckingSession.collectAsState()
+    val session by authViewModel.session.collectAsState()
     val pendingPoiId by DeepLinkHolder.pendingPoiIdFlow.collectAsState()
 
-    androidx.compose.runtime.LaunchedEffect(pendingPoiId, isChecking) {
-        if (!isChecking && pendingPoiId != null) {
-            val session = authViewModel.session.value
-            if (session is com.example.releaf.data.repository.SessionState.LoggedIn) {
-                if (currentRoute != Screen.Map.route) {
-                    navController.navigate(Screen.Map.route) {
-                        launchSingleTop = true
-                    }
+    androidx.compose.runtime.LaunchedEffect(pendingPoiId, isChecking, session) {
+        if (!isChecking && pendingPoiId != null && session is com.example.releaf.data.repository.SessionState.LoggedIn) {
+            if (currentRoute != Screen.Map.route) {
+                navController.navigate(Screen.Map.route) {
+                    launchSingleTop = true
                 }
             }
         }

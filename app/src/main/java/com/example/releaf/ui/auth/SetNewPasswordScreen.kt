@@ -38,12 +38,14 @@ import androidx.compose.ui.unit.dp
 fun SetNewPasswordScreen(
     isLoading: Boolean,
     error: String?,
-    onSubmit: (password: String) -> Unit
+    onSubmit: (password: String) -> Unit,
+    onClearError: () -> Unit
 ) {
     var password by remember { mutableStateOf("") }
     var confirmPassword by remember { mutableStateOf("") }
     var passwordVisible by remember { mutableStateOf(false) }
 
+    val passwordError = if (password.isNotEmpty() && password.length < 6) "Password must be at least 6 characters" else null
     val valid = password.length >= 6 && password == confirmPassword
 
     Column(
@@ -76,9 +78,14 @@ fun SetNewPasswordScreen(
 
         OutlinedTextField(
             value = password,
-            onValueChange = { password = it },
+            onValueChange = {
+                password = it
+                if (error != null) onClearError()
+            },
             label = { Text("New password") },
             singleLine = true,
+            isError = passwordError != null,
+            supportingText = passwordError?.let { { Text(it, color = MaterialTheme.colorScheme.error) } },
             visualTransformation = if (passwordVisible) VisualTransformation.None else PasswordVisualTransformation(),
             trailingIcon = {
                 IconButton(onClick = { passwordVisible = !passwordVisible }) {
@@ -95,13 +102,16 @@ fun SetNewPasswordScreen(
 
         OutlinedTextField(
             value = confirmPassword,
-            onValueChange = { confirmPassword = it },
+            onValueChange = {
+                confirmPassword = it
+                if (error != null) onClearError()
+            },
             label = { Text("Confirm new password") },
             singleLine = true,
             isError = confirmPassword.isNotEmpty() && confirmPassword != password,
             supportingText = {
                 if (confirmPassword.isNotEmpty() && confirmPassword != password) {
-                    Text("Passwords do not match")
+                    Text("Passwords do not match", color = MaterialTheme.colorScheme.error)
                 }
             },
             visualTransformation = PasswordVisualTransformation(),

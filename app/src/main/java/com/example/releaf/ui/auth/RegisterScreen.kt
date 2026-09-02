@@ -132,7 +132,6 @@ fun RegisterScreen(
                 password = it
                 passwordError = when {
                     it.isNotEmpty() && it.length < 6 -> "Password must be at least 6 characters"
-                    it.isNotEmpty() && confirmPassword.isNotEmpty() && it != confirmPassword -> "Passwords do not match"
                     else -> null
                 }
                 if (error != null) onClearError()
@@ -159,15 +158,17 @@ fun RegisterScreen(
             value = confirmPassword,
             onValueChange = {
                 confirmPassword = it
-                passwordError = if (it.isNotEmpty() && it != password) "Passwords do not match" else if (password.isNotEmpty() && password.length < 6) "Password must be at least 6 characters" else null
                 if (error != null) onClearError()
             },
             label = { Text("Confirm password") },
             singleLine = true,
             isError = confirmPassword.isNotEmpty() && confirmPassword != password,
             supportingText = {
-                if (confirmPassword.isNotEmpty() && confirmPassword != password) {
-                    Text("Passwords do not match", color = MaterialTheme.colorScheme.error)
+                when {
+                    confirmPassword.isNotEmpty() && confirmPassword != password ->
+                        Text("Passwords do not match", color = MaterialTheme.colorScheme.error)
+                    confirmPassword.isNotEmpty() && password.length < 6 ->
+                        Text("Password must be at least 6 characters", color = MaterialTheme.colorScheme.error)
                 }
             },
             visualTransformation = PasswordVisualTransformation(),

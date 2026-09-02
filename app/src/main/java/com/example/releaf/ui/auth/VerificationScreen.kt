@@ -42,14 +42,15 @@ fun VerificationScreen(
     isLoading: Boolean,
     error: String?,
     successMessage: String? = null,
-    onVerifyClick: (code: String) -> Unit,
+    onVerifyClick: () -> Unit,
     onResendClick: () -> Unit,
     onBackClick: () -> Unit
 ) {
+    val green = Color(0xFF2E7D32)
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(Color(0xFFF1F8E9))
+            .background(MaterialTheme.colorScheme.background)
     ) {
         Column(
             modifier = Modifier
@@ -66,7 +67,7 @@ fun VerificationScreen(
                     Icon(
                         Icons.AutoMirrored.Filled.ArrowBack,
                         contentDescription = "Back",
-                        tint = Color(0xFF2E7D32)
+                        tint = green
                     )
                 }
                 Spacer(modifier = Modifier.weight(1f))
@@ -85,7 +86,7 @@ fun VerificationScreen(
                 "Verify your email",
                 style = MaterialTheme.typography.headlineMedium,
                 fontWeight = FontWeight.Bold,
-                color = Color(0xFF1B5E20)
+                color = MaterialTheme.colorScheme.onBackground
             )
 
             Spacer(modifier = Modifier.height(8.dp))
@@ -94,21 +95,21 @@ fun VerificationScreen(
                 "We sent a verification link to",
                 style = MaterialTheme.typography.bodyMedium,
                 textAlign = TextAlign.Center,
-                color = Color(0xFF4E5D4E)
+                color = MaterialTheme.colorScheme.onSurfaceVariant
             )
 
             Spacer(modifier = Modifier.height(6.dp))
 
             Box(
                 modifier = Modifier
-                    .background(Color(0xFFDCEDC8), RoundedCornerShape(50))
+                    .background(green.copy(alpha = 0.12f), RoundedCornerShape(50))
                     .padding(horizontal = 20.dp, vertical = 10.dp)
             ) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Icon(
                         Icons.Default.Email,
                         contentDescription = null,
-                        tint = Color(0xFF2E7D32),
+                        tint = green,
                         modifier = Modifier.size(18.dp)
                     )
                     Spacer(modifier = Modifier.size(8.dp))
@@ -116,7 +117,7 @@ fun VerificationScreen(
                         email,
                         style = MaterialTheme.typography.bodyMedium,
                         fontWeight = FontWeight.Bold,
-                        color = Color(0xFF1B5E20)
+                        color = MaterialTheme.colorScheme.onBackground
                     )
                 }
             }
@@ -126,7 +127,7 @@ fun VerificationScreen(
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .background(Color.White, RoundedCornerShape(20.dp))
+                    .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f), RoundedCornerShape(20.dp))
                     .padding(20.dp),
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
@@ -134,7 +135,7 @@ fun VerificationScreen(
                     Icon(
                         Icons.Default.MarkEmailRead,
                         contentDescription = null,
-                        tint = Color(0xFF2E7D32),
+                        tint = green,
                         modifier = Modifier.size(22.dp)
                     )
                     Spacer(modifier = Modifier.size(12.dp))
@@ -151,7 +152,7 @@ fun VerificationScreen(
                     Icon(
                         Icons.Default.CheckCircle,
                         contentDescription = null,
-                        tint = Color(0xFF2E7D32),
+                        tint = green,
                         modifier = Modifier.size(22.dp)
                     )
                     Spacer(modifier = Modifier.size(12.dp))
@@ -176,20 +177,20 @@ fun VerificationScreen(
                 Spacer(modifier = Modifier.height(14.dp))
                 Box(
                     modifier = Modifier
-                        .background(Color(0xFFE8F5E9), RoundedCornerShape(12.dp))
+                        .background(green.copy(alpha = 0.12f), RoundedCornerShape(12.dp))
                         .padding(horizontal = 16.dp, vertical = 10.dp)
                 ) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Icon(
                             Icons.Default.CheckCircle,
                             contentDescription = null,
-                            tint = Color(0xFF2E7D32),
+                            tint = green,
                             modifier = Modifier.size(18.dp)
                         )
                         Spacer(modifier = Modifier.size(8.dp))
                         Text(
                             successMessage,
-                            color = Color(0xFF2E7D32),
+                            color = green,
                             style = MaterialTheme.typography.bodySmall,
                             textAlign = TextAlign.Center,
                             fontWeight = FontWeight.Medium
@@ -201,10 +202,10 @@ fun VerificationScreen(
             Spacer(modifier = Modifier.height(28.dp))
 
             Button(
-                onClick = { onVerifyClick("") },
+                onClick = { onVerifyClick() },
                 enabled = !isLoading,
                 colors = ButtonDefaults.buttonColors(
-                    containerColor = Color(0xFF2E7D32),
+                    containerColor = green,
                     contentColor = Color.White
                 ),
                 modifier = Modifier
@@ -230,7 +231,7 @@ fun VerificationScreen(
             ) {
                 Text(
                     "Resend verification email",
-                    color = Color(0xFF2E7D32),
+                    color = green,
                     fontWeight = FontWeight.Medium
                 )
             }

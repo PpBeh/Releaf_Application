@@ -22,10 +22,6 @@ sealed class Screen(val route: String) {
     data object Activity : Screen("activity")
     data object Map : Screen("map")
 
-    data object Direction : Screen("direction/{poiId}") {
-        fun createRoute(poiId: String) = "direction/$poiId"
-    }
-
     data object Comment : Screen("comment/{poiId}") {
         fun createRoute(poiId: String) = "comment/$poiId"
     }

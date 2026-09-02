@@ -7,10 +7,12 @@ import com.example.releaf.data.remote.dto.ReviewInsertDto
 import com.example.releaf.data.repository.ReviewRepository
 import com.example.releaf.data.repository.VoteResult
 import io.github.jan.supabase.storage.storage
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 class CommentViewModel : ViewModel() {
     private val repository = ReviewRepository()
@@ -70,6 +72,7 @@ class CommentViewModel : ViewModel() {
     ) {
         viewModelScope.launch {
             _isProcessing.value = true
+            var success = false
             try {
                 val existingReviews = try {
                     repository.getReviews(poiId)
@@ -90,10 +93,12 @@ class CommentViewModel : ViewModel() {
                 var uploadedPhotoUrl: String? = null
                 if (photoUri != null && context != null) {
                     try {
-                        val bytes = try {
-                            context.contentResolver.openInputStream(photoUri)?.use { it.readBytes() }
-                        } catch (_: Exception) {
-                            try { java.io.File(photoUri.path ?: "").readBytes().takeIf { it.isNotEmpty() } } catch (_: Exception) { null }
+                        val bytes = withContext(kotlinx.coroutines.Dispatchers.IO) {
+                            try {
+                                context.contentResolver.openInputStream(photoUri)?.use { it.readBytes() }
+                            } catch (_: Exception) {
+                                try { java.io.File(photoUri.path ?: "").readBytes().takeIf { it.isNotEmpty() } } catch (_: Exception) { null }
+                            }
                         }
                         if (bytes != null && bytes.isNotEmpty()) {
                             val fileName = "review_${userId}_${System.currentTimeMillis()}.jpg"
@@ -108,7 +113,7 @@ class CommentViewModel : ViewModel() {
                         android.util.Log.e("CommentVM", "photo upload failed", e)
                     }
                 }
-                repository.addReview(
+                val added = repository.addReview(
                     ReviewInsertDto(
                         poi_id = poiId,
                         user_id = userId,
@@ -118,21 +123,38 @@ class CommentViewModel : ViewModel() {
                         photo_url = uploadedPhotoUrl
                     )
                 )
+                if (added == null) {
+                    _errorMessage.value = "Could not post your comment. Check your connection and try again."
+                    _isProcessing.value = false
+                    return@launch
+                }
 
                 com.example.releaf.data.repository.QuestRepository().incrementQuestsByType(userId, "REVIEW")
 
                 _reviews.value = repository.getReviews(poiId)
                 repository.updatePoiStats(poiId)
+                try {
+                    repository.analyzeReviewAndUpdatePoi(poiId, text, starRating)
+                } catch (_: Exception) { }
                 _errorMessage.value = null
+                success = true
 
                 com.example.releaf.data.remote.SupabaseModule.triggerRefresh()
 
             } catch (e: Exception) {
                 e.printStackTrace()
                 android.util.Log.e("CommentViewModel", "Error adding review", e)
+                _errorMessage.value = "Could not post your comment. Check your connection and try again."
             }
             _isProcessing.value = false
+            onAddReviewResult?.invoke(success)
         }
+    }
+
+    private var onAddReviewResult: ((Boolean) -> Unit)? = null
+
+    fun registerAddReviewCallback(callback: ((Boolean) -> Unit)?) {
+        onAddReviewResult = callback
     }
 
     fun updateReview(reviewId: String, newText: String) {

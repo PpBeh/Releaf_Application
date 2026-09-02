@@ -1,5 +1,6 @@
 package com.example.releaf.data.repository
 
+import com.example.releaf.data.remote.DeepLinkHolder
 import com.example.releaf.data.remote.SupabaseModule
 import com.example.releaf.data.remote.dto.ProfileDto
 import com.example.releaf.data.remote.dto.ProfileUpdateDto
@@ -8,12 +9,18 @@ import io.github.jan.supabase.auth.auth
 import io.github.jan.supabase.auth.providers.builtin.Email
 import io.github.jan.supabase.postgrest.postgrest
 import io.github.jan.supabase.storage.storage
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
+import kotlinx.coroutines.withTimeout
+import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.jsonPrimitive
 import kotlinx.serialization.json.put
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+
+class EmailAlreadyRegisteredException(message: String) : Exception(message)
 
 class AuthRepository {
     private val client = SupabaseModule.client
@@ -34,7 +41,7 @@ class AuthRepository {
                 return Result.failure(Exception("Email not verified. Please click the confirmation link in your email, then try again."))
             }
 
-            applyPendingName(user.id)
+            applyPendingName(user.id, email)
             _sessionState.value = SessionState.LoggedIn(user.id)
             Result.success(user.id)
         } catch (e: Exception) {
@@ -42,8 +49,25 @@ class AuthRepository {
         }
     }
 
-    suspend fun register(name: String, email: String, password: String): Result<String> {
+    private suspend fun isEmailRegistered(email: String): Boolean {
         return try {
+            val existing = client.postgrest.from("profiles").select {
+                filter { eq("email", email) }
+            }.decodeList<ProfileDto>()
+            existing.isNotEmpty()
+        } catch (_: Exception) {
+            false
+        }
+    }
+
+    suspend fun register(name: String, email: String, password: String): Result<RegisterResult> {
+        return try {
+            if (isEmailRegistered(email)) {
+                return Result.failure(EmailAlreadyRegisteredException(
+                    "This email is already registered. Please log in instead, or use \"Forgot password\" to reset it."
+                ))
+            }
+
             client.auth.signUpWith(Email) {
                 this.email = email
                 this.password = password
@@ -59,22 +83,34 @@ class AuthRepository {
                 updateProfileName(userId, name)
                 createGarden(userId)
                 _sessionState.value = SessionState.LoggedIn(userId)
-                Result.success(userId)
+                Result.success(RegisterResult.AccountReady(userId))
             } else {
-                com.example.releaf.data.remote.DeepLinkHolder.pendingName = name
-                Result.success("pending_verification")
+                DeepLinkHolder.pendingName = name
+                DeepLinkHolder.pendingEmail = email
+                Result.success(RegisterResult.VerificationPending(email))
             }
         } catch (e: Exception) {
-            Result.failure(e)
+            val msg = e.message ?: ""
+            if (msg.contains("already", ignoreCase = true) && msg.contains("registered", ignoreCase = true)) {
+                Result.failure(EmailAlreadyRegisteredException(
+                    "This email is already registered. Please log in instead, or use \"Forgot password\" to reset it."
+                ))
+            } else {
+                Result.failure(e)
+            }
         }
     }
 
-    private suspend fun applyPendingName(userId: String) {
-        val pendingName = com.example.releaf.data.remote.DeepLinkHolder.pendingName
-        if (pendingName != null && pendingName.isNotBlank()) {
+    private suspend fun applyPendingName(userId: String, email: String) {
+        val pendingName = DeepLinkHolder.pendingName
+        val pendingEmail = DeepLinkHolder.pendingEmail
+        if (pendingName != null && pendingName.isNotBlank() &&
+            (pendingEmail == null || pendingEmail.equals(email, ignoreCase = true))
+        ) {
             updateProfileName(userId, pendingName)
-            com.example.releaf.data.remote.DeepLinkHolder.pendingName = null
         }
+        DeepLinkHolder.pendingName = null
+        DeepLinkHolder.pendingEmail = null
     }
 
     suspend fun resendVerificationEmail(email: String): Result<Unit> {
@@ -82,20 +118,17 @@ class AuthRepository {
             if (email.isBlank() || !android.util.Patterns.EMAIL_ADDRESS.matcher(email).matches()) {
                 return Result.failure(Exception("Please enter a valid email address"))
             }
-            try {
-                val existing = client.postgrest.from("profiles").select {
-                    filter { eq("email", email) }
-                }.decodeList<ProfileDto>()
-                if (existing.isEmpty()) {
-                    return Result.failure(Exception("This email is not registered. Please sign up first."))
-                }
-            } catch (_: Exception) { }
+            if (!isEmailRegistered(email)) {
+                return Result.failure(Exception("This email is not registered. Please sign up first."))
+            }
             client.auth.resendEmail(type = io.github.jan.supabase.auth.OtpType.Email.SIGNUP, email = email)
             Result.success(Unit)
         } catch (e: Exception) {
             val msg = e.message ?: ""
-            if (msg.contains("already", ignoreCase = true)) {
-                Result.success(Unit)
+            if (msg.contains("already", ignoreCase = true) && msg.contains("registered", ignoreCase = true)) {
+                Result.failure(EmailAlreadyRegisteredException(
+                    "This email is already registered. Please log in instead."
+                ))
             } else {
                 Result.failure(e)
             }
@@ -127,6 +160,16 @@ class AuthRepository {
                 user = null
             )
             client.auth.importSession(session)
+            try {
+                client.auth.retrieveUserForCurrentSession()
+            } catch (_: Exception) { }
+            val userId = client.auth.currentUserOrNull()?.id
+                ?: run {
+                    client.auth.signOut()
+                    _sessionState.value = SessionState.LoggedOut
+                    return false
+                }
+            _sessionState.value = SessionState.LoggedIn(userId)
             true
         } catch (_: Exception) {
             false
@@ -154,20 +197,27 @@ class AuthRepository {
                 client.auth.loadFromStorage()
             } catch (_: Exception) { }
             val localSession = client.auth.currentSessionOrNull()
-            if (localSession != null) {
-                val userId = localSession.user?.id ?: return false
-                _sessionState.value = SessionState.LoggedIn(userId)
-                true
-            } else {
-                try {
+            val storedUserId = localSession?.user?.id
+            if (storedUserId != null) {
+                _sessionState.value = SessionState.LoggedIn(storedUserId)
+                return true
+            }
+            // No usable stored session: refresh the stored tokens against the server (bounded wait).
+            return try {
+                withTimeout(10_000) {
                     client.auth.retrieveUserForCurrentSession()
-                    val userId = client.auth.currentUserOrNull()?.id ?: return false
+                }
+                val userId = client.auth.currentUserOrNull()?.id
+                if (userId != null) {
                     _sessionState.value = SessionState.LoggedIn(userId)
                     true
-                } catch (_: Exception) {
+                } else {
                     _sessionState.value = SessionState.LoggedOut
                     false
                 }
+            } catch (_: Exception) {
+                _sessionState.value = SessionState.LoggedOut
+                false
             }
         } catch (e: Exception) {
             _sessionState.value = SessionState.LoggedOut
@@ -185,13 +235,23 @@ class AuthRepository {
 
     private suspend fun createGarden(userId: String) {
         try {
-            client.postgrest.from("gardens").insert(
-                mapOf("user_id" to userId)
-            )
-            for (i in 1..6) {
-                client.postgrest.from("plant_slots").insert(
-                    mapOf("user_id" to userId, "slot_index" to i, "state" to "EMPTY_POT")
+            val existingGardens = client.postgrest.from("gardens")
+                .select { filter { eq("user_id", userId) } }
+                .decodeList<JsonObject>()
+            if (existingGardens.isEmpty()) {
+                client.postgrest.from("gardens").insert(
+                    mapOf("user_id" to userId)
                 )
+            }
+            val existingSlots = client.postgrest.from("plant_slots")
+                .select { filter { eq("user_id", userId) } }
+                .decodeList<JsonObject>()
+            if (existingSlots.isEmpty()) {
+                for (i in 1..6) {
+                    client.postgrest.from("plant_slots").insert(
+                        mapOf("user_id" to userId, "slot_index" to i, "state" to "EMPTY_POT")
+                    )
+                }
             }
         } catch (_: Exception) { }
     }
@@ -234,42 +294,46 @@ class AuthRepository {
     }
 
     suspend fun uploadAvatar(userId: String, uri: android.net.Uri, context: android.content.Context): String? {
-        return try {
-            val bytes = context.contentResolver.openInputStream(uri)?.use { it.readBytes() } ?: return null
-            val fileName = "${userId}_${System.currentTimeMillis()}.jpg"
-            client.storage.from("avatars").upload(
-                path = fileName,
-                data = bytes
-            ) {
-                upsert = true
+        return withContext(Dispatchers.IO) {
+            try {
+                val bytes = context.contentResolver.openInputStream(uri)?.use { it.readBytes() } ?: return@withContext null
+                val fileName = "${userId}_${System.currentTimeMillis()}.jpg"
+                client.storage.from("avatars").upload(
+                    path = fileName,
+                    data = bytes
+                ) {
+                    upsert = true
+                }
+                val url = client.storage.from("avatars").publicUrl(fileName)
+                client.postgrest.from("profiles").update(
+                    mapOf("avatar_url" to url)
+                ) { filter { eq("id", userId) } }
+                url
+            } catch (_: Exception) {
+                null
             }
-            val url = client.storage.from("avatars").publicUrl(fileName)
-            client.postgrest.from("profiles").update(
-                mapOf("avatar_url" to url)
-            ) { filter { eq("id", userId) } }
-            url
-        } catch (_: Exception) {
-            null
         }
     }
 
     suspend fun uploadBanner(userId: String, uri: android.net.Uri, context: android.content.Context): String? {
-        return try {
-            val bytes = context.contentResolver.openInputStream(uri)?.use { it.readBytes() } ?: return null
-            val fileName = "banner_${userId}_${System.currentTimeMillis()}.jpg"
-            client.storage.from("avatars").upload(
-                path = fileName,
-                data = bytes
-            ) {
-                upsert = true
+        return withContext(Dispatchers.IO) {
+            try {
+                val bytes = context.contentResolver.openInputStream(uri)?.use { it.readBytes() } ?: return@withContext null
+                val fileName = "banner_${userId}_${System.currentTimeMillis()}.jpg"
+                client.storage.from("avatars").upload(
+                    path = fileName,
+                    data = bytes
+                ) {
+                    upsert = true
+                }
+                val url = client.storage.from("avatars").publicUrl(fileName)
+                client.postgrest.from("profiles").update(
+                    mapOf("banner_url" to url)
+                ) { filter { eq("id", userId) } }
+                url
+            } catch (_: Exception) {
+                null
             }
-            val url = client.storage.from("avatars").publicUrl(fileName)
-            client.postgrest.from("profiles").update(
-                mapOf("banner_url" to url)
-            ) { filter { eq("id", userId) } }
-            url
-        } catch (_: Exception) {
-            null
         }
     }
 
@@ -277,6 +341,11 @@ class AuthRepository {
         updateProfileName(userId, name)
         createGarden(userId)
     }
+}
+
+sealed class RegisterResult {
+    data class AccountReady(val userId: String) : RegisterResult()
+    data class VerificationPending(val email: String) : RegisterResult()
 }
 
 sealed class SessionState {

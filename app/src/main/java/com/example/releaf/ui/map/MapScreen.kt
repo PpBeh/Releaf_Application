@@ -25,8 +25,6 @@ import androidx.compose.foundation.layout.asPaddingValues
 import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
@@ -37,7 +35,6 @@ import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.MyLocation
 import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.filled.Search
-import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.filled.ThumbUp
 import androidx.compose.material.icons.filled.Wc
 import androidx.compose.material3.Badge
@@ -77,6 +74,7 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.lifecycle.repeatOnLifecycle
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import com.example.releaf.model.CleanlinessStatus
@@ -87,7 +85,6 @@ import com.example.releaf.ui.viewmodel.NotificationsViewModel
 import com.example.releaf.ui.viewmodel.PoiActionResult
 import androidx.core.content.ContextCompat
 import coil.compose.rememberAsyncImagePainter
-import com.example.releaf.data.remote.dto.PoiDto
 import kotlinx.coroutines.launch
 
 import com.example.releaf.ui.theme.AppStrings
@@ -99,7 +96,6 @@ import com.example.releaf.ui.viewmodel.ThemeViewModel
 fun MapScreen(
     viewModel: MapViewModel,
     notificationsViewModel: NotificationsViewModel,
-    onDirectionClick: (String) -> Unit,
     onCommentClick: (String) -> Unit,
     currentUserId: String,
     isDarkMode: Boolean = false,
@@ -127,13 +123,15 @@ fun MapScreen(
     var currentLng by remember { mutableStateOf(101.6869) }
     var selectedPhotoUri by remember { mutableStateOf<Uri?>(null) }
     var showSubscriptionDialog by remember { mutableStateOf(false) }
-    var isSubscribed by remember { mutableStateOf(context.getSharedPreferences("billing_prefs", android.content.Context.MODE_PRIVATE).getBoolean("isPro", false)) }
-    var dailyPointsClaimed by remember { mutableStateOf(context.getSharedPreferences("billing_prefs", android.content.Context.MODE_PRIVATE).getBoolean("daily_claimed", false)) }
+    val billingPrefs = context.getSharedPreferences("billing_prefs", android.content.Context.MODE_PRIVATE)
+    var isSubscribed by remember { mutableStateOf(billingPrefs.getBoolean("isPro", false)) }
+    var dailyPointsClaimed by remember { mutableStateOf(isDailyRewardClaimedToday(billingPrefs)) }
+    var isClaimingDaily by remember { mutableStateOf(false) }
     var showPhotoSourcePickerForPoi by remember { mutableStateOf(false) }
 
     LaunchedEffect(Unit) {
-        isSubscribed = context.getSharedPreferences("billing_prefs", android.content.Context.MODE_PRIVATE).getBoolean("isPro", false)
-        dailyPointsClaimed = context.getSharedPreferences("billing_prefs", android.content.Context.MODE_PRIVATE).getBoolean("daily_claimed", false)
+        isSubscribed = billingPrefs.getBoolean("isPro", false)
+        dailyPointsClaimed = isDailyRewardClaimedToday(billingPrefs)
     }
 
     val sheetState = rememberModalBottomSheetState()
@@ -177,40 +175,37 @@ fun MapScreen(
 
     var focusPoint by remember { mutableStateOf<org.osmdroid.util.GeoPoint?>(null) }
 
-    LaunchedEffect(Unit) {
+    val lifecycleOwner = androidx.lifecycle.compose.LocalLifecycleOwner.current
+    LaunchedEffect(Unit, lifecycleOwner) {
         viewModel.setCurrentUserId(currentUserId)
         viewModel.loadPois()
-        com.example.releaf.data.remote.DeepLinkHolder.pendingPoiId?.let { poiId ->
-            kotlinx.coroutines.delay(800)
-            viewModel.openPoiFromDeepLink(poiId)
-            com.example.releaf.data.remote.DeepLinkHolder.clearPoiId()
-        }
-        while (true) {
-            kotlinx.coroutines.delay(5000)
-            viewModel.loadPois()
+        lifecycleOwner.repeatOnLifecycle(androidx.lifecycle.Lifecycle.State.STARTED) {
+            while (true) {
+                kotlinx.coroutines.delay(5000)
+                viewModel.loadPois()
+            }
         }
     }
 
     // Handle POI deep links arriving via onNewIntent while MapScreen is active
     val pendingPoiId by com.example.releaf.data.remote.DeepLinkHolder.pendingPoiIdFlow.collectAsState()
     LaunchedEffect(pendingPoiId) {
-        pendingPoiId?.let { poiId ->
-            kotlinx.coroutines.delay(300)
-            viewModel.openPoiFromDeepLink(poiId)
-            // focus map on the POI after it loads
-            // delay a bit to allow poi fetch, then focus
-            kotlinx.coroutines.delay(400)
-            viewModel.selectedPoi.value?.let { poi ->
-                if (poi.id == poiId) {
-                    focusPoint = org.osmdroid.util.GeoPoint(poi.latitude, poi.longitude)
-                }
+        val poiId = pendingPoiId ?: return@LaunchedEffect
+        kotlinx.coroutines.delay(300)
+        viewModel.openPoiFromDeepLink(poiId)
+        // focus map on the POI after it loads
+        // delay a bit to allow poi fetch, then focus
+        kotlinx.coroutines.delay(400)
+        viewModel.selectedPoi.value?.let { poi ->
+            if (poi.id == poiId) {
+                focusPoint = org.osmdroid.util.GeoPoint(poi.latitude, poi.longitude)
             }
-            com.example.releaf.data.remote.DeepLinkHolder.clearPoiId()
         }
+        com.example.releaf.data.remote.DeepLinkHolder.clearPoiId()
     }
 
     LaunchedEffect(actionResult) {
-        val msg = actionResult
+        val msg = actionResult ?: return@LaunchedEffect
         if (msg is PoiActionResult.NearestFound) {
             val nearest = if (msg.targetCategory == "TRASH_CAN") msg.trashCan ?: msg.toilet
                           else msg.toilet ?: msg.trashCan
@@ -223,30 +218,43 @@ fun MapScreen(
             } else {
                 snackbarHostState.showSnackbar(AppStrings.get("none_found", themeViewModel.language.value))
             }
+            viewModel.clearActionResult()
         }
         if (msg is PoiActionResult.Message) {
-            snackbarHostState.showSnackbar(
-                when (msg.message) {
-                    "created" -> AppStrings.get("poi_created", themeViewModel.language.value)
-                    "create_failed" -> AppStrings.get("create_failed", themeViewModel.language.value)
-                    "too_close" -> AppStrings.get("too_close", themeViewModel.language.value)
-                    "photo_uploaded" -> AppStrings.get("photo_uploaded", themeViewModel.language.value)
-                    "photo_failed" -> AppStrings.get("photo_failed", themeViewModel.language.value)
-                    else -> msg.message.take(100)
-                }
+            val sheetInlineKeys = setOf(
+                "already_verified", "now_verified", "verification_counted", "verify_failed",
+                "already_reported", "now_unverified", "report_counted", "report_failed"
             )
+            val handledBySheet = msg.message.startsWith("too_far_") || msg.message in sheetInlineKeys
+            val snackbarText = when {
+                msg.message == "created" -> AppStrings.get("poi_created", themeViewModel.language.value)
+                msg.message == "create_failed" -> AppStrings.get("create_failed", themeViewModel.language.value)
+                msg.message == "too_close" -> AppStrings.get("too_close", themeViewModel.language.value)
+                msg.message == "photo_uploaded" -> AppStrings.get("photo_uploaded", themeViewModel.language.value)
+                msg.message == "photo_failed" -> AppStrings.get("photo_failed", themeViewModel.language.value)
+                msg.message == "removed" -> AppStrings.get("poi_removed", themeViewModel.language.value)
+                handledBySheet -> null
+                else -> msg.message.take(100)
+            }
+            if (snackbarText != null) {
+                snackbarHostState.showSnackbar(snackbarText)
+            }
+            if (!handledBySheet || msg.message == "removed") {
+                viewModel.clearActionResult()
+            }
         }
     }
 
-    LaunchedEffect(selectedPoi?.id) {
+    LaunchedEffect(selectedPoi?.id, lifecycleOwner) {
         val poiId = selectedPoi?.id ?: return@LaunchedEffect
-        while (true) {
-            kotlinx.coroutines.delay(4000)
-            viewModel.refreshPoiDetails(poiId)
+        lifecycleOwner.repeatOnLifecycle(androidx.lifecycle.Lifecycle.State.STARTED) {
+            while (true) {
+                kotlinx.coroutines.delay(4000)
+                viewModel.refreshPoiDetails(poiId)
+            }
         }
     }
 
-    // var showMap by remember { mutableStateOf(true) }
     var centerOnLocation by remember { mutableStateOf(false) }
     val searchResults by viewModel.searchResults.collectAsState()
 
@@ -254,11 +262,19 @@ fun MapScreen(
     val unreadCount by notificationsViewModel.unreadCount.collectAsState()
     var showNotifications by remember { mutableStateOf(false) }
 
-    LaunchedEffect(currentUserId) {
-        notificationsViewModel.loadNotifications(currentUserId)
-        while (true) {
-            kotlinx.coroutines.delay(10000)
+    LaunchedEffect(currentUserId, lifecycleOwner) {
+        val settingsPrefs = context.getSharedPreferences("settings_prefs", android.content.Context.MODE_PRIVATE)
+        fun notificationsEnabled() = settingsPrefs.getBoolean("notifications_enabled", true)
+        if (notificationsEnabled()) {
             notificationsViewModel.loadNotifications(currentUserId)
+        }
+        lifecycleOwner.repeatOnLifecycle(androidx.lifecycle.Lifecycle.State.STARTED) {
+            while (true) {
+                kotlinx.coroutines.delay(10000)
+                if (notificationsEnabled()) {
+                    notificationsViewModel.loadNotifications(currentUserId)
+                }
+            }
         }
     }
 
@@ -430,10 +446,16 @@ fun MapScreen(
                     onClick = {
                         isFetchingLocation = true
                         fetchFreshLocation(context) { lat, lng ->
-                            currentLat = lat
-                            currentLng = lng
                             isFetchingLocation = false
-                            showAddPoiDialog = true
+                            if (lat == 0.0 && lng == 0.0) {
+                                scope.launch {
+                                    snackbarHostState.showSnackbar("Couldn't determine your location. Please enable GPS/location and try again.")
+                                }
+                            } else {
+                                currentLat = lat
+                                currentLng = lng
+                                showAddPoiDialog = true
+                            }
                         }
                     },
                     containerColor = MaterialTheme.colorScheme.primary,
@@ -487,15 +509,21 @@ fun MapScreen(
                 analyzedStatusTime = analyzedStatusTime,
                 onCloseClick = { viewModel.clearSelection() },
                 onDirectionClick = {
-                    val uri = Uri.parse("google.navigation:q=${poi.latitude},${poi.longitude}&mode=w")
-                    val navIntent = Intent(Intent.ACTION_VIEW, uri).apply {
+                    val navUri = Uri.parse("google.navigation:q=${poi.latitude},${poi.longitude}&mode=w")
+                    val navIntent = Intent(Intent.ACTION_VIEW, navUri).apply {
                         setPackage("com.google.android.apps.maps")
                     }
                     try {
                         context.startActivity(navIntent)
                     } catch (_: Exception) {
-                        val fallback = Uri.parse("geo:${poi.latitude},${poi.longitude}?q=${poi.latitude},${poi.longitude}(${poi.name})")
-                        context.startActivity(Intent(Intent.ACTION_VIEW, fallback))
+                        val geoUri = Uri.parse("geo:${poi.latitude},${poi.longitude}?q=${poi.latitude},${poi.longitude}(${poi.name})")
+                        try {
+                            context.startActivity(Intent(Intent.ACTION_VIEW, geoUri))
+                        } catch (_: Exception) {
+                            scope.launch {
+                                snackbarHostState.showSnackbar("No map application is available on this device.")
+                            }
+                        }
                     }
                 },
                 onCommentClick = { onCommentClick(poi.id) },
@@ -505,7 +533,13 @@ fun MapScreen(
                         lm?.getLastKnownLocation(LocationManager.GPS_PROVIDER)
                             ?: lm?.getLastKnownLocation(LocationManager.NETWORK_PROVIDER)
                     } catch (_: SecurityException) { null }
-                    viewModel.verifyPoi(poi.id, currentUserId, loc?.latitude ?: 0.0, loc?.longitude ?: 0.0)
+                    if (loc != null) {
+                        viewModel.verifyPoi(poi.id, currentUserId, loc.latitude, loc.longitude)
+                    } else {
+                        fetchFreshLocation(context) { lat, lng ->
+                            viewModel.verifyPoi(poi.id, currentUserId, lat, lng)
+                        }
+                    }
                 },
                 onReportNotExist = {
                     val lm = context.getSystemService(android.content.Context.LOCATION_SERVICE) as? LocationManager
@@ -513,7 +547,13 @@ fun MapScreen(
                         lm?.getLastKnownLocation(LocationManager.GPS_PROVIDER)
                             ?: lm?.getLastKnownLocation(LocationManager.NETWORK_PROVIDER)
                     } catch (_: SecurityException) { null }
-                    viewModel.reportNotExist(poi.id, currentUserId, loc?.latitude ?: 0.0, loc?.longitude ?: 0.0)
+                    if (loc != null) {
+                        viewModel.reportNotExist(poi.id, currentUserId, loc.latitude, loc.longitude)
+                    } else {
+                        fetchFreshLocation(context) { lat, lng ->
+                            viewModel.reportNotExist(poi.id, currentUserId, lat, lng)
+                        }
+                    }
                 },
                 onFavoriteClick = { viewModel.toggleFavorite(poi.id) },
                 onShareClick = {
@@ -690,7 +730,7 @@ fun MapScreen(
                         Button(
                             onClick = {
                                 isSubscribed = true
-                                context.getSharedPreferences("billing_prefs", android.content.Context.MODE_PRIVATE).edit().putBoolean("isPro", true).apply()
+                                billingPrefs.edit().putBoolean("isPro", true).apply()
                                 scope.launch {
                                     snackbarHostState.showSnackbar("🎉 Welcome to Releaf Diamond Pro Membership!")
                                 }
@@ -721,9 +761,8 @@ fun MapScreen(
 
                             Button(
                                 onClick = {
-                                    if (!dailyPointsClaimed) {
-                                        dailyPointsClaimed = true
-                                        context.getSharedPreferences("billing_prefs", android.content.Context.MODE_PRIVATE).edit().putBoolean("daily_claimed", true).apply()
+                                    if (!dailyPointsClaimed && !isClaimingDaily) {
+                                        isClaimingDaily = true
                                         scope.launch {
                                             try {
                                                 val gardenRepo = com.example.releaf.data.repository.GardenRepository()
@@ -743,19 +782,29 @@ fun MapScreen(
                                                 if (profile != null) {
                                                     authRepo.updateTotalPoints(currentUserId, (profile.total_points ?: 0) + 100)
                                                 }
+                                                markDailyRewardClaimed(billingPrefs)
+                                                dailyPointsClaimed = true
                                                 com.example.releaf.data.remote.SupabaseModule.triggerRefresh()
-                                            } catch (_: Exception) {}
-                                            snackbarHostState.showSnackbar("🎁 Claimed today's 100 Points & 5 Gems!")
+                                                snackbarHostState.showSnackbar("🎁 Claimed today's 100 Points & 5 Gems!")
+                                            } catch (e: Exception) {
+                                                snackbarHostState.showSnackbar("Could not claim today's reward. Check your connection and try again.")
+                                            } finally {
+                                                isClaimingDaily = false
+                                            }
                                         }
                                     }
                                 },
-                                enabled = !dailyPointsClaimed,
+                                enabled = !dailyPointsClaimed && !isClaimingDaily,
                                 modifier = Modifier.fillMaxWidth(),
                                 shape = RoundedCornerShape(14.dp),
                                 colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFFFC107))
                             ) {
                                 Text(
-                                    if (dailyPointsClaimed) "Today's Reward Claimed ✓" else "🎁 Claim Daily 100 Points & 5 Gems",
+                                    when {
+                                        isClaimingDaily -> "Claiming..."
+                                        dailyPointsClaimed -> "Today's Reward Claimed ✓"
+                                        else -> "🎁 Claim Daily 100 Points & 5 Gems"
+                                    },
                                     fontWeight = FontWeight.Bold,
                                     color = Color.Black
                                 )
@@ -784,7 +833,7 @@ fun MapScreen(
             },
             onPickPhoto = { photoPicker.launch("image/*") },
             onSubmit = { name, category, desc, isPaid ->
-                viewModel.createPoi(name, category, currentLat, currentLng, isPaid, currentUserId, desc)
+                viewModel.createPoi(name, category, currentLat, currentLng, isPaid, currentUserId, desc, selectedPhotoUri, context)
                 showAddPoiDialog = false
                 selectedPhotoUri = null
                 viewModel.loadPois()
@@ -903,43 +952,6 @@ private fun SubscriptionBenefitCard(
                 Text(title, fontWeight = FontWeight.Bold, style = MaterialTheme.typography.bodyMedium)
                 Spacer(modifier = Modifier.height(2.dp))
                 Text(description, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-            }
-        }
-    }
-}
-
-@Composable
-private fun PoiCard(poi: PoiDto, onClick: () -> Unit) {
-    Card(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clickable { onClick() },
-        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
-    ) {
-        Row(
-            modifier = Modifier.padding(12.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Column(modifier = Modifier.weight(1f)) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text(poi.name, fontWeight = FontWeight.Bold, style = MaterialTheme.typography.titleSmall)
-                    if (!poi.is_verified) {
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Text(
-                            "(Unverified)",
-                            style = MaterialTheme.typography.labelSmall,
-                            color = Color(0xFFFF9800)
-                        )
-                    }
-                }
-                Text(
-                    "${poi.category} | ${poi.cleanliness} | ${if (poi.is_paid) "Paid" else "Free"}",
-                    style = MaterialTheme.typography.bodySmall
-                )
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Icon(Icons.Default.Star, contentDescription = null, tint = Color(0xFFFFC107), modifier = Modifier.padding(end = 2.dp))
-                    Text(poi.rating.toString(), style = MaterialTheme.typography.labelSmall)
-                }
             }
         }
     }
@@ -1067,9 +1079,16 @@ private fun fetchFreshLocation(
 
     val bestKnown = listOfNotNull(gps, network).maxByOrNull { it.time }
 
+    var delivered = false
+    fun deliver(lat: Double, lng: Double) {
+        if (delivered) return
+        delivered = true
+        onResult(lat, lng)
+    }
+
     val listener = object : android.location.LocationListener {
         override fun onLocationChanged(location: android.location.Location) {
-            onResult(location.latitude, location.longitude)
+            deliver(location.latitude, location.longitude)
             try {
                 lm?.removeUpdates(this)
             } catch (_: Exception) { }
@@ -1081,19 +1100,44 @@ private fun fetchFreshLocation(
         override fun onProviderDisabled(provider: String) {}
     }
 
-    try {
-        lm?.requestLocationUpdates(android.location.LocationManager.GPS_PROVIDER, 0L, 0f, listener, mainLooper)
-        lm?.requestLocationUpdates(android.location.LocationManager.NETWORK_PROVIDER, 0L, 0f, listener, mainLooper)
-    } catch (_: SecurityException) { }
-
-    // Fallback: if no fix arrives in 5 seconds (e.g., indoors), use best last-known location
     val handler = android.os.Handler(mainLooper)
-    handler.postDelayed({
+    val timeout = Runnable {
         try {
             lm?.removeUpdates(listener)
         } catch (_: Exception) { }
-        if (bestKnown != null) {
-            onResult(bestKnown.latitude, bestKnown.longitude)
-        }
-    }, 5000L)
+        // No fresh fix: fall back to the best last-known position, or (0,0) if none exists.
+        deliver(bestKnown?.latitude ?: 0.0, bestKnown?.longitude ?: 0.0)
+    }
+
+    var providerRequested = false
+    try {
+        lm?.requestLocationUpdates(android.location.LocationManager.GPS_PROVIDER, 0L, 0f, listener, mainLooper)
+        lm?.requestLocationUpdates(android.location.LocationManager.NETWORK_PROVIDER, 0L, 0f, listener, mainLooper)
+        providerRequested = true
+    } catch (_: SecurityException) { }
+
+    // Fallback: if no fix arrives in 5 seconds (e.g., indoors), use best last-known location
+    if (providerRequested) {
+        handler.postDelayed(timeout, 5000L)
+    } else {
+        handler.post(timeout)
+    }
+}
+
+private fun dailyDateKey(): String {
+    val fmt = java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.US)
+    fmt.timeZone = java.util.TimeZone.getTimeZone("Asia/Kuala_Lumpur")
+    return fmt.format(java.util.Date())
+}
+
+private fun isDailyRewardClaimedToday(prefs: android.content.SharedPreferences): Boolean {
+    // New installs / pre-dating users have no date stamp and may claim once today.
+    return prefs.getString("daily_claimed_date", null) == dailyDateKey()
+}
+
+private fun markDailyRewardClaimed(prefs: android.content.SharedPreferences) {
+    prefs.edit()
+        .putBoolean("daily_claimed", true)
+        .putString("daily_claimed_date", dailyDateKey())
+        .apply()
 }

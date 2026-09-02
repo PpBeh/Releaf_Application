@@ -63,7 +63,9 @@ class GardenViewModel(application: Application) : AndroidViewModel(application) 
     }
 
     private fun getTodayDateString(): String {
-        return SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(Date())
+        val fmt = SimpleDateFormat("yyyy-MM-dd", Locale.US)
+        fmt.timeZone = java.util.TimeZone.getTimeZone("Asia/Kuala_Lumpur")
+        return fmt.format(Date())
     }
 
     fun getTreeStage(exp: Int): Int {
@@ -91,11 +93,12 @@ class GardenViewModel(application: Application) : AndroidViewModel(application) 
                     val localState = gardenPrefs.getString("slot_${userId}_$index", null)?.let {
                         if (it == "PLANTED") "GROWING" else it
                     }
-                    // Prioritize DB state when present and valid; fallback to prefs
+                    // Server row is the source of truth when it exists; local prefs
+                    // only fill in when the slot has never been synced (offline first use).
                     val state = when {
-                        remote != null && remote.state != "EMPTY_POT" -> remote.state
+                        remote != null -> remote.state
                         localState != null && localState != "EMPTY_POT" -> localState
-                        else -> remote?.state ?: "EMPTY_POT"
+                        else -> "EMPTY_POT"
                     }
 
                     PlantSlotDto(
@@ -213,25 +216,32 @@ class GardenViewModel(application: Application) : AndroidViewModel(application) 
     private fun syncToCloud(userId: String, newExp: Int, actionType: String) {
         viewModelScope.launch {
             try {
-                val g = _garden.value
+                // Always base point/gem arithmetic on the freshest server row so a
+                // stale/empty local copy can never zero out the account totals.
+                val fresh = try {
+                    repository.getGarden(userId)
+                } catch (_: Exception) {
+                    null
+                } ?: _garden.value
 
                 val pointsToAdd = if (actionType == "WATER") 10 else 20
-                val newPoints = (g?.current_points ?: 0) + pointsToAdd
-                val newGems = (g?.current_gems ?: 0) + if (actionType == "WATER") 1 else 0
+                val gemsToAdd = if (actionType == "WATER") 1 else 0
+                val newPoints = (fresh?.current_points ?: 0) + pointsToAdd
+                val newGems = (fresh?.current_gems ?: 0) + gemsToAdd
 
                 repository.upsertGardenExp(
                     userId = userId,
                     newExp = newExp,
                     newPoints = newPoints,
                     newGems = newGems,
-                    expTarget = g?.exp_target ?: 2000,
+                    expTarget = fresh?.exp_target ?: 2000,
                     waterUsesLeft = _waterUsesLeft.value,
                     fertilizeUsesLeft = _fertilizeUsesLeft.value
                 )
 
                 // Also ensure DB row reflects current gem/point state via upsertGarden if needed
                 // Keep local _garden in sync
-                _garden.value = g?.copy(
+                _garden.value = fresh?.copy(
                     current_exp = newExp,
                     current_points = newPoints,
                     current_gems = newGems
@@ -266,30 +276,27 @@ class GardenViewModel(application: Application) : AndroidViewModel(application) 
                 val g = _garden.value ?: repository.getGarden(userId)
 
                 if (g != null) {
+                    val fresh = repository.getGarden(userId) ?: g
                     repository.upsertGardenExp(
                         userId = userId,
                         newExp = _currentExp.value,
-                        newPoints = g.current_points + 50,
-                        newGems = g.current_gems,
-                        expTarget = g.exp_target,
+                        newPoints = fresh.current_points + 50,
+                        newGems = fresh.current_gems,
+                        expTarget = fresh.exp_target,
                         waterUsesLeft = _waterUsesLeft.value,
                         fertilizeUsesLeft = _fertilizeUsesLeft.value
                     )
                 }
-                if (slotId.isNotBlank()) {
-                    repository.updatePlantSlot(slotId, "EMPTY_POT")
+                val targetSlot = if (slotId.isNotBlank()) {
+                    _plantSlots.value.find { it.id == slotId }
                 } else {
-                    // Fallback: find slot by user and delete via slot index if id missing
-                    val slots = _plantSlots.value
-                    val toClear = slots.find { it.id == slotId }
-                    if (toClear != null) {
-                        repository.upsertPlantSlot(userId, toClear.slot_index, "EMPTY_POT", null)
-                        gardenPrefs.edit().remove("slot_${userId}_${toClear.slot_index}").apply()
-                    }
+                    // Fallback: clear the first planted slot when the id is missing
+                    _plantSlots.value.firstOrNull { it.state != "EMPTY_POT" }
                 }
-                // Also clear prefs for that slot if we can identify index
-                val slot = _plantSlots.value.find { it.id == slotId }
-                slot?.let { gardenPrefs.edit().remove("slot_${userId}_${it.slot_index}").apply() }
+                if (targetSlot != null) {
+                    repository.deletePlantSlot(userId, targetSlot.slot_index)
+                    gardenPrefs.edit().remove("slot_${userId}_${targetSlot.slot_index}").apply()
+                }
 
                 questRepository.incrementQuestsByType(userId, "HARVEST")
 

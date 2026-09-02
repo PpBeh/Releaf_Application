@@ -67,6 +67,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
+import androidx.lifecycle.repeatOnLifecycle
 import coil.compose.rememberAsyncImagePainter
 import com.example.releaf.data.remote.dto.ReviewDto
 import com.example.releaf.ui.viewmodel.CommentViewModel
@@ -108,6 +109,17 @@ fun CommentScreen(
 
     val context = LocalContext.current
 
+    // Only clear the composer once a comment is actually accepted by the server.
+    LaunchedEffect(viewModel) {
+        viewModel.registerAddReviewCallback { success ->
+            if (success) {
+                commentText = ""
+                selectedPhotoUri = null
+                starRating = 5
+            }
+        }
+    }
+
     val galleryLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.GetContent()
     ) { uri ->
@@ -142,11 +154,14 @@ fun CommentScreen(
         } catch (_: Exception) { }
     }
 
-    LaunchedEffect(poiId) {
-        viewModel.loadReviews(poiId, currentUserId)
-        while (true) {
-            kotlinx.coroutines.delay(3000)
+    val lifecycleOwner = androidx.lifecycle.compose.LocalLifecycleOwner.current
+    LaunchedEffect(poiId, lifecycleOwner) {
+        lifecycleOwner.repeatOnLifecycle(androidx.lifecycle.Lifecycle.State.STARTED) {
             viewModel.loadReviews(poiId, currentUserId)
+            while (true) {
+                kotlinx.coroutines.delay(3000)
+                viewModel.loadReviews(poiId, currentUserId)
+            }
         }
     }
 
@@ -298,7 +313,10 @@ fun CommentScreen(
         ) {
             OutlinedTextField(
                 value = commentText,
-                onValueChange = { commentText = it },
+                onValueChange = {
+                    commentText = it
+                    if (errorMessage != null) viewModel.clearError()
+                },
                 modifier = Modifier.weight(1f),
                 placeholder = { Text("Add a comment...") },
                 singleLine = false,
@@ -330,9 +348,6 @@ fun CommentScreen(
                         val lat = loc?.latitude ?: 0.0
                         val lng = loc?.longitude ?: 0.0
                         viewModel.addReview(poiId, currentUserId, starRating, commentText, lat, lng, selectedPhotoUri, context)
-                        commentText = ""
-                        selectedPhotoUri = null
-                        starRating = 5
                     }
                 },
                 enabled = commentText.isNotBlank() && !isWordLimitExceeded && !isProcessing
@@ -394,8 +409,8 @@ fun CommentScreen(
                 modifier = Modifier.fillMaxSize(),
                 contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 8.dp, bottom = 80.dp)
             ) {
-                items(reviews) { review ->
-                    var showEditDialog by remember { mutableStateOf(false) }
+                items(reviews, key = { it.id }) { review ->
+                    var showEditDialog by remember(review.id) { mutableStateOf(false) }
                     ReviewRowItem(
                         review = review,
                         isOwnComment = review.user_id == currentUserId,
@@ -515,7 +530,7 @@ fun CommentScreen(
                 }
                 Spacer(modifier = Modifier.height(12.dp))
                 Text(
-                    sheetProfile?.name?.ifBlank { "User" } ?: "Loading...",
+                    sheetProfile?.name?.ifBlank { "User" } ?: "User",
                     style = MaterialTheme.typography.titleLarge,
                     fontWeight = FontWeight.Bold
                 )

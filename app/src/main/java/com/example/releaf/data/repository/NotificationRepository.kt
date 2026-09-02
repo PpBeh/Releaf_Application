@@ -19,7 +19,9 @@ class NotificationRepository {
             } catch (_: Exception) {
                 emptyList()
             }
-            (personal + announcements).sortedByDescending { it.created_at }
+            (personal + announcements)
+                .distinctBy { it.id }
+                .sortedByDescending { it.created_at }
         } catch (_: Exception) {
             emptyList()
         }

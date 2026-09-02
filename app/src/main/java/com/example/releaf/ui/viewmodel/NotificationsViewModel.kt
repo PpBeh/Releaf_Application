@@ -31,6 +31,9 @@ class NotificationsViewModel : ViewModel() {
     fun markAsRead(notification: NotificationDto, userId: String) {
         viewModelScope.launch {
             try {
+                // Global announcements are shared by every user — never mark them
+                // as read on behalf of one user.
+                if (notification.user_id == null) return@launch
                 repository.markAsRead(notification.id)
                 loadNotifications(userId)
             } catch (_: Exception) { }

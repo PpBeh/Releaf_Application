@@ -18,6 +18,8 @@ class MapViewModel : ViewModel() {
     private val repository = PoiRepository()
     private val reviewRepository = ReviewRepository()
 
+    private val MAX_ACTION_DISTANCE_METERS = 100.0
+
     private val _pois = MutableStateFlow<List<PoiDto>>(emptyList())
     val pois: StateFlow<List<PoiDto>> = _pois.asStateFlow()
 
@@ -75,6 +77,7 @@ class MapViewModel : ViewModel() {
     }
 
     fun selectPoi(poi: PoiDto) {
+        _actionResult.value = null
         _selectedPoi.value = poi
         viewModelScope.launch {
             try {
@@ -122,6 +125,7 @@ class MapViewModel : ViewModel() {
     }
 
     fun clearSelection() {
+        _actionResult.value = null
         _selectedPoi.value = null
         _photos.value = emptyList()
         _reviewCount.value = 0
@@ -175,7 +179,17 @@ class MapViewModel : ViewModel() {
         _filteredPois.value = result
     }
 
-    fun createPoi(name: String, category: String, latitude: Double, longitude: Double, isPaid: Boolean, userId: String, description: String = "") {
+    fun createPoi(
+        name: String,
+        category: String,
+        latitude: Double,
+        longitude: Double,
+        isPaid: Boolean,
+        userId: String,
+        description: String = "",
+        photoUri: android.net.Uri? = null,
+        context: android.content.Context? = null
+    ) {
         viewModelScope.launch {
             val tooClose = _pois.value.any {
                 haversine(latitude, longitude, it.latitude, it.longitude) < 5.0
@@ -196,7 +210,27 @@ class MapViewModel : ViewModel() {
             val created = repository.createPoi(dto)
             if (created) {
                 loadPois()
-                _actionResult.value = PoiActionResult.Message("created")
+                if (photoUri != null && context != null) {
+                    // Upload the chosen photo against the newly created POI.
+                    val target = _pois.value.minByOrNull {
+                        haversine(latitude, longitude, it.latitude, it.longitude)
+                    }
+                    val match = target?.let {
+                        if (haversine(latitude, longitude, it.latitude, it.longitude) < 50.0) it else null
+                    }
+                    if (match != null) {
+                        val uploaded = try {
+                            repository.uploadPoiPhoto(match.id, userId, photoUri, context)
+                        } catch (_: Exception) { false }
+                        _actionResult.value = if (uploaded) {
+                            PoiActionResult.Message("photo_uploaded")
+                        } else {
+                            PoiActionResult.Message("photo_failed")
+                        }
+                    }
+                } else {
+                    _actionResult.value = PoiActionResult.Message("created")
+                }
             } else {
                 _actionResult.value = PoiActionResult.Message("create_failed")
             }
@@ -205,6 +239,11 @@ class MapViewModel : ViewModel() {
 
     fun verifyPoi(poiId: String, userId: String, userLat: Double = 0.0, userLng: Double = 0.0) {
         viewModelScope.launch {
+            val distance = distanceToPoi(poiId, userLat, userLng)
+            if (distance != null && distance > MAX_ACTION_DISTANCE_METERS) {
+                _actionResult.value = PoiActionResult.Message("too_far_${distance.toInt()}")
+                return@launch
+            }
             when (val result = repository.verifyPoi(poiId, userId)) {
                 is VerifyResult.AlreadyVerified -> _actionResult.value = PoiActionResult.Message("already_verified")
                 is VerifyResult.NowVerified -> {
@@ -217,12 +256,18 @@ class MapViewModel : ViewModel() {
                     _actionResult.value = PoiActionResult.Message("verification_counted")
                     loadPois()
                 }
+                is VerifyResult.Error -> _actionResult.value = PoiActionResult.Message("verify_failed")
             }
         }
     }
 
     fun reportNotExist(poiId: String, userId: String, userLat: Double = 0.0, userLng: Double = 0.0) {
         viewModelScope.launch {
+            val distance = distanceToPoi(poiId, userLat, userLng)
+            if (distance != null && distance > MAX_ACTION_DISTANCE_METERS) {
+                _actionResult.value = PoiActionResult.Message("too_far_${distance.toInt()}")
+                return@launch
+            }
             when (val result = repository.reportNotExist(poiId, userId)) {
                 is ReportResult.AlreadyReported -> _actionResult.value = PoiActionResult.Message("already_reported")
                 is ReportResult.NowUnverified -> {
@@ -238,16 +283,25 @@ class MapViewModel : ViewModel() {
                     _actionResult.value = PoiActionResult.Message("report_counted")
                     loadPois()
                 }
-                is ReportResult.Error -> _actionResult.value = PoiActionResult.Message("error")
+                is ReportResult.Error -> _actionResult.value = PoiActionResult.Message("report_failed")
             }
         }
     }
 
+    private fun distanceToPoi(poiId: String, userLat: Double, userLng: Double): Double? {
+        if (userLat == 0.0 && userLng == 0.0) return null
+        val poi = _pois.value.find { it.id == poiId } ?: _selectedPoi.value?.takeIf { it.id == poiId }
+            ?: return null
+        return haversine(userLat, userLng, poi.latitude, poi.longitude)
+    }
+
     fun checkVerificationStatus(poiId: String, userId: String) {
         viewModelScope.launch {
-            val verified = repository.hasUserVerified(poiId, userId)
-            val reported = repository.hasUserReported(poiId, userId)
-            _actionResult.value = PoiActionResult.Status(verified, reported)
+            try {
+                val verified = repository.hasUserVerified(poiId, userId)
+                val reported = repository.hasUserReported(poiId, userId)
+                _actionResult.value = PoiActionResult.Status(verified, reported)
+            } catch (_: Exception) { }
         }
     }
 

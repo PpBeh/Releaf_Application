@@ -87,6 +87,8 @@ fun ProfileScreen(
     val userAchievements by viewModel.achievements.collectAsState()
     val userGarden by viewModel.userGarden.collectAsState()
     val userPlantSlots by viewModel.userPlantSlots.collectAsState()
+    val userReviewCount by viewModel.userReviewCount.collectAsState()
+    val userVerifiedCount by viewModel.userVerifiedCount.collectAsState()
 
 
     val avatarPicker = androidx.activity.compose.rememberLauncherForActivityResult(
@@ -143,9 +145,9 @@ fun ProfileScreen(
 
     // Build achievements list with progress
     val defaultMasterAchievements = listOf(
-        AchievementItemData("1", "Expert Reviewer", "Write 10 reviews", false, R.drawable.ic_toilet, 0, 10),
+        AchievementItemData("1", "Expert Reviewer", "Write 10 reviews", false, R.drawable.ic_star, 0, 10),
         AchievementItemData("2", "Expert Gardener", "Grow 50 plants", false, R.drawable.ic_plant_1, 0, 50),
-        AchievementItemData("3", "Toilet Scout", "Verify 5 toilets", false, R.drawable.ic_star, 0, 5),
+        AchievementItemData("3", "Toilet Scout", "Verify 5 toilets", false, R.drawable.ic_toilet, 0, 5),
         AchievementItemData("4", "Clean Crusader", "Rate 10 toilets", false, R.drawable.ic_favorite, 0, 10),
         AchievementItemData("5", "Early Adopter", "Joined during launch", false, R.drawable.ic_person, 0, 1),
         AchievementItemData("6", "Photo Fanatic", "Upload 20 photos", false, R.drawable.ic_palette, 0, 20),
@@ -154,9 +156,9 @@ fun ProfileScreen(
     )
 
     // Calculate progress from actual user data
-    val reviewCount = remember(userAchievements) { 0 }
-    val plantCount = userPlantSlots.count { it.state == "FULLY_GROWN" || it.state == "GROWING" }
-    val verifiedCount = 0
+    val reviewCount = minOf(userReviewCount, 10)
+    val plantCount = userPlantSlots.count { com.example.releaf.model.isPlantedState(it.state) }
+    val verifiedCount = minOf(userVerifiedCount, 5)
 
     val achievementItems = defaultMasterAchievements.map { defaultItem ->
         val userEarned = userAchievements.any { userAch ->
@@ -367,7 +369,7 @@ fun ProfileScreen(
                         }
                         var showTitlePicker by remember { mutableStateOf(false) }
                         val titles = listOf("Gardener" to 0, "Sprout" to 500, "Green Thumb" to 2000, "Expert Gardener" to 5000, "Master Gardener" to 10000)
-                        val gardenPoints = userGarden?.current_points ?: profile?.total_points ?: 0
+                        val titleMetric = gardenExp
                         Surface(
                             shape = RoundedCornerShape(12.dp),
                             color = Color.White.copy(alpha = 0.2f),
@@ -390,7 +392,7 @@ fun ProfileScreen(
                                 text = {
                                     Column {
                                         titles.forEach { (tName, req) ->
-                                            val unlocked = gardenPoints >= req
+                                            val unlocked = titleMetric >= req
                                             Row(
                                                 modifier = Modifier.fillMaxWidth().clickable(enabled = unlocked) {
                                                     if (unlocked) {
@@ -547,7 +549,7 @@ fun ProfileScreen(
                     val slot = userPlantSlots.find { it.slot_index == slotIndex }
                     val seedInfo = SeedData.getSeedForSlot(slotIndex)
                     val state = slot?.state ?: "EMPTY_POT"
-                    val isPlanted = state == "PLANTED" || state == "GROWING" || state == "FULLY_GROWN"
+                    val isPlanted = com.example.releaf.model.isPlantedState(state)
 
                     val plantImageRes = if (isPlanted) {
                         when (slotIndex) {

@@ -102,9 +102,9 @@ class ReviewRepository {
         if (reviewIds.isEmpty()) return emptyMap()
         return try {
             val votes = client.postgrest.from("review_votes")
-                .select { filter { eq("user_id", userId) } }
+                .select { filter { eq("user_id", userId); isIn("review_id", reviewIds) } }
                 .decodeList<ReviewVoteDto>()
-            votes.filter { it.review_id in reviewIds }.associate { it.review_id to it.vote_type }
+            votes.associate { it.review_id to it.vote_type }
         } catch (e: Exception) {
             e.printStackTrace()
             emptyMap()
@@ -112,95 +112,119 @@ class ReviewRepository {
     }
 
     suspend fun vote(reviewId: String, userId: String, voteType: String, review: ReviewDto): VoteResult {
-        val existing = try {
-            client.postgrest.from("review_votes")
+        // Read the freshest counts from the server before writing so concurrent
+        // votes cannot overwrite each other with stale absolute values.
+        var latest = review
+        try {
+            latest = client.postgrest.from("reviews")
+                .select { filter { eq("id", reviewId) } }
+                .decodeSingleOrNull() ?: review
+        } catch (_: Exception) { }
+
+        return try {
+            val existing = client.postgrest.from("review_votes")
                 .select { filter { eq("review_id", reviewId); eq("user_id", userId) } }
                 .decodeList<ReviewVoteDto>()
+
+            if (existing.isNotEmpty()) {
+                val oldVote = existing.first()
+                val oldVoteId = oldVote.id
+                if (oldVote.vote_type == voteType) {
+                    deleteVote(oldVoteId, reviewId, userId)
+                    if (voteType == "LIKE") {
+                        updateCounts(reviewId, likeDelta = -1, latestLike = latest.like_count)
+                    } else {
+                        updateCounts(reviewId, dislikeDelta = -1, latestDislike = latest.dislike_count)
+                    }
+                    return VoteResult.Unvoted
+                } else {
+                    deleteVote(oldVoteId, reviewId, userId)
+                    client.postgrest.from("review_votes").insert(
+                        ReviewVoteDto(review_id = reviewId, user_id = userId, vote_type = voteType)
+                    )
+                    if (voteType == "LIKE") {
+                        updateCounts(
+                            reviewId,
+                            likeDelta = 1,
+                            dislikeDelta = -1,
+                            latestLike = latest.like_count,
+                            latestDislike = latest.dislike_count
+                        )
+                    } else {
+                        updateCounts(
+                            reviewId,
+                            likeDelta = -1,
+                            dislikeDelta = 1,
+                            latestLike = latest.like_count,
+                            latestDislike = latest.dislike_count
+                        )
+                    }
+                    return VoteResult.Success
+                }
+            }
+
+            client.postgrest.from("review_votes").insert(
+                ReviewVoteDto(review_id = reviewId, user_id = userId, vote_type = voteType)
+            )
+            if (voteType == "LIKE") {
+                updateCounts(reviewId, likeDelta = 1, latestLike = latest.like_count)
+            } else {
+                updateCounts(reviewId, dislikeDelta = 1, latestDislike = latest.dislike_count)
+            }
+            VoteResult.Success
         } catch (e: Exception) {
             e.printStackTrace()
-            emptyList()
+            VoteResult.AlreadyVoted
         }
+    }
 
-        if (existing.isNotEmpty()) {
-            val oldVote = existing.first()
-            val oldVoteId = oldVote.id
-            if (oldVote.vote_type == voteType) {
-                try {
-                    if (oldVoteId != null) {
-                        client.postgrest.from("review_votes").delete { filter { eq("id", oldVoteId) } }
-                    } else {
-                        client.postgrest.from("review_votes").delete { filter { eq("review_id", reviewId); eq("user_id", userId) } }
-                    }
-                } catch (_: Exception) {
-                    try { client.postgrest.from("review_votes").delete { filter { eq("review_id", reviewId); eq("user_id", userId) } } } catch (_: Exception) {}
-                }
-                if (voteType == "LIKE") {
-                    client.postgrest.from("reviews").update(
-                        mapOf("like_count" to (review.like_count - 1).coerceAtLeast(0))
-                    ) { filter { eq("id", reviewId) } }
-                } else {
-                    client.postgrest.from("reviews").update(
-                        mapOf("dislike_count" to (review.dislike_count - 1).coerceAtLeast(0))
-                    ) { filter { eq("id", reviewId) } }
-                }
-                return VoteResult.Unvoted
+    private suspend fun deleteVote(voteId: String?, reviewId: String, userId: String) {
+        try {
+            if (voteId != null) {
+                client.postgrest.from("review_votes").delete { filter { eq("id", voteId) } }
             } else {
-                try {
-                    if (oldVoteId != null) {
-                        client.postgrest.from("review_votes").delete { filter { eq("id", oldVoteId) } }
-                    } else {
-                        client.postgrest.from("review_votes").delete { filter { eq("review_id", reviewId); eq("user_id", userId) } }
-                    }
-                } catch (_: Exception) {}
-                client.postgrest.from("review_votes").insert(
-                    ReviewVoteDto(review_id = reviewId, user_id = userId, vote_type = voteType)
-                )
-                if (voteType == "LIKE") {
-                    client.postgrest.from("reviews").update(
-                        mapOf(
-                            "like_count" to review.like_count + 1,
-                            "dislike_count" to (review.dislike_count - 1).coerceAtLeast(0)
-                        )
-                    ) { filter { eq("id", reviewId) } }
-                } else {
-                    client.postgrest.from("reviews").update(
-                        mapOf(
-                            "dislike_count" to review.dislike_count + 1,
-                            "like_count" to (review.like_count - 1).coerceAtLeast(0)
-                        )
-                    ) { filter { eq("id", reviewId) } }
-                }
-                return VoteResult.Success
+                client.postgrest.from("review_votes").delete { filter { eq("review_id", reviewId); eq("user_id", userId) } }
             }
+        } catch (_: Exception) {
+            try { client.postgrest.from("review_votes").delete { filter { eq("review_id", reviewId); eq("user_id", userId) } } } catch (_: Exception) {}
         }
-
-        client.postgrest.from("review_votes").insert(
-            ReviewVoteDto(review_id = reviewId, user_id = userId, vote_type = voteType)
-        )
-
-        if (voteType == "LIKE") {
-            client.postgrest.from("reviews").update(
-                mapOf("like_count" to review.like_count + 1)
-            ) { filter { eq("id", reviewId) } }
-        } else {
-            client.postgrest.from("reviews").update(
-                mapOf("dislike_count" to review.dislike_count + 1)
-            ) { filter { eq("id", reviewId) } }
-        }
-
-        return VoteResult.Success
     }
 
-    suspend fun likeReview(reviewId: String, currentLikes: Int) {
-        client.postgrest.from("reviews").update(
-            mapOf("like_count" to currentLikes + 1)
-        ) { filter { eq("id", reviewId) } }
+    private suspend fun updateCounts(
+        reviewId: String,
+        likeDelta: Int = 0,
+        dislikeDelta: Int = 0,
+        latestLike: Int? = null,
+        latestDislike: Int? = null
+    ) {
+        val update = mutableMapOf<String, Any>()
+        if (likeDelta != 0) {
+            val base = if (latestLike != null) latestLike else likeCount(reviewId)
+            update["like_count"] = (base + likeDelta).coerceAtLeast(0)
+        }
+        if (dislikeDelta != 0) {
+            val base = if (latestDislike != null) latestDislike else dislikeCount(reviewId)
+            update["dislike_count"] = (base + dislikeDelta).coerceAtLeast(0)
+        }
+        if (update.isNotEmpty()) {
+            client.postgrest.from("reviews").update(update) { filter { eq("id", reviewId) } }
+        }
     }
 
-    suspend fun dislikeReview(reviewId: String, currentDislikes: Int) {
-        client.postgrest.from("reviews").update(
-            mapOf("dislike_count" to currentDislikes + 1)
-        ) { filter { eq("id", reviewId) } }
+    private suspend fun likeCount(reviewId: String): Int {
+        return try {
+            client.postgrest.from("reviews")
+                .select(io.github.jan.supabase.postgrest.query.Columns.raw("like_count")) { filter { eq("id", reviewId) } }
+                .decodeList<com.example.releaf.data.remote.dto.ReviewCountDto>().firstOrNull()?.like_count ?: 0
+        } catch (_: Exception) { 0 }
+    }
+
+    private suspend fun dislikeCount(reviewId: String): Int {
+        return try {
+            client.postgrest.from("reviews")
+                .select(io.github.jan.supabase.postgrest.query.Columns.raw("dislike_count")) { filter { eq("id", reviewId) } }
+                .decodeList<com.example.releaf.data.remote.dto.ReviewCountDto>().firstOrNull()?.dislike_count ?: 0
+        } catch (_: Exception) { 0 }
     }
 
     suspend fun updatePoiStats(poiId: String) {
@@ -256,8 +280,7 @@ class ReviewRepository {
             val reviews = getReviews(poiId)
             if (reviews.isEmpty()) return Pair(null, null)
 
-            val sorted = reviews.sortedByDescending { it.created_at }
-            val recent = sorted.take(5)
+            val recent = reviews.sortedByDescending { it.created_at }.take(5)
 
             for (review in recent) {
                 val status = ReviewAnalyzer.analyze(review.text, review.star_rating)
@@ -275,6 +298,17 @@ class ReviewRepository {
         return client.postgrest.from("profiles")
             .select { filter { eq("id", userId) } }
             .decodeSingleOrNull()
+    }
+
+    suspend fun countUserReviews(userId: String): Int {
+        return try {
+            client.postgrest.from("reviews")
+                .select(io.github.jan.supabase.postgrest.query.Columns.raw("id")) { filter { eq("user_id", userId) } }
+                .decodeList<kotlinx.serialization.json.JsonObject>()
+                .size
+        } catch (_: Exception) {
+            0
+        }
     }
 
 }

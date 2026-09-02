@@ -40,6 +40,12 @@ class ProfileViewModel(application: android.app.Application) : androidx.lifecycl
     private val _userPlantSlots = MutableStateFlow<List<PlantSlotDto>>(emptyList())
     val userPlantSlots: StateFlow<List<PlantSlotDto>> = _userPlantSlots.asStateFlow()
 
+    private val _userReviewCount = MutableStateFlow(0)
+    val userReviewCount: StateFlow<Int> = _userReviewCount.asStateFlow()
+
+    private val _userVerifiedCount = MutableStateFlow(0)
+    val userVerifiedCount: StateFlow<Int> = _userVerifiedCount.asStateFlow()
+
     private var currentUserId = ""
 
     init {
@@ -70,10 +76,12 @@ class ProfileViewModel(application: android.app.Application) : androidx.lifecycl
                 val merged = (1..6).map { idx ->
                     val remote = remoteSlots.find { it.slot_index == idx }
                     val rawLocal = gardenPrefs.getString("slot_${userId}_$idx", null)?.let { if (it == "PLANTED") "GROWING" else it }
+                    // Server row is the source of truth when it exists; local prefs only
+                    // fill in when the slot has never been synced.
                     val state = when {
-                        remote != null && remote.state != "EMPTY_POT" -> remote.state
+                        remote != null -> remote.state
                         rawLocal != null && rawLocal != "EMPTY_POT" -> rawLocal
-                        else -> remote?.state ?: "EMPTY_POT"
+                        else -> "EMPTY_POT"
                     }
                     com.example.releaf.data.remote.dto.PlantSlotDto(
                         id = remote?.id ?: "",
@@ -84,6 +92,14 @@ class ProfileViewModel(application: android.app.Application) : androidx.lifecycl
                     )
                 }
                 _userPlantSlots.value = merged
+            } catch (_: Exception) { }
+
+            try {
+                _userReviewCount.value = com.example.releaf.data.repository.ReviewRepository().countUserReviews(userId)
+            } catch (_: Exception) { }
+
+            try {
+                _userVerifiedCount.value = com.example.releaf.data.repository.PoiRepository().countUserVerifications(userId)
             } catch (_: Exception) { }
 
             try {
@@ -155,7 +171,7 @@ class ProfileViewModel(application: android.app.Application) : androidx.lifecycl
         viewModelScope.launch {
             try {
                 gardenRepository.deletePlantSlot(userId, slotIndex)
-                // Also clear local fallback prefs if any
+                gardenPrefs.edit().remove("slot_${userId}_$slotIndex").apply()
                 // reload to reflect DB truth
                 loadProfile(userId)
                 com.example.releaf.data.remote.SupabaseModule.triggerRefresh()
@@ -171,7 +187,9 @@ class ProfileViewModel(application: android.app.Application) : androidx.lifecycl
                 gardenRepository.deleteGarden(userId)
                 for (i in 1..6) {
                     try { gardenRepository.deletePlantSlot(userId, i) } catch (_: Exception) { }
+                    gardenPrefs.edit().remove("slot_${userId}_$i").apply()
                 }
+                gardenPrefs.edit().remove("tree_exp_$userId").apply()
                 loadProfile(userId)
                 com.example.releaf.data.remote.SupabaseModule.triggerRefresh()
             } catch (e: Exception) {

@@ -39,7 +39,8 @@ object AppStrings {
         "create_failed" to "Failed to create POI",
         "too_close" to "A POI already exists within 5m of this location.",
         "photo_uploaded" to "Photo uploaded!",
-        "photo_failed" to "Photo upload failed"
+        "photo_failed" to "Photo upload failed",
+        "poi_removed" to "POI has been removed due to reports."
     )
 
     val zh = mapOf(
@@ -74,7 +75,8 @@ object AppStrings {
         "create_failed" to "创建失败",
         "too_close" to "5米内已存在兴趣点。",
         "photo_uploaded" to "照片上传成功！",
-        "photo_failed" to "照片上传失败"
+        "photo_failed" to "照片上传失败",
+        "poi_removed" to "该地点已因举报而被移除。"
     )
 
     fun get(key: String, lang: AppLanguage): String {

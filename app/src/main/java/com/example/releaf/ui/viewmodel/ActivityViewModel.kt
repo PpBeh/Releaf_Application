@@ -24,15 +24,30 @@ class ActivityViewModel(application: Application) : AndroidViewModel(application
     private val _userQuests = MutableStateFlow<List<UserQuestDto>>(emptyList())
     val userQuests: StateFlow<List<UserQuestDto>> = _userQuests.asStateFlow()
 
+    private val _isLoading = MutableStateFlow(false)
+    val isLoading: StateFlow<Boolean> = _isLoading.asStateFlow()
+
+    private val _errorMessage = MutableStateFlow<String?>(null)
+    val errorMessage: StateFlow<String?> = _errorMessage.asStateFlow()
+
     fun loadQuests(userId: String) {
         viewModelScope.launch {
+            _isLoading.value = true
             try {
-                val today = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(Date())
+                val today = SimpleDateFormat("yyyy-MM-dd", Locale.US).run {
+                    timeZone = java.util.TimeZone.getTimeZone("Asia/Kuala_Lumpur")
+                    format(Date())
+                }
 
-                try {
-                    repository.incrementQuestsByType(userId, "CHECK_IN")
-                } catch (e: Exception) {
-                    android.util.Log.e("ActivityViewModel", "Check-in failed", e)
+                // Check-in counts only once per (local) day, not on every screen load.
+                val lastCheckIn = activityPrefs.getString("check_in_$userId", null)
+                if (lastCheckIn != today) {
+                    try {
+                        repository.incrementQuestsByType(userId, "CHECK_IN")
+                        activityPrefs.edit().putString("check_in_$userId", today).apply()
+                    } catch (e: Exception) {
+                        android.util.Log.e("ActivityViewModel", "Check-in failed", e)
+                    }
                 }
 
                 val allAvailableQuests = repository.getQuestsByDifficulty("EASY") +
@@ -79,7 +94,9 @@ class ActivityViewModel(application: Application) : AndroidViewModel(application
 
             } catch (e: Exception) {
                 android.util.Log.e("ActivityViewModel", "Error loading quests completely", e)
+                _errorMessage.value = "Could not load quests. Check your connection and try again."
             }
+            _isLoading.value = false
         }
     }
 
@@ -88,35 +105,42 @@ class ActivityViewModel(application: Application) : AndroidViewModel(application
 
     fun claimQuest(questId: String, userId: String) {
         viewModelScope.launch {
+            val previous = _userQuests.value
             _userQuests.value = _userQuests.value.map {
                 if (it.quest_id == questId) it.copy(status = "CLAIMED") else it
             }
 
             try {
-                val userQuest = repository.claimQuest(questId, userId)
-                val quest = repository.getQuest(questId) ?: userQuest?.quest
+                val claimed = repository.claimQuest(questId, userId)
+                if (claimed == null) {
+                    _userQuests.value = previous
+                    return@launch
+                }
+                val quest = repository.getQuest(questId) ?: claimed.quest
 
                 if (quest != null) {
                     val garden = gardenRepository.getGarden(userId)
 
-                    val localExp = gardenPrefs.getInt("tree_exp_${userId}", 0)
-                    val remoteExp = garden?.current_exp ?: 0
-                    val actualExp = max(localExp, remoteExp)
+                    if (garden != null) {
+                        val localExp = gardenPrefs.getInt("tree_exp_${userId}", 0)
+                        val remoteExp = garden.current_exp
+                        val actualExp = max(localExp, remoteExp)
 
-                    val newExp = actualExp + quest.reward_count
-                    val newPoints = (garden?.current_points ?: 0) + quest.reward_count
+                        val newExp = actualExp + quest.reward_count
+                        val newPoints = garden.current_points + quest.reward_count
 
-                    gardenPrefs.edit().putInt("tree_exp_${userId}", newExp).apply()
+                        gardenPrefs.edit().putInt("tree_exp_${userId}", newExp).apply()
 
-                    gardenRepository.upsertGardenExp(
-                        userId = userId,
-                        newExp = newExp,
-                        newPoints = newPoints,
-                        newGems = garden?.current_gems ?: 0,
-                        expTarget = garden?.exp_target ?: 2000,
-                        waterUsesLeft = garden?.grow_uses_left ?: 1,
-                        fertilizeUsesLeft = garden?.fertilize_uses_left ?: 1
-                    )
+                        gardenRepository.upsertGardenExp(
+                            userId = userId,
+                            newExp = newExp,
+                            newPoints = newPoints,
+                            newGems = garden.current_gems,
+                            expTarget = garden.exp_target,
+                            waterUsesLeft = garden.grow_uses_left,
+                            fertilizeUsesLeft = garden.fertilize_uses_left
+                        )
+                    }
 
                     val profile = authRepository.getProfile(userId)
                     if (profile != null) {
@@ -127,6 +151,7 @@ class ActivityViewModel(application: Application) : AndroidViewModel(application
                 }
             } catch (e: Exception) {
                 android.util.Log.e("ActivityViewModel", "Error claiming quest", e)
+                _userQuests.value = previous
             }
             loadQuests(userId)
         }
