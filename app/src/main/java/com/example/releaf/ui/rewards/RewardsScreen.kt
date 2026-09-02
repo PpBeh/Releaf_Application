@@ -133,25 +133,6 @@ fun RewardsScreen(
 
             Spacer(modifier = Modifier.height(24.dp))
 
-            Text("Titles & Badges", style = MaterialTheme.typography.titleMedium)
-            Spacer(modifier = Modifier.height(8.dp))
-
-            Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
-                if (tiers.isEmpty()) {
-                    val fallbackTiers = listOf(500 to true, 2000 to false, 10000 to false)
-                    fallbackTiers.forEach { (target, unlocked) ->
-                        TierBox(points = userPoints, target = target, unlocked = unlocked, themeViewModel = themeViewModel)
-                    }
-                } else {
-                    tiers.forEach { tier ->
-                        val unlocked = userRewards.any { it.tier_id == tier.id }
-                        TierBox(points = userPoints, target = tier.target_points, unlocked = unlocked, themeViewModel = themeViewModel)
-                    }
-                }
-            }
-
-            Spacer(modifier = Modifier.height(32.dp))
-
             Text("Garden Seeds", style = MaterialTheme.typography.titleMedium)
             Spacer(modifier = Modifier.height(8.dp))
 

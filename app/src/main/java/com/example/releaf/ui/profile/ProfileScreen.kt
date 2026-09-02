@@ -52,6 +52,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Settings
 import coil.compose.rememberAsyncImagePainter
 import com.example.releaf.R
@@ -64,7 +65,9 @@ data class AchievementItemData(
     val label: String,
     val description: String,
     val isUnlocked: Boolean,
-    val iconRes: Int
+    val iconRes: Int,
+    val progress: Int = 0,
+    val target: Int = 1
 )
 
 @Composable
@@ -76,14 +79,15 @@ fun ProfileScreen(
     onFavouritesClick: () -> Unit,
     onLogoutClick: () -> Unit,
     onSettingsClick: () -> Unit,
-    onViewGardenClick: (() -> Unit)? = null
+    onViewGardenClick: (() -> Unit)? = null,
+    onBackClick: (() -> Unit)? = null
 ) {
     val context = LocalContext.current
     val profile by viewModel.profile.collectAsState()
     val userAchievements by viewModel.achievements.collectAsState()
     val userGarden by viewModel.userGarden.collectAsState()
     val userPlantSlots by viewModel.userPlantSlots.collectAsState()
-    var showDeletePlantSlot by remember { mutableStateOf<Int?>(null) }
+
 
     val avatarPicker = androidx.activity.compose.rememberLauncherForActivityResult(
         androidx.activity.result.contract.ActivityResultContracts.GetContent()
@@ -137,24 +141,35 @@ fun ProfileScreen(
         else -> R.drawable.ic_tree_stage_3
     }
 
-    // Build achievements list in a row
+    // Build achievements list with progress
     val defaultMasterAchievements = listOf(
-        AchievementItemData("1", "Expert Reviewer", "Write 10 or more toilet reviews", false, R.drawable.ic_toilet),
-        AchievementItemData("2", "Expert Gardener", "Grow 50 plants to full bloom", false, R.drawable.ic_plant_1),
-        AchievementItemData("3", "Toilet Scout", "Verify 5 new toilet locations", false, R.drawable.ic_star),
-        AchievementItemData("4", "Clean Crusader", "Rate cleanliness on 10 toilets", false, R.drawable.ic_favorite),
-        AchievementItemData("5", "Early Adopter", "Joined Releaf community during launch", false, R.drawable.ic_person),
-        AchievementItemData("6", "Photo Fanatic", "Upload 20 facility photos", false, R.drawable.ic_palette),
-        AchievementItemData("7", "Social Butterfly", "Interact with 50 community reviews", false, R.drawable.ic_favorite),
-        AchievementItemData("8", "Master Navigator", "Navigate to 20 different facilities", false, R.drawable.ic_refresh)
+        AchievementItemData("1", "Expert Reviewer", "Write 10 reviews", false, R.drawable.ic_toilet, 0, 10),
+        AchievementItemData("2", "Expert Gardener", "Grow 50 plants", false, R.drawable.ic_plant_1, 0, 50),
+        AchievementItemData("3", "Toilet Scout", "Verify 5 toilets", false, R.drawable.ic_star, 0, 5),
+        AchievementItemData("4", "Clean Crusader", "Rate 10 toilets", false, R.drawable.ic_favorite, 0, 10),
+        AchievementItemData("5", "Early Adopter", "Joined during launch", false, R.drawable.ic_person, 0, 1),
+        AchievementItemData("6", "Photo Fanatic", "Upload 20 photos", false, R.drawable.ic_palette, 0, 20),
+        AchievementItemData("7", "Social Butterfly", "Interact 50 times", false, R.drawable.ic_favorite, 0, 50),
+        AchievementItemData("8", "Master Navigator", "Navigate 20 facilities", false, R.drawable.ic_refresh, 0, 20)
     )
+
+    // Calculate progress from actual user data
+    val reviewCount = remember(userAchievements) { 0 }
+    val plantCount = userPlantSlots.count { it.state == "FULLY_GROWN" || it.state == "GROWING" }
+    val verifiedCount = 0
 
     val achievementItems = defaultMasterAchievements.map { defaultItem ->
         val userEarned = userAchievements.any { userAch ->
             userAch.achievement_id == defaultItem.id ||
                     userAch.achievement?.label?.equals(defaultItem.label, ignoreCase = true) == true
         }
-        defaultItem.copy(isUnlocked = userEarned)
+        val progress = when (defaultItem.id) {
+            "1" -> minOf(reviewCount, defaultItem.target)
+            "2" -> minOf(plantCount, defaultItem.target)
+            "3" -> minOf(verifiedCount, defaultItem.target)
+            else -> if (userEarned) defaultItem.target else 0
+        }
+        defaultItem.copy(isUnlocked = userEarned, progress = progress)
     }
     val unlockedCount = achievementItems.count { it.isUnlocked }
 
@@ -181,6 +196,23 @@ fun ProfileScreen(
                 Box(modifier = Modifier.fillMaxSize().background(Color.Black.copy(alpha = 0.35f)))
             } else {
                 Box(modifier = Modifier.fillMaxSize().background(MaterialTheme.colorScheme.primary))
+            }
+            Row(
+                modifier = Modifier
+                    .align(Alignment.TopStart)
+                    .padding(8.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                if (!isOwnProfile && onBackClick != null) {
+                    IconButton(onClick = { onBackClick() }) {
+                        Icon(
+                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                            contentDescription = "Back",
+                            tint = Color.White,
+                            modifier = Modifier.size(26.dp)
+                        )
+                    }
+                }
             }
             if (isOwnProfile) {
                 Row(
@@ -222,13 +254,11 @@ fun ProfileScreen(
                                 text = {
                                     Column {
                                         frames.forEach { (fid, label) ->
-                                            val owned = fid == "None" || prefs.getBoolean("owned_$fid", false)
+                                            val owned = fid == "None" || fid == "Leaf" || prefs.getBoolean("owned_$fid", false)
                                             Row(
                                                 modifier = Modifier.fillMaxWidth().clickable(enabled = owned) {
-                                                    if (owned) {
-                                                        viewModel.updateAvatarFrame(userId, if (fid == "None") "" else fid)
-                                                        showFramePicker = false
-                                                    }
+                                                    viewModel.updateAvatarFrame(userId, if (fid == "None") "" else fid)
+                                                    showFramePicker = false
                                                 }.padding(8.dp),
                                                 verticalAlignment = Alignment.CenterVertically
                                             ) {
@@ -559,22 +589,7 @@ fun ProfileScreen(
                                     contentDescription = seedInfo.name,
                                     modifier = Modifier.size(44.dp)
                                 )
-                                if (isPlanted && isOwnProfile) {
-                                    IconButton(
-                                        onClick = { showDeletePlantSlot = slotIndex },
-                                        modifier = Modifier
-                                            .align(Alignment.TopEnd)
-                                            .size(20.dp)
-                                            .background(Color.White.copy(alpha = 0.9f), CircleShape)
-                                    ) {
-                                        Icon(
-                                            painter = painterResource(id = R.drawable.ic_delete),
-                                            contentDescription = "Remove plant",
-                                            tint = Color(0xFFE53935),
-                                            modifier = Modifier.size(12.dp)
-                                        )
-                                    }
-                                }
+
                             }
 
                             Spacer(modifier = Modifier.height(8.dp))
@@ -612,17 +627,7 @@ fun ProfileScreen(
                                     modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp)
                                 )
                             }
-                            if (isPlanted && isOwnProfile) {
-                                Spacer(modifier = Modifier.height(6.dp))
-                                OutlinedButton(
-                                    onClick = { showDeletePlantSlot = slotIndex },
-                                    shape = RoundedCornerShape(10.dp),
-                                    contentPadding = PaddingValues(horizontal = 8.dp, vertical = 2.dp),
-                                    modifier = Modifier.fillMaxWidth()
-                                ) {
-                                    Text("Remove", fontSize = 10.sp, color = Color(0xFFE53935))
-                                }
-                            }
+
                         }
                     }
                 }
@@ -716,6 +721,23 @@ fun ProfileScreen(
                                 overflow = TextOverflow.Ellipsis,
                                 modifier = Modifier.height(28.dp)
                             )
+
+                            if (!achievement.isUnlocked) {
+                                Spacer(modifier = Modifier.height(6.dp))
+                                LinearProgressIndicator(
+                                    progress = { achievement.progress.toFloat() / achievement.target.toFloat() },
+                                    modifier = Modifier.fillMaxWidth().height(6.dp).clip(RoundedCornerShape(3.dp)),
+                                    color = Color(0xFF4CAF50),
+                                    trackColor = Color.Gray.copy(alpha = 0.3f)
+                                )
+                                Spacer(modifier = Modifier.height(4.dp))
+                                Text(
+                                    "${achievement.progress}/${achievement.target}",
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    modifier = Modifier.align(Alignment.CenterHorizontally)
+                                )
+                            }
 
                             Spacer(modifier = Modifier.height(8.dp))
 
@@ -828,23 +850,7 @@ fun ProfileScreen(
             Spacer(modifier = Modifier.height(32.dp))
         }
 
-        // Delete plant confirmation - deletes DB row with confirmation
-        showDeletePlantSlot?.let { slotIndex ->
-            AlertDialog(
-                onDismissRequest = { showDeletePlantSlot = null },
-                title = { Text("Remove Plant?") },
-                text = { Text("Are you sure you want to remove the plant in Slot $slotIndex? This will delete the DB row (plant_slots) and cannot be undone.") },
-                confirmButton = {
-                    TextButton(onClick = {
-                        viewModel.deletePlantSlot(userId, slotIndex)
-                        showDeletePlantSlot = null
-                    }) { Text("Remove", color = Color(0xFFE53935)) }
-                },
-                dismissButton = {
-                    TextButton(onClick = { showDeletePlantSlot = null }) { Text("Cancel") }
-                }
-            )
-        }
+
 
     }
 }

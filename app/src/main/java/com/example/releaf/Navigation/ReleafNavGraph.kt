@@ -342,7 +342,8 @@ fun ReleafNavGraph(
                 },
                 onViewGardenClick = {
                     navController.navigate(Screen.Garden.createRoute(actualUserId))
-                }
+                },
+                onBackClick = { navController.popBackStack() }
             )
         }
         composable(Screen.Favourites.route) {

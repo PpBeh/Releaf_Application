@@ -16,10 +16,11 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 
-class ProfileViewModel : ViewModel() {
+class ProfileViewModel(application: android.app.Application) : androidx.lifecycle.AndroidViewModel(application) {
     private val authRepository = AuthRepository()
     private val rewardRepository = RewardRepository()
     private val gardenRepository = GardenRepository()
+    private val gardenPrefs = application.getSharedPreferences("garden_prefs", android.content.Context.MODE_PRIVATE)
 
     private val _profile = MutableStateFlow<ProfileDto?>(null)
     val profile: StateFlow<ProfileDto?> = _profile.asStateFlow()
@@ -65,8 +66,24 @@ class ProfileViewModel : ViewModel() {
             } catch (_: Exception) { }
 
             try {
-                val slots = gardenRepository.getPlantSlots(userId)
-                _userPlantSlots.value = slots
+                val remoteSlots = try { gardenRepository.getPlantSlots(userId) } catch (_: Exception) { emptyList() }
+                val merged = (1..6).map { idx ->
+                    val remote = remoteSlots.find { it.slot_index == idx }
+                    val rawLocal = gardenPrefs.getString("slot_${userId}_$idx", null)?.let { if (it == "PLANTED") "GROWING" else it }
+                    val state = when {
+                        remote != null && remote.state != "EMPTY_POT" -> remote.state
+                        rawLocal != null && rawLocal != "EMPTY_POT" -> rawLocal
+                        else -> remote?.state ?: "EMPTY_POT"
+                    }
+                    com.example.releaf.data.remote.dto.PlantSlotDto(
+                        id = remote?.id ?: "",
+                        user_id = userId,
+                        slot_index = idx,
+                        state = state,
+                        plant_type = remote?.plant_type ?: com.example.releaf.model.SeedData.getSeedForSlot(idx).name
+                    )
+                }
+                _userPlantSlots.value = merged
             } catch (_: Exception) { }
 
             try {
@@ -99,15 +116,6 @@ class ProfileViewModel : ViewModel() {
         }
     }
 
-    fun updateAvatarFrame(userId: String, frameId: String) {
-        viewModelScope.launch {
-            try {
-                authRepository.updateAvatarFrame(userId, frameId)
-                _profile.value = authRepository.getProfile(userId)
-            } catch (_: Exception) { }
-        }
-    }
-
     fun uploadAvatar(userId: String, uri: android.net.Uri, context: android.content.Context) {
         viewModelScope.launch {
             try {
@@ -126,6 +134,19 @@ class ProfileViewModel : ViewModel() {
                 if (url != null) {
                     _profile.value = authRepository.getProfile(userId)
                 }
+            } catch (_: Exception) { }
+        }
+    }
+
+    fun updateAvatarFrame(userId: String, frameId: String) {
+        val current = _profile.value
+        if (current != null) {
+            _profile.value = current.copy(avatar_frame = frameId)
+        }
+        viewModelScope.launch {
+            try {
+                authRepository.updateAvatarFrame(userId, frameId)
+                _profile.value = authRepository.getProfile(userId)
             } catch (_: Exception) { }
         }
     }

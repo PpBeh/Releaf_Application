@@ -76,8 +76,8 @@ class CommentViewModel : ViewModel() {
                 } catch (e: Exception) {
                     emptyList()
                 }
-                if (existingReviews.any { it.user_id == userId }) {
-                    _errorMessage.value = "You have already commented on this location. Only one comment per user is allowed."
+                if (existingReviews.count { it.user_id == userId } >= 3) {
+                    _errorMessage.value = "You have reached the limit of 3 comments for this toilet."
                     _isProcessing.value = false
                     return@launch
                 }

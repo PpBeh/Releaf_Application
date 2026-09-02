@@ -578,7 +578,7 @@ private fun ReviewRowItem(
     var showFullImage by remember { mutableStateOf(false) }
 
     Column {
-        Row(verticalAlignment = Alignment.CenterVertically) {
+        Row(verticalAlignment = Alignment.Top) {
             val frameColor = when (review.reviewer_frame) {
                 "Leaf" -> Color(0xFF4CAF50)
                 "Blocks" -> Color(0xFF795548)
@@ -614,6 +614,7 @@ private fun ReviewRowItem(
                     )
                 }
             }
+            Spacer(modifier = Modifier.width(12.dp))
             Column(modifier = Modifier.weight(1f)) {
                 Text(
                     review.reviewer_name.ifBlank { "User" },
@@ -629,9 +630,49 @@ private fun ReviewRowItem(
                         Icon(Icons.Default.Star, contentDescription = null, tint = MaterialTheme.colorScheme.outlineVariant, modifier = Modifier.size(14.dp))
                     }
                 }
-                Text(review.text, style = MaterialTheme.typography.bodyMedium)
+                Row(verticalAlignment = Alignment.Top, modifier = Modifier.fillMaxWidth()) {
+                    Text(review.text, style = MaterialTheme.typography.bodyMedium, modifier = Modifier.weight(1f))
+                    Box {
+                        IconButton(onClick = { menuExpanded = true }, modifier = Modifier.size(28.dp)) {
+                            Icon(
+                                Icons.Default.MoreVert,
+                                contentDescription = "More options",
+                                modifier = Modifier.size(18.dp)
+                            )
+                        }
+                        androidx.compose.material3.DropdownMenu(
+                            expanded = menuExpanded,
+                            onDismissRequest = { menuExpanded = false }
+                        ) {
+                            if (isOwnComment) {
+                                androidx.compose.material3.DropdownMenuItem(
+                                    text = { Text("Edit") },
+                                    onClick = {
+                                        menuExpanded = false
+                                        onEdit()
+                                    }
+                                )
+                                androidx.compose.material3.DropdownMenuItem(
+                                    text = { Text("Delete", color = Color(0xFFE53935)) },
+                                    onClick = {
+                                        menuExpanded = false
+                                        onDelete()
+                                    }
+                                )
+                            } else {
+                                androidx.compose.material3.DropdownMenuItem(
+                                    text = { Text("Report", color = Color(0xFFE53935)) },
+                                    onClick = {
+                                        menuExpanded = false
+                                        onReport()
+                                    }
+                                )
+                            }
+                        }
+                    }
+                }
                 if (!review.photo_url.isNullOrBlank()) {
-                    Spacer(modifier = Modifier.height(8.dp))
+                    Spacer(modifier = Modifier.height(6.dp))
                     Image(
                         painter = rememberAsyncImagePainter(model = review.photo_url),
                         contentDescription = "Review photo",
@@ -642,44 +683,6 @@ private fun ReviewRowItem(
                             .clickable { showFullImage = true },
                         contentScale = ContentScale.Crop
                     )
-                }
-            }
-            Box {
-                IconButton(onClick = { menuExpanded = true }, modifier = Modifier.size(32.dp)) {
-                    Icon(
-                        Icons.Default.MoreVert,
-                        contentDescription = "More options",
-                        modifier = Modifier.size(20.dp)
-                    )
-                }
-                androidx.compose.material3.DropdownMenu(
-                    expanded = menuExpanded,
-                    onDismissRequest = { menuExpanded = false }
-                ) {
-                    if (isOwnComment) {
-                        androidx.compose.material3.DropdownMenuItem(
-                            text = { Text("Edit") },
-                            onClick = {
-                                menuExpanded = false
-                                onEdit()
-                            }
-                        )
-                        androidx.compose.material3.DropdownMenuItem(
-                            text = { Text("Delete", color = Color(0xFFE53935)) },
-                            onClick = {
-                                menuExpanded = false
-                                onDelete()
-                            }
-                        )
-                    } else {
-                        androidx.compose.material3.DropdownMenuItem(
-                            text = { Text("Report", color = Color(0xFFE53935)) },
-                            onClick = {
-                                menuExpanded = false
-                                onReport()
-                            }
-                        )
-                    }
                 }
             }
         }

@@ -9,7 +9,7 @@ import com.example.releaf.ui.viewmodel.ThemeViewModel
 object AppStrings {
     val en = mapOf(
         "app_name" to "Releaf",
-        "search_placeholder" to "Search toilets and trash cans...",
+        "search_placeholder" to "Search...",
         "activity" to "Activity",
         "garden" to "Garden",
         "profile" to "Profile",
@@ -44,7 +44,7 @@ object AppStrings {
 
     val zh = mapOf(
         "app_name" to "Releaf",
-        "search_placeholder" to "搜索厕所和垃圾桶...",
+        "search_placeholder" to "搜索...",
         "activity" to "活动",
         "garden" to "花园",
         "profile" to "个人资料",
