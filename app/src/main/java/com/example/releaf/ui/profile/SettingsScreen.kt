@@ -23,6 +23,7 @@ import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -32,10 +33,12 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
+import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.releaf.R
 import com.example.releaf.ui.theme.AppTheme
 import com.example.releaf.ui.theme.string
@@ -49,14 +52,32 @@ data class SettingsRowData(val icon: Int, val title: String, val key: String = "
 
 @Composable
 fun SettingsScreen(
+    userId: String,
     onBackClick: () -> Unit,
     onLogoutClick: () -> Unit,
-    themeViewModel: ThemeViewModel
+    themeViewModel: ThemeViewModel,
+    viewModel: ProfileViewModel
 ) {
+    val context = LocalContext.current
     val currentTheme by themeViewModel.theme.collectAsState()
     val currentLang by themeViewModel.language.collectAsState()
     var showThemeDialog by remember { mutableStateOf(false) }
     var showLangDialog by remember { mutableStateOf(false) }
+    val profile by viewModel.profile.collectAsState()
+
+    val avatarPicker = androidx.activity.compose.rememberLauncherForActivityResult(
+        androidx.activity.result.contract.ActivityResultContracts.GetContent()
+    ) { uri ->
+        if (uri != null) {
+            viewModel.uploadAvatar(userId, uri, context)
+        }
+    }
+
+    LaunchedEffect(userId) {
+        if (userId.isNotBlank()) {
+            viewModel.loadProfile(userId)
+        }
+    }
 
     if (showLangDialog) {
         Dialog(onDismissRequest = { showLangDialog = false }) {
@@ -65,7 +86,11 @@ fun SettingsScreen(
                 color = MaterialTheme.colorScheme.surface
             ) {
                 Column(modifier = Modifier.padding(16.dp)) {
-                    Text("Select Language", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+                    Text(
+                        "Select Language",
+                        style = MaterialTheme.typography.titleLarge,
+                        fontWeight = FontWeight.Bold
+                    )
                     Spacer(modifier = Modifier.height(16.dp))
                     AppLanguage.entries.forEach { lang ->
                         Row(
@@ -98,7 +123,11 @@ fun SettingsScreen(
                 color = MaterialTheme.colorScheme.surface
             ) {
                 Column(modifier = Modifier.padding(16.dp)) {
-                    Text("Select Theme", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+                    Text(
+                        "Select Theme",
+                        style = MaterialTheme.typography.titleLarge,
+                        fontWeight = FontWeight.Bold
+                    )
                     Spacer(modifier = Modifier.height(16.dp))
                     AppTheme.entries.forEach { theme ->
                         Row(
@@ -140,8 +169,8 @@ fun SettingsScreen(
         Box(
             modifier = Modifier
                 .fillMaxWidth()
-                .height(180.dp)
                 .background(MaterialTheme.colorScheme.primary)
+                .padding(bottom = 20.dp)
         ) {
             IconButton(onClick = onBackClick, modifier = Modifier.padding(8.dp)) {
 
@@ -172,9 +201,24 @@ fun SettingsScreen(
                 }
                 Spacer(modifier = Modifier.width(16.dp))
                 Column {
-                    Text("User120033029", color = Color.White, fontWeight = FontWeight.Bold, style = MaterialTheme.typography.titleMedium)
-                    Text("000000128", color = Color.White, style = MaterialTheme.typography.bodySmall)
-                    Text("email@whatever.com", color = Color.White, style = MaterialTheme.typography.bodySmall)
+                    Text(
+                        profile?.name?.takeIf { it.isNotBlank() } ?: "User",
+                        color = Color.White,
+                        fontWeight = FontWeight.Bold,
+                        style = MaterialTheme.typography.titleMedium
+                    )
+
+                    Text(
+                        profile?.phone?.takeIf { it.isNotBlank() } ?: "N/A",
+                        color = Color.White,
+                        style = MaterialTheme.typography.bodySmall
+                    )
+
+                    Text(
+                        profile?.email?.takeIf { it.isNotBlank() } ?: "N/A",
+                        color = Color.White,
+                        style = MaterialTheme.typography.bodySmall
+                    )
                 }
             }
         }
@@ -195,7 +239,8 @@ fun SettingsScreen(
                             "logout" -> onLogoutClick()
                             "theme" -> showThemeDialog = true
                             "language" -> showLangDialog = true
-                            else -> { /* TODO: handle other rows */ }
+                            else -> { /* TODO: handle other rows */
+                            }
                         }
                     }
                 )

@@ -256,7 +256,13 @@ fun ReleafNavGraph(
             MapScreen(
                 viewModel = mapViewModel,
                 notificationsViewModel = notificationsViewModel,
-                onDirectionClick = { poiId -> navController.navigate(Screen.Direction.createRoute(poiId)) },
+                onDirectionClick = { poiId ->
+                    navController.navigate(
+                        Screen.Direction.createRoute(
+                            poiId
+                        )
+                    )
+                },
                 onCommentClick = { poiId -> navController.navigate(Screen.Comment.createRoute(poiId)) },
                 currentUserId = (session as? SessionState.LoggedIn)?.userId ?: "",
                 isDarkMode = isDarkMode,
@@ -299,9 +305,12 @@ fun ReleafNavGraph(
         }
         composable(
             route = Screen.Profile.route,
-            arguments = listOf(navArgument(Screen.Profile.ARG_USER_ID) { type = NavType.StringType })
+            arguments = listOf(navArgument(Screen.Profile.ARG_USER_ID) {
+                type = NavType.StringType
+            })
         ) { backStackEntry ->
-            val paramUserId = backStackEntry.arguments?.getString(Screen.Profile.ARG_USER_ID) ?: Screen.Profile.ME
+            val paramUserId =
+                backStackEntry.arguments?.getString(Screen.Profile.ARG_USER_ID) ?: Screen.Profile.ME
             val currentUserId = (session as? SessionState.LoggedIn)?.userId ?: ""
             val actualUserId = if (paramUserId == Screen.Profile.ME) currentUserId else paramUserId
             val profileViewModel: ProfileViewModel = viewModel()
@@ -313,7 +322,8 @@ fun ReleafNavGraph(
                 onFavouritesClick = { navController.navigate(Screen.Favourites.route) },
                 onLogoutClick = {
                     authViewModel.logout()
-                    navController.logout() },
+                    navController.logout()
+                },
                 onSettingsClick = {
                     navController.navigate(Screen.Settings.route)
                 },
@@ -340,13 +350,19 @@ fun ReleafNavGraph(
             )
         }
         composable(Screen.Settings.route) {
+            val profileViewModel: ProfileViewModel = viewModel()
+
+            val userId = (session as? SessionState.LoggedIn)?.userId ?: return@composable
+
             SettingsScreen(
+                userId = userId,
+                viewModel = profileViewModel,
+                themeViewModel = themeViewModel,
                 onBackClick = { navController.popBackStack() },
                 onLogoutClick = {
                     authViewModel.logout()
                     navController.logout()
-                },
-                themeViewModel = themeViewModel
+                }
             )
         }
     }
