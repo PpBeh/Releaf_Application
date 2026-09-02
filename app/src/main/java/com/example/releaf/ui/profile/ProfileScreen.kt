@@ -120,6 +120,7 @@ fun ProfileScreen(
     val phone = profile?.phone?.takeIf { it.isNotBlank() } ?: "N/A"
     val email = profile?.email?.takeIf { it.isNotBlank() } ?: "N/A"
     val isOwnProfile = userId == currentUserId
+    var showLogoutConfirm by androidx.compose.runtime.remember { androidx.compose.runtime.mutableStateOf(false) }
 
     // Garden EXP (used for the title unlocks)
     val gardenExp = userGarden?.current_exp ?: profile?.total_points ?: 0
@@ -736,7 +737,7 @@ fun ProfileScreen(
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .clickable { onLogoutClick() }
+                                .clickable { showLogoutConfirm = true }
                                 .padding(16.dp),
                             verticalAlignment = Alignment.CenterVertically
                         ) {
@@ -762,5 +763,15 @@ fun ProfileScreen(
 
 
 
+    }
+
+    if (showLogoutConfirm) {
+        com.example.releaf.ui.components.LogoutConfirmationDialog(
+            onConfirm = {
+                showLogoutConfirm = false
+                onLogoutClick()
+            },
+            onDismiss = { showLogoutConfirm = false }
+        )
     }
 }

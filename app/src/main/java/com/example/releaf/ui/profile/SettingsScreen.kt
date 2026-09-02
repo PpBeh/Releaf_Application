@@ -82,6 +82,7 @@ fun SettingsScreen(
 
     val prefs = remember { context.getSharedPreferences("settings_prefs", android.content.Context.MODE_PRIVATE) }
     var notificationsEnabled by remember { mutableStateOf(prefs.getBoolean("notifications_enabled", true)) }
+    var showLogoutConfirm by remember { mutableStateOf(false) }
 
     val avatarPicker = androidx.activity.compose.rememberLauncherForActivityResult(
         androidx.activity.result.contract.ActivityResultContracts.GetContent()
@@ -218,6 +219,16 @@ fun SettingsScreen(
         SettingsRowData(R.drawable.ic_logout, string("logout", themeViewModel), "logout")
     )
 
+    if (showLogoutConfirm) {
+        com.example.releaf.ui.components.LogoutConfirmationDialog(
+            onConfirm = {
+                showLogoutConfirm = false
+                onLogoutClick()
+            },
+            onDismiss = { showLogoutConfirm = false }
+        )
+    }
+
     Scaffold(
         snackbarHost = { SnackbarHost(snackbarHostState) }
     ) { scaffoldPadding ->
@@ -314,7 +325,7 @@ fun SettingsScreen(
                         },
                         onClick = {
                             when (row.key) {
-                                "logout" -> onLogoutClick()
+                                "logout" -> showLogoutConfirm = true
                                 "theme" -> showThemeDialog = true
                                 "language" -> showLangDialog = true
                                 "favourites" -> {
