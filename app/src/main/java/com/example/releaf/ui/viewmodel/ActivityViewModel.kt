@@ -119,7 +119,12 @@ class ActivityViewModel(application: Application) : AndroidViewModel(application
                 val quest = repository.getQuest(questId) ?: claimed.quest
 
                 if (quest != null) {
-                    val garden = gardenRepository.getGarden(userId)
+                    var garden = gardenRepository.getGarden(userId)
+                    if (garden == null) {
+                        // Self-heal: create the garden row if it never existed.
+                        gardenRepository.ensureGardenRow(userId)
+                        garden = gardenRepository.getGarden(userId)
+                    }
 
                     if (garden != null) {
                         val localExp = gardenPrefs.getInt("tree_exp_${userId}", 0)

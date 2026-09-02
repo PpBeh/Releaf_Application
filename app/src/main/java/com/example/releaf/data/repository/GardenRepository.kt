@@ -27,6 +27,19 @@ class GardenRepository {
             .decodeSingleOrNull()
     }
 
+    // Creates a minimal garden row if none exists yet (e.g. accounts registered
+    // before the RLS policies allowed writes).
+    suspend fun ensureGardenRow(userId: String) {
+        try {
+            val existing = client.postgrest.from("gardens")
+                .select(io.github.jan.supabase.postgrest.query.Columns.raw("user_id")) { filter { eq("user_id", userId) } }
+                .decodeList<kotlinx.serialization.json.JsonObject>()
+            if (existing.isEmpty()) {
+                client.postgrest.from("gardens").insert(mapOf("user_id" to userId))
+            }
+        } catch (_: Exception) { }
+    }
+
     suspend fun getPlantSlots(userId: String): List<PlantSlotDto> {
         return client.postgrest.from("plant_slots")
             .select { filter { eq("user_id", userId) } }

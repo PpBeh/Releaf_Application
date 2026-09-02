@@ -185,11 +185,17 @@ class RewardsViewModel(application: Application) : AndroidViewModel(application)
                     return@launch
                 }
                 // Always validate against the freshest server balances.
-                val garden = gardenRepository.getGarden(userId)?.let { gardenRepository.healNegativeBalance(userId, it) }
-                    ?: run {
-                        _claimStatus.value = "Garden data not available yet. Please try again in a moment."
-                        return@launch
-                    }
+                var garden = gardenRepository.getGarden(userId)
+                if (garden == null) {
+                    // Self-heal: create the garden row if it never existed.
+                    gardenRepository.ensureGardenRow(userId)
+                    garden = gardenRepository.getGarden(userId)
+                }
+                garden = garden?.let { gardenRepository.healNegativeBalance(userId, it) }
+                if (garden == null) {
+                    _claimStatus.value = "Garden data not available yet. Please try again in a moment."
+                    return@launch
+                }
                 if (garden.current_points < pointPrice || garden.current_gems < gemPrice) {
                     _claimStatus.value = "Not enough Points/Gems"
                     return@launch
