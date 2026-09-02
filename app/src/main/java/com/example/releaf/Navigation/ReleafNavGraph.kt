@@ -331,9 +331,6 @@ fun ReleafNavGraph(
                 onSettingsClick = {
                     navController.navigate(Screen.Settings.route)
                 },
-                onViewGardenClick = {
-                    navController.navigate(Screen.Garden.createRoute(actualUserId))
-                },
                 onBackClick = { navController.popBackStack() }
             )
         }

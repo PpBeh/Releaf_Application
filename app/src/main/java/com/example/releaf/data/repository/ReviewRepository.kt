@@ -7,6 +7,8 @@ import com.example.releaf.data.remote.dto.ReviewDto
 import com.example.releaf.data.remote.dto.ReviewInsertDto
 import io.github.jan.supabase.postgrest.postgrest
 import kotlinx.serialization.Serializable
+import kotlinx.serialization.json.buildJsonObject
+import kotlinx.serialization.json.put
 
 @Serializable
 data class ReviewVoteDto(
@@ -112,6 +114,34 @@ class ReviewRepository {
     }
 
     suspend fun vote(reviewId: String, userId: String, voteType: String, review: ReviewDto): VoteResult {
+        // Preferred path: server-side function does the whole vote atomically
+        // (add/remove/switch) so counts can never drift out of sync.
+        val hadSameVote = try {
+            client.postgrest.from("review_votes")
+                .select { filter { eq("review_id", reviewId); eq("user_id", userId) } }
+                .decodeList<ReviewVoteDto>()
+                .firstOrNull()?.vote_type == voteType
+        } catch (_: Exception) {
+            false
+        }
+        try {
+            client.postgrest.rpc(
+                "vote_review",
+                buildJsonObject {
+                    put("p_review_id", reviewId)
+                    put("p_vote_type", voteType)
+                }
+            )
+            return if (hadSameVote) VoteResult.Unvoted else VoteResult.Success
+        } catch (e: Exception) {
+            // Fall back to the client-side implementation if the function
+            // has not been installed on this project yet.
+            e.printStackTrace()
+            return legacyVote(reviewId, userId, voteType, review)
+        }
+    }
+
+    private suspend fun legacyVote(reviewId: String, userId: String, voteType: String, review: ReviewDto): VoteResult {
         // Read the freshest counts from the server before writing so concurrent
         // votes cannot overwrite each other with stale absolute values.
         var latest = review

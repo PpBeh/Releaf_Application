@@ -79,7 +79,6 @@ fun ProfileScreen(
     onFavouritesClick: () -> Unit,
     onLogoutClick: () -> Unit,
     onSettingsClick: () -> Unit,
-    onViewGardenClick: (() -> Unit)? = null,
     onBackClick: (() -> Unit)? = null
 ) {
     val context = LocalContext.current
@@ -468,16 +467,6 @@ fun ProfileScreen(
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.Bold
                 )
-
-                if (onViewGardenClick != null) {
-                    OutlinedButton(
-                        onClick = { onViewGardenClick() },
-                        shape = RoundedCornerShape(20.dp),
-                        contentPadding = PaddingValues(horizontal = 12.dp, vertical = 4.dp)
-                    ) {
-                        Text("View Garden", fontSize = 12.sp)
-                    }
-                }
             }
 
             Spacer(modifier = Modifier.height(8.dp))
