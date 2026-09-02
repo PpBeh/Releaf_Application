@@ -10,6 +10,9 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.compose.currentBackStackEntryAsState
@@ -100,6 +103,7 @@ class MainActivity : ComponentActivity() {
 fun ReleafApp(themeViewModel: ThemeViewModel) {
     val navController = rememberNavController()
     val authViewModel: AuthViewModel = viewModel()
+    val context = androidx.compose.ui.platform.LocalContext.current
 
     val navBackStackEntry by navController.currentBackStackEntryAsState()
     val currentRoute = navBackStackEntry?.destination?.route
@@ -116,6 +120,53 @@ fun ReleafApp(themeViewModel: ThemeViewModel) {
                 }
             }
         }
+    }
+
+    // Track internet connectivity and ask the user to turn Wi-Fi/mobile data on.
+    var isOnline by androidx.compose.runtime.remember { androidx.compose.runtime.mutableStateOf(true) }
+    var offlinePromptShown by androidx.compose.runtime.remember { androidx.compose.runtime.mutableStateOf(false) }
+    androidx.compose.runtime.DisposableEffect(context) {
+        val cm = context.getSystemService(android.content.Context.CONNECTIVITY_SERVICE) as? android.net.ConnectivityManager
+        val callback = object : android.net.ConnectivityManager.NetworkCallback() {
+            override fun onAvailable(network: android.net.Network) {
+                isOnline = true
+            }
+            override fun onLost(network: android.net.Network) {
+                isOnline = cm?.activeNetwork == null
+            }
+        }
+        try {
+            cm?.registerDefaultNetworkCallback(callback)
+        } catch (_: Exception) { }
+        onDispose {
+            try { cm?.unregisterNetworkCallback(callback) } catch (_: Exception) { }
+        }
+    }
+
+    if (!isOnline && !offlinePromptShown) {
+        androidx.compose.material3.AlertDialog(
+            onDismissRequest = { offlinePromptShown = true },
+            title = { androidx.compose.material3.Text("No internet connection") },
+            text = { androidx.compose.material3.Text("Releaf needs Wi-Fi or mobile data. Please turn on Wi-Fi or mobile data and try again.") },
+            confirmButton = {
+                androidx.compose.material3.TextButton(onClick = {
+                    offlinePromptShown = true
+                    try {
+                        context.startActivity(android.content.Intent(android.provider.Settings.ACTION_WIRELESS_SETTINGS))
+                    } catch (_: Exception) { }
+                }) {
+                    androidx.compose.material3.Text("Open Settings")
+                }
+            },
+            dismissButton = {
+                androidx.compose.material3.TextButton(onClick = { offlinePromptShown = true }) {
+                    androidx.compose.material3.Text("OK")
+                }
+            }
+        )
+    }
+    if (isOnline) {
+        offlinePromptShown = false
     }
 
     val isAuthScreen = currentRoute == Screen.Login.route ||

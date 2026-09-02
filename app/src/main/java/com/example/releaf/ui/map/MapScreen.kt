@@ -129,6 +129,7 @@ fun MapScreen(
     var dailyPointsClaimed by remember { mutableStateOf(isDailyRewardClaimedToday(billingPrefs, currentUserId)) }
     var isClaimingDaily by remember { mutableStateOf(false) }
     var showPhotoSourcePickerForPoi by remember { mutableStateOf(false) }
+    var showEnableLocationDialog by remember { mutableStateOf(false) }
 
     LaunchedEffect(currentUserId) {
         dailyPointsClaimed = isDailyRewardClaimedToday(billingPrefs, currentUserId)
@@ -454,6 +455,10 @@ fun MapScreen(
             ) {
                 FloatingActionButton(
                     onClick = {
+                        if (!isLocationEnabled(context)) {
+                            showEnableLocationDialog = true
+                            return@FloatingActionButton
+                        }
                         isFetchingLocation = true
                         fetchFreshLocation(context) { lat, lng ->
                             isFetchingLocation = false
@@ -475,6 +480,10 @@ fun MapScreen(
                 }
                 SmallFloatingActionButton(
                     onClick = {
+                        if (!isLocationEnabled(context)) {
+                            showEnableLocationDialog = true
+                            return@SmallFloatingActionButton
+                        }
                         fetchFreshLocation(context) { lat, lng ->
                             viewModel.findNearestPois(lat, lng, "TOILET")
                         }
@@ -486,6 +495,10 @@ fun MapScreen(
                 }
                 SmallFloatingActionButton(
                     onClick = {
+                        if (!isLocationEnabled(context)) {
+                            showEnableLocationDialog = true
+                            return@SmallFloatingActionButton
+                        }
                         fetchFreshLocation(context) { lat, lng ->
                             viewModel.findNearestPois(lat, lng, "TRASH_CAN")
                         }
@@ -538,31 +551,39 @@ fun MapScreen(
                 },
                 onCommentClick = { onCommentClick(poi.id) },
                 onVerifyClick = {
-                    val lm = context.getSystemService(android.content.Context.LOCATION_SERVICE) as? LocationManager
-                    val loc = try {
-                        lm?.getLastKnownLocation(LocationManager.GPS_PROVIDER)
-                            ?: lm?.getLastKnownLocation(LocationManager.NETWORK_PROVIDER)
-                    } catch (_: SecurityException) { null }
-                    if (loc != null) {
-                        viewModel.verifyPoi(poi.id, currentUserId, loc.latitude, loc.longitude)
-                    } else {
-                        fetchFreshLocation(context) { lat, lng ->
-                            viewModel.verifyPoi(poi.id, currentUserId, lat, lng)
+                    if (isLocationEnabled(context)) {
+                        val lm = context.getSystemService(android.content.Context.LOCATION_SERVICE) as? LocationManager
+                        val loc = try {
+                            lm?.getLastKnownLocation(LocationManager.GPS_PROVIDER)
+                                ?: lm?.getLastKnownLocation(LocationManager.NETWORK_PROVIDER)
+                        } catch (_: SecurityException) { null }
+                        if (loc != null) {
+                            viewModel.verifyPoi(poi.id, currentUserId, loc.latitude, loc.longitude)
+                        } else {
+                            fetchFreshLocation(context) { lat, lng ->
+                                viewModel.verifyPoi(poi.id, currentUserId, lat, lng)
+                            }
                         }
+                    } else {
+                        showEnableLocationDialog = true
                     }
                 },
                 onReportNotExist = {
-                    val lm = context.getSystemService(android.content.Context.LOCATION_SERVICE) as? LocationManager
-                    val loc = try {
-                        lm?.getLastKnownLocation(LocationManager.GPS_PROVIDER)
-                            ?: lm?.getLastKnownLocation(LocationManager.NETWORK_PROVIDER)
-                    } catch (_: SecurityException) { null }
-                    if (loc != null) {
-                        viewModel.reportNotExist(poi.id, currentUserId, loc.latitude, loc.longitude)
-                    } else {
-                        fetchFreshLocation(context) { lat, lng ->
-                            viewModel.reportNotExist(poi.id, currentUserId, lat, lng)
+                    if (isLocationEnabled(context)) {
+                        val lm = context.getSystemService(android.content.Context.LOCATION_SERVICE) as? LocationManager
+                        val loc = try {
+                            lm?.getLastKnownLocation(LocationManager.GPS_PROVIDER)
+                                ?: lm?.getLastKnownLocation(LocationManager.NETWORK_PROVIDER)
+                        } catch (_: SecurityException) { null }
+                        if (loc != null) {
+                            viewModel.reportNotExist(poi.id, currentUserId, loc.latitude, loc.longitude)
+                        } else {
+                            fetchFreshLocation(context) { lat, lng ->
+                                viewModel.reportNotExist(poi.id, currentUserId, lat, lng)
+                            }
                         }
+                    } else {
+                        showEnableLocationDialog = true
                     }
                 },
                 onFavoriteClick = { viewModel.toggleFavorite(poi.id) },
@@ -862,6 +883,29 @@ fun MapScreen(
         )
     }
 
+    if (showEnableLocationDialog) {
+        androidx.compose.material3.AlertDialog(
+            onDismissRequest = { showEnableLocationDialog = false },
+            title = { Text("Location is off") },
+            text = { Text("Turn on GPS / location services to use this feature.") },
+            confirmButton = {
+                TextButton(onClick = {
+                    showEnableLocationDialog = false
+                    try {
+                        context.startActivity(android.content.Intent(android.provider.Settings.ACTION_LOCATION_SOURCE_SETTINGS))
+                    } catch (_: Exception) { }
+                }) {
+                    Text("Open Location Settings")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showEnableLocationDialog = false }) {
+                    Text("Cancel")
+                }
+            }
+        )
+    }
+
     if (showNotifications) {
         ModalBottomSheet(
             onDismissRequest = { showNotifications = false }
@@ -1071,6 +1115,17 @@ private fun AddPoiDialog(
             Button(onClick = onDismiss) { Text("Cancel") }
         }
     )
+}
+
+private fun isLocationEnabled(context: android.content.Context): Boolean {
+    val lm = context.getSystemService(android.content.Context.LOCATION_SERVICE) as? android.location.LocationManager
+        ?: return false
+    return try {
+        lm.isProviderEnabled(android.location.LocationManager.GPS_PROVIDER) ||
+                lm.isProviderEnabled(android.location.LocationManager.NETWORK_PROVIDER)
+    } catch (_: Exception) {
+        false
+    }
 }
 
 private fun fetchFreshLocation(
