@@ -39,6 +39,7 @@ class MainActivity : ComponentActivity() {
             }
         }
         handleDeepLink(intent)
+        handleNotificationTap(intent)
         setContent {
             val themeViewModel: ThemeViewModel = viewModel()
             val appTheme by themeViewModel.theme.collectAsState()
@@ -52,8 +53,19 @@ class MainActivity : ComponentActivity() {
         super.onNewIntent(intent)
         setIntent(intent)
         handleDeepLink(intent)
+        handleNotificationTap(intent)
         // Deep link arriving while the app is already running
         authViewModel.handleDeepLink()
+    }
+
+    private fun handleNotificationTap(intent: Intent?) {
+        if (intent?.getBooleanExtra(
+                com.example.releaf.utils.NotificationHelper.EXTRA_OPEN_NOTIFICATIONS,
+                false
+            ) == true
+        ) {
+            DeepLinkHolder.requestOpenNotifications()
+        }
     }
 
     private fun handleDeepLink(intent: Intent?) {
@@ -110,6 +122,7 @@ fun ReleafApp(themeViewModel: ThemeViewModel) {
     val isChecking by authViewModel.isCheckingSession.collectAsState()
     val session by authViewModel.session.collectAsState()
     val pendingPoiId by DeepLinkHolder.pendingPoiIdFlow.collectAsState()
+    val openNotifications by DeepLinkHolder.openNotificationsFlow.collectAsState()
     val lang by themeViewModel.language.collectAsState()
     fun t(key: String) = com.example.releaf.ui.theme.AppStrings.get(key, lang)
 
@@ -120,6 +133,25 @@ fun ReleafApp(themeViewModel: ThemeViewModel) {
                     launchSingleTop = true
                 }
             }
+        }
+    }
+
+    androidx.compose.runtime.LaunchedEffect(openNotifications, isChecking, session) {
+        if (!isChecking && openNotifications && session is com.example.releaf.data.repository.SessionState.LoggedIn) {
+            if (currentRoute != Screen.Map.route) {
+                navController.navigate(Screen.Map.route) {
+                    launchSingleTop = true
+                }
+            }
+        }
+    }
+
+    // Logging out (or tapping a stale notification while logged out) must never
+    // leave a shade entry or a pending sheet-open behind for the next account.
+    androidx.compose.runtime.LaunchedEffect(session) {
+        if (session is com.example.releaf.data.repository.SessionState.LoggedOut) {
+            com.example.releaf.utils.NotificationHelper.cancelSummary(context)
+            DeepLinkHolder.consumeOpenNotifications()
         }
     }
 

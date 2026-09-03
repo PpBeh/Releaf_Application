@@ -18,6 +18,8 @@ object NotificationHelper {
      */
     private const val SUMMARY_ID = 1001
 
+    const val EXTRA_OPEN_NOTIFICATIONS = "open_notifications"
+
     private fun manager(context: Context) =
         context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
 
@@ -69,11 +71,26 @@ object NotificationHelper {
         if (!canPost(context)) return
         ensureChannel(context)
 
+        // Tapping opens the app straight into the in-app notifications sheet.
+        val tapIntent = android.content.Intent(
+            context,
+            com.example.releaf.MainActivity::class.java
+        ).apply {
+            putExtra(EXTRA_OPEN_NOTIFICATIONS, true)
+        }
+        val tapPendingIntent = android.app.PendingIntent.getActivity(
+            context,
+            0,
+            tapIntent,
+            android.app.PendingIntent.FLAG_UPDATE_CURRENT or android.app.PendingIntent.FLAG_IMMUTABLE
+        )
+
         val notification = NotificationCompat.Builder(context, CHANNEL_ID)
             .setSmallIcon(R.drawable.ic_launcher_foreground)
             .setContentTitle(title)
             .setContentText(message)
             .setPriority(NotificationCompat.PRIORITY_HIGH)
+            .setContentIntent(tapPendingIntent)
             .setOnlyAlertOnce(!alert)
             .setAutoCancel(true)
             .build()

@@ -18,6 +18,17 @@ object DeepLinkHolder {
         get() = _pendingPoiId.value
         set(value) { _pendingPoiId.value = value }
 
+    private val _openNotifications = MutableStateFlow(false)
+    val openNotificationsFlow: StateFlow<Boolean> = _openNotifications.asStateFlow()
+
+    fun requestOpenNotifications() {
+        _openNotifications.value = true
+    }
+
+    fun consumeOpenNotifications() {
+        _openNotifications.value = false
+    }
+
     @Synchronized
     fun consumeTokens(): Triple<String?, String?, String?> {
         val tokens = Triple(accessToken, refreshToken, type)

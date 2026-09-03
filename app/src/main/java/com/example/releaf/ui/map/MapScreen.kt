@@ -330,6 +330,15 @@ fun MapScreen(
     val unreadCount by notificationsViewModel.unreadCount.collectAsState()
     var showNotifications by remember { mutableStateOf(false) }
 
+    // Opened from a tapped phone notification: show the same sheet as the bell.
+    val openNotificationsRequest by com.example.releaf.data.remote.DeepLinkHolder.openNotificationsFlow.collectAsState()
+    LaunchedEffect(openNotificationsRequest) {
+        if (openNotificationsRequest) {
+            com.example.releaf.data.remote.DeepLinkHolder.consumeOpenNotifications()
+            showNotifications = true
+        }
+    }
+
     val notificationPermissionLauncher = rememberLauncherForActivityResult(
         contract = androidx.activity.result.contract.ActivityResultContracts.RequestPermission()
     ) { }
@@ -340,9 +349,9 @@ fun MapScreen(
         }
     }
 
-    var isFirstLoad by remember { mutableStateOf(true) }
-    var notifiedIds by remember { mutableStateOf(setOf<String>()) }
-    var lastPostedUnreadCount by remember { mutableStateOf(0) }
+    var summaryState by remember {
+        mutableStateOf(com.example.releaf.utils.NotificationSummary.State())
+    }
 
     LaunchedEffect(notifications) {
         val settingsPrefs =
@@ -354,62 +363,34 @@ fun MapScreen(
             .map { it.id }
             .toSet()
 
-        if (isFirstLoad) {
-            // Baseline on cold start: never buzz for rows that already exist.
-            notifiedIds = notifications.map { it.id }.toSet()
-            isFirstLoad = false
-            lastPostedUnreadCount = 0
-            if (unreadLikeIds.isEmpty()) {
+        // Decision logic lives in NotificationSummary (unit-tested); this block
+        // only applies the resulting side effects.
+        val decision = com.example.releaf.utils.NotificationSummary.decide(
+            state = summaryState,
+            phoneAllowed = phoneAllowed,
+            allIds = notifications.map { it.id }.toSet(),
+            unreadLikeIds = unreadLikeIds
+        )
+        summaryState = decision.state
+        when (val action = decision.action) {
+            is com.example.releaf.utils.NotificationSummary.Action.None -> Unit
+            is com.example.releaf.utils.NotificationSummary.Action.Cancel -> {
                 com.example.releaf.utils.NotificationHelper.cancelSummary(context)
             }
-            return@LaunchedEffect
-        }
-
-        val freshIds = unreadLikeIds - notifiedIds
-        // Remember everything currently visible, buzzing or not, so re-enabling
-        // the setting later can never burst old rows.
-        notifiedIds = notifiedIds + unreadLikeIds
-
-        if (!phoneAllowed) {
-            // Phone buzz is off: absorb silently and clear any live summary.
-            lastPostedUnreadCount = 0
-            com.example.releaf.utils.NotificationHelper.cancelSummary(context)
-            return@LaunchedEffect
-        }
-
-        if (unreadLikeIds.isEmpty()) {
-            if (lastPostedUnreadCount > 0) {
-                com.example.releaf.utils.NotificationHelper.cancelSummary(context)
-                lastPostedUnreadCount = 0
+            is com.example.releaf.utils.NotificationSummary.Action.Post -> {
+                val text = if (action.unreadCount == 1) {
+                    t("notif_summary_one")
+                } else {
+                    String.format(java.util.Locale.US, t("notif_summary_many"), action.unreadCount)
+                }
+                com.example.releaf.utils.NotificationHelper.showOrUpdateSummary(
+                    context = context,
+                    title = t("app_name"),
+                    message = text,
+                    alert = action.alert
+                )
             }
-            return@LaunchedEffect
         }
-
-        val count = unreadLikeIds.size
-        val text = if (count == 1) {
-            t("notif_summary_one")
-        } else {
-            String.format(java.util.Locale.US, t("notif_summary_many"), count)
-        }
-        if (freshIds.isNotEmpty()) {
-            // Genuinely new like(s): buzz once, text updated in place.
-            com.example.releaf.utils.NotificationHelper.showOrUpdateSummary(
-                context = context,
-                title = t("app_name"),
-                message = text,
-                alert = true
-            )
-        } else if (count != lastPostedUnreadCount) {
-            // Count changed with no new arrivals (e.g. read in-app):
-            // refresh the text silently.
-            com.example.releaf.utils.NotificationHelper.showOrUpdateSummary(
-                context = context,
-                title = t("app_name"),
-                message = text,
-                alert = false
-            )
-        }
-        lastPostedUnreadCount = count
     }
 
     LaunchedEffect(currentUserId, lifecycleOwner) {
