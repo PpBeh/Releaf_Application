@@ -81,13 +81,16 @@ fun countWords(text: String): Int {
     return text.trim().split("\\s+".toRegex()).size
 }
 
+
 fun createCameraImageUri(context: android.content.Context): Uri {
-    val file = File(context.cacheDir, "comment_camera_${System.currentTimeMillis()}.jpg")
-    return androidx.core.content.FileProvider.getUriForFile(
-        context,
-        "${context.packageName}.fileprovider",
-        file
-    )
+
+    val imagesDir = File(context.cacheDir, "camera_photos").apply {
+        if (!exists()) mkdirs()
+    }
+    val file = File(imagesDir, "comment_camera_${System.currentTimeMillis()}.jpg")
+
+    val authority = "com.example.releaf.fileprovider"
+    return androidx.core.content.FileProvider.getUriForFile(context, authority, file)
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -116,7 +119,6 @@ fun CommentScreen(
 
     val context = LocalContext.current
 
-    // Only clear the composer once a comment is actually accepted by the server.
     LaunchedEffect(viewModel) {
         viewModel.registerAddReviewCallback { success ->
             if (success) {
@@ -199,7 +201,6 @@ fun CommentScreen(
     val wordCount = countWords(commentText)
     val isWordLimitExceeded = wordCount > 500
 
-    // Photo Source Picker Dialog (Gallery vs Camera)
     if (showPhotoSourcePicker) {
         Dialog(onDismissRequest = { showPhotoSourcePicker = false }) {
             Surface(
@@ -259,7 +260,8 @@ fun CommentScreen(
                                     tempCameraUri = newUri
                                     cameraError = null
                                     cameraLauncher.launch(newUri)
-                                } catch (_: Exception) {
+                                } catch (e: Exception) {
+                                    android.util.Log.e("CameraDebug", "Failed to launch camera", e)
                                     cameraError = t("camera_unavailable")
                                 }
                             }
@@ -323,7 +325,6 @@ fun CommentScreen(
             }
         }
 
-        // Selected Photo Preview Banner
         if (selectedPhotoUri != null) {
             Row(
                 modifier = Modifier
@@ -391,7 +392,6 @@ fun CommentScreen(
 
             Spacer(modifier = Modifier.width(4.dp))
 
-            // Photo Attachment Choice Button
             IconButton(
                 onClick = { showPhotoSourcePicker = true }
             ) {
@@ -433,7 +433,6 @@ fun CommentScreen(
             }
         }
 
-        // Word Limit Counter Banner
         Row(
             modifier = Modifier
                 .fillMaxWidth()
@@ -663,7 +662,6 @@ fun CommentScreen(
                 }
                 Spacer(modifier = Modifier.height(16.dp))
 
-                // Garden Plants Collection Preview
                 val targetExp = sheetGarden?.current_exp ?: sheetPoints
                 Column(
                     modifier = Modifier.fillMaxWidth(),
@@ -922,7 +920,6 @@ private fun ReviewRowItem(
                 }
             }
         }
-        // Likes directly under comment text with thumb icons
         Row(
             modifier = Modifier
                 .fillMaxWidth()
