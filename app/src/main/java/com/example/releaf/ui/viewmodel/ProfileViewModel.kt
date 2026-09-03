@@ -63,6 +63,10 @@ class ProfileViewModel(application: android.app.Application) : androidx.lifecycl
 
     fun loadProfile(userId: String) {
         currentUserId = userId
+        _profile.value = null
+        _userGarden.value = null
+        _userPlantSlots.value = emptyList()
+
         viewModelScope.launch {
             try {
                 if (userId.isNotBlank()) {
@@ -201,6 +205,23 @@ class ProfileViewModel(application: android.app.Application) : androidx.lifecycl
                 com.example.releaf.data.remote.SupabaseModule.triggerRefresh()
             } catch (e: Exception) {
                 android.util.Log.e("ProfileViewModel", "deleteGarden failed", e)
+            }
+        }
+    }
+
+    fun plantSeed(slotIndex: Int, userId: String) {
+        viewModelScope.launch {
+            try {
+                val seed = com.example.releaf.model.SeedData.getSeedForSlot(slotIndex)
+                gardenRepository.upsertPlantSlot(userId, slotIndex, "GROWING", seed.name)
+                try {
+                    rewardRepository.claimPlantReward(userId, slotIndex, seed.name)
+                } catch (_: Exception) { }
+                gardenPrefs.edit().putString("slot_${userId}_$slotIndex", "GROWING").apply()
+                loadProfile(userId)
+                com.example.releaf.data.remote.SupabaseModule.triggerRefresh()
+            } catch (e: Exception) {
+                android.util.Log.e("ProfileViewModel", "plantSeed failed", e)
             }
         }
     }

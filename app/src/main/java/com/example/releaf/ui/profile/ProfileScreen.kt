@@ -48,11 +48,13 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Settings
 import coil.compose.rememberAsyncImagePainter
 import com.example.releaf.R
@@ -91,6 +93,8 @@ fun ProfileScreen(
     val userReviewCount by viewModel.userReviewCount.collectAsState()
     val userVerifiedCount by viewModel.userVerifiedCount.collectAsState()
     val userPhotoCount by viewModel.userPhotoCount.collectAsState()
+
+    var selectedSeedForDialog by remember { mutableStateOf<com.example.releaf.model.SeedInfo?>(null) }
 
 
     val avatarPicker = androidx.activity.compose.rememberLauncherForActivityResult(
@@ -463,8 +467,9 @@ fun ProfileScreen(
                     val seedInfo = SeedData.getSeedForSlot(slotIndex)
                     val state = slot?.state ?: "EMPTY_POT"
                     val isPlanted = com.example.releaf.model.isPlantedState(state)
+                    val isUnlocked = isPlanted || gardenExp >= seedInfo.targetPoints
 
-                    val plantImageRes = if (isPlanted) {
+                    val plantImageRes = if (isUnlocked) {
                         when (slotIndex) {
                             1 -> R.drawable.ic_plant_1
                             2 -> R.drawable.ic_plant_2
@@ -479,10 +484,17 @@ fun ProfileScreen(
 
                     ElevatedCard(
                         modifier = Modifier
-                            .width(140.dp)
-                            .clip(RoundedCornerShape(16.dp)),
+                            .width(148.dp)
+                            .clip(RoundedCornerShape(16.dp))
+                            .clickable { selectedSeedForDialog = seedInfo },
                         shape = RoundedCornerShape(16.dp),
-                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
+                        colors = CardDefaults.cardColors(
+                            containerColor = when {
+                                isPlanted -> MaterialTheme.colorScheme.surface
+                                isUnlocked -> MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.35f)
+                                else -> MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
+                            }
+                        )
                     ) {
                         Column(
                             modifier = Modifier
@@ -495,7 +507,11 @@ fun ProfileScreen(
                                     .size(60.dp)
                                     .clip(RoundedCornerShape(12.dp))
                                     .background(
-                                        if (isPlanted) Color(0xFFE8F5E9) else MaterialTheme.colorScheme.surfaceVariant
+                                        when {
+                                            isPlanted -> Color(0xFFE8F5E9)
+                                            isUnlocked -> Color(0xFFFFF8E1)
+                                            else -> MaterialTheme.colorScheme.surfaceVariant
+                                        }
                                     ),
                                 contentAlignment = Alignment.Center
                             ) {
@@ -509,7 +525,7 @@ fun ProfileScreen(
                             Spacer(modifier = Modifier.height(8.dp))
 
                             Text(
-                                String.format(java.util.Locale.US, t("slot_label_fmt"), slotIndex, seedInfo.name),
+                                if (seedInfo.nickname.isNotBlank()) "${seedInfo.nickname} (${seedInfo.name})" else seedInfo.name,
                                 fontWeight = FontWeight.Bold,
                                 style = MaterialTheme.typography.bodySmall,
                                 maxLines = 1,
@@ -519,7 +535,7 @@ fun ProfileScreen(
                             Spacer(modifier = Modifier.height(2.dp))
 
                             Text(
-                                seedInfo.description,
+                                if (isUnlocked && seedInfo.personality.isNotBlank()) seedInfo.personality else seedInfo.description,
                                 style = MaterialTheme.typography.labelSmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                                 maxLines = 2,
@@ -531,13 +547,25 @@ fun ProfileScreen(
 
                             Surface(
                                 shape = RoundedCornerShape(10.dp),
-                                color = if (isPlanted) Color(0xFFC8E6C9) else MaterialTheme.colorScheme.surfaceVariant
+                                color = when {
+                                    isPlanted -> Color(0xFFC8E6C9)
+                                    isUnlocked -> Color(0xFFFFE082)
+                                    else -> MaterialTheme.colorScheme.surfaceVariant
+                                }
                             ) {
                                 Text(
-                                    text = if (isPlanted) t("planted") else t("empty_pot"),
+                                    text = when {
+                                        isPlanted -> "Planted • Active"
+                                        isUnlocked -> "Unlocked ✓"
+                                        else -> "Locked • ${seedInfo.targetPoints} EXP"
+                                    },
                                     style = MaterialTheme.typography.labelSmall,
                                     fontWeight = FontWeight.Bold,
-                                    color = if (isPlanted) Color(0xFF2E7D32) else MaterialTheme.colorScheme.onSurfaceVariant,
+                                    color = when {
+                                        isPlanted -> Color(0xFF2E7D32)
+                                        isUnlocked -> Color(0xFF5D4037)
+                                        else -> MaterialTheme.colorScheme.onSurfaceVariant
+                                    },
                                     modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp)
                                 )
                             }
@@ -775,5 +803,209 @@ fun ProfileScreen(
             },
             onDismiss = { showLogoutConfirm = false }
         )
+    }
+
+    if (selectedSeedForDialog != null) {
+        val seedInfo = selectedSeedForDialog!!
+        val slotIndex = seedInfo.slotIndex
+        val slot = userPlantSlots.find { it.slot_index == slotIndex }
+        val state = slot?.state ?: "EMPTY_POT"
+        val isPlanted = com.example.releaf.model.isPlantedState(state)
+        val isUnlocked = isPlanted || gardenExp >= seedInfo.targetPoints
+
+        androidx.compose.ui.window.Dialog(onDismissRequest = { selectedSeedForDialog = null }) {
+            Surface(
+                shape = RoundedCornerShape(24.dp),
+                color = MaterialTheme.colorScheme.surface,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(12.dp)
+            ) {
+                Column(
+                    modifier = Modifier
+                        .padding(20.dp)
+                        .verticalScroll(rememberScrollState()),
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Surface(
+                            shape = RoundedCornerShape(12.dp),
+                            color = when {
+                                isPlanted -> Color(0xFFE8F5E9)
+                                isUnlocked -> Color(0xFFFFF8E1)
+                                else -> MaterialTheme.colorScheme.surfaceVariant
+                            }
+                        ) {
+                            Text(
+                                when {
+                                    isPlanted -> "Slot $slotIndex: Planted in Garden"
+                                    isUnlocked -> "Slot $slotIndex: Unlocked Seed"
+                                    else -> "Slot $slotIndex: Locked Seed"
+                                },
+                                style = MaterialTheme.typography.labelMedium,
+                                fontWeight = FontWeight.Bold,
+                                color = when {
+                                    isPlanted -> Color(0xFF2E7D32)
+                                    isUnlocked -> Color(0xFF5D4037)
+                                    else -> MaterialTheme.colorScheme.onSurfaceVariant
+                                },
+                                modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp)
+                            )
+                        }
+
+                        IconButton(onClick = { selectedSeedForDialog = null }) {
+                            Icon(Icons.Default.Close, contentDescription = "Close")
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(12.dp))
+
+                    Box(
+                        modifier = Modifier
+                            .size(110.dp)
+                            .clip(CircleShape)
+                            .background(
+                                when {
+                                    isPlanted -> Color(0xFFE8F5E9)
+                                    isUnlocked -> Color(0xFFFFF8E1)
+                                    else -> MaterialTheme.colorScheme.surfaceVariant
+                                }
+                            ),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Image(
+                            painter = painterResource(id = if (isUnlocked) seedInfo.drawableRes else R.drawable.ic_pot_empty),
+                            contentDescription = seedInfo.name,
+                            modifier = Modifier.size(80.dp)
+                        )
+                    }
+
+                    Spacer(modifier = Modifier.height(16.dp))
+
+                    Text(
+                        if (seedInfo.nickname.isNotBlank()) "${seedInfo.nickname} the ${seedInfo.name}" else seedInfo.name,
+                        style = MaterialTheme.typography.titleLarge,
+                        fontWeight = FontWeight.Bold,
+                        textAlign = TextAlign.Center
+                    )
+
+                    if (seedInfo.personality.isNotBlank()) {
+                        Spacer(modifier = Modifier.height(4.dp))
+                        Surface(
+                            shape = RoundedCornerShape(14.dp),
+                            color = MaterialTheme.colorScheme.primaryContainer
+                        ) {
+                            Text(
+                                seedInfo.personality,
+                                style = MaterialTheme.typography.labelSmall,
+                                fontWeight = FontWeight.SemiBold,
+                                color = MaterialTheme.colorScheme.onPrimaryContainer,
+                                modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp)
+                            )
+                        }
+                    }
+
+                    if (seedInfo.quote.isNotBlank()) {
+                        Spacer(modifier = Modifier.height(12.dp))
+                        Surface(
+                            shape = RoundedCornerShape(12.dp),
+                            color = Color(0xFFFFF8E1),
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Text(
+                                seedInfo.quote,
+                                style = MaterialTheme.typography.bodySmall,
+                                fontStyle = androidx.compose.ui.text.font.FontStyle.Italic,
+                                fontWeight = FontWeight.Medium,
+                                color = Color(0xFF795548),
+                                textAlign = TextAlign.Center,
+                                modifier = Modifier.padding(12.dp)
+                            )
+                        }
+                    }
+
+                    if (seedInfo.mood.isNotBlank()) {
+                        Spacer(modifier = Modifier.height(10.dp))
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.Center
+                        ) {
+                            Text(
+                                "Current Vibe: ",
+                                style = MaterialTheme.typography.bodySmall,
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                            Text(
+                                seedInfo.mood,
+                                style = MaterialTheme.typography.bodySmall,
+                                fontWeight = FontWeight.Medium
+                            )
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(12.dp))
+
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .background(
+                                MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
+                                RoundedCornerShape(12.dp)
+                            )
+                            .padding(12.dp)
+                    ) {
+                        Text(
+                            "Description & Lore",
+                            style = MaterialTheme.typography.labelMedium,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.primary
+                        )
+                        Spacer(modifier = Modifier.height(2.dp))
+                        Text(
+                            seedInfo.description,
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurface
+                        )
+
+                        if (seedInfo.careTip.isNotBlank()) {
+                            Spacer(modifier = Modifier.height(8.dp))
+                            Text(
+                                "Care Tip",
+                                style = MaterialTheme.typography.labelMedium,
+                                fontWeight = FontWeight.Bold,
+                                color = Color(0xFF2E7D32)
+                            )
+                            Spacer(modifier = Modifier.height(2.dp))
+                            Text(
+                                seedInfo.careTip,
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurface
+                            )
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(16.dp))
+
+                    if (isOwnProfile && isUnlocked && !isPlanted) {
+                        androidx.compose.material3.Button(
+                            onClick = {
+                                viewModel.plantSeed(slotIndex, userId)
+                                selectedSeedForDialog = null
+                            },
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = RoundedCornerShape(16.dp),
+                            colors = androidx.compose.material3.ButtonDefaults.buttonColors(containerColor = Color(0xFF4CAF50))
+                        ) {
+                            Text("🌱 Plant in Garden Plot", fontWeight = FontWeight.Bold, color = Color.White)
+                        }
+                    }
+                }
+            }
+        }
     }
 }

@@ -64,8 +64,10 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.lifecycle.repeatOnLifecycle
 import coil.compose.rememberAsyncImagePainter
@@ -143,9 +145,14 @@ fun CommentScreen(
     var sheetProfile by remember { mutableStateOf<com.example.releaf.data.remote.dto.ProfileDto?>(null) }
     var sheetAchievements by remember { mutableIntStateOf(0) }
     var sheetPoints by remember { mutableIntStateOf(0) }
+    var sheetGarden by remember { mutableStateOf<com.example.releaf.data.remote.dto.GardenDto?>(null) }
+    var sheetPlantSlots by remember { mutableStateOf<List<com.example.releaf.data.remote.dto.PlantSlotDto>>(emptyList()) }
 
     LaunchedEffect(sheetUserId) {
         val uid = sheetUserId ?: return@LaunchedEffect
+        sheetProfile = null
+        sheetGarden = null
+        sheetPlantSlots = emptyList()
         try {
             val authRepository = com.example.releaf.data.repository.AuthRepository()
             sheetProfile = authRepository.getProfile(uid)
@@ -154,6 +161,11 @@ fun CommentScreen(
             val rewardRepository = com.example.releaf.data.repository.RewardRepository()
             sheetAchievements = rewardRepository.getUserAchievements(uid).size
             sheetPoints = sheetProfile?.total_points ?: 0
+        } catch (_: Exception) { }
+        try {
+            val gardenRepository = com.example.releaf.data.repository.GardenRepository()
+            sheetGarden = gardenRepository.getGarden(uid)
+            sheetPlantSlots = gardenRepository.getPlantSlots(uid)
         } catch (_: Exception) { }
     }
 
@@ -563,6 +575,88 @@ fun CommentScreen(
                     }
                 }
                 Spacer(modifier = Modifier.height(16.dp))
+
+                // Garden Plants Collection Preview
+                val targetExp = sheetGarden?.current_exp ?: sheetPoints
+                Column(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalAlignment = Alignment.Start
+                ) {
+                    Text(
+                        "Garden Plants Collection",
+                        style = MaterialTheme.typography.labelLarge,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.primary
+                    )
+
+                    Spacer(modifier = Modifier.height(8.dp))
+
+                    androidx.compose.foundation.lazy.LazyRow(
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        items((1..6).toList()) { slotIdx ->
+                            val slot = sheetPlantSlots.find { it.slot_index == slotIdx }
+                            val seedInfo = com.example.releaf.model.SeedData.getSeedForSlot(slotIdx)
+                            val isPlanted = com.example.releaf.model.isPlantedState(slot?.state)
+                            val isUnlocked = isPlanted || targetExp >= seedInfo.targetPoints
+
+                            val imgRes = if (isUnlocked) {
+                                when (slotIdx) {
+                                    1 -> com.example.releaf.R.drawable.ic_plant_1
+                                    2 -> com.example.releaf.R.drawable.ic_plant_2
+                                    3 -> com.example.releaf.R.drawable.ic_plant_3
+                                    4 -> com.example.releaf.R.drawable.ic_plant_4
+                                    5 -> com.example.releaf.R.drawable.ic_plant_5
+                                    else -> com.example.releaf.R.drawable.ic_plant_6
+                                }
+                            } else {
+                                com.example.releaf.R.drawable.ic_pot_empty
+                            }
+
+                            Surface(
+                                modifier = Modifier
+                                    .width(100.dp)
+                                    .clip(RoundedCornerShape(12.dp))
+                                    .clickable {
+                                        val uid = sheetUserId ?: return@clickable
+                                        sheetUserId = null
+                                        sheetProfile = null
+                                        onAvatarClick(uid)
+                                    },
+                                shape = RoundedCornerShape(12.dp),
+                                color = if (isUnlocked) Color(0xFFE8F5E9) else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
+                            ) {
+                                Column(
+                                    modifier = Modifier.padding(8.dp),
+                                    horizontalAlignment = Alignment.CenterHorizontally
+                                ) {
+                                    Image(
+                                        painter = painterResource(id = imgRes),
+                                        contentDescription = seedInfo.name,
+                                        modifier = Modifier.size(36.dp)
+                                    )
+                                    Spacer(modifier = Modifier.height(4.dp))
+                                    Text(
+                                        seedInfo.name,
+                                        style = MaterialTheme.typography.labelSmall,
+                                        fontWeight = FontWeight.Bold,
+                                        maxLines = 1,
+                                        overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
+                                    )
+                                    Text(
+                                        if (isPlanted) "Planted" else if (isUnlocked) "Unlocked" else "Locked",
+                                        style = MaterialTheme.typography.labelSmall,
+                                        fontSize = 9.sp,
+                                        color = if (isPlanted) Color(0xFF2E7D32) else if (isUnlocked) Color(0xFF5D4037) else Color.Gray
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(16.dp))
+
                 OutlinedButton(
                     onClick = {
                         val uid = sheetUserId ?: return@OutlinedButton

@@ -106,13 +106,13 @@ object SeedData {
         SeedInfo(
             slotIndex = 6,
             targetPoints = 1200,
-            name = "Golden Oak",
-            nickname = "Aurelius",
-            personality = "Majestic • Guardian • Inspiring",
-            mood = "Standing tall and glowing with golden sap! 🌳",
-            quote = "\"Mighty oaks from tiny golden acorns grow.\"",
-            description = "A majestic golden seedling of an ancient oak tree. Its golden leaves shimmer with royal elegance.",
-            careTip = "Needs a sturdy pot, plenty of soil nutrients, and room to grow.",
+            name = "Red Mushroom",
+            nickname = "Shroomy",
+            personality = "Mystical • Whimsical • Spore-Spreader",
+            mood = "Glowing magically under the forest shade! 🍄",
+            quote = "\"There's magic under every cap!\"",
+            description = "A charming red mushroom with white spots that glows with magical forest charm. Adds a touch of fairytale mystery to your garden.",
+            careTip = "Loves shade, organic soil, and high humidity.",
             drawableRes = R.drawable.ic_plant_6
         )
     )
