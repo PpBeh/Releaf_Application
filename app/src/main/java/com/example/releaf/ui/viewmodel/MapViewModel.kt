@@ -175,8 +175,8 @@ class MapViewModel : ViewModel() {
 
     private fun applyFilters() {
         var result = _pois.value
-        result = result.filter { it.category in _enabledCategories.value }
-        result = result.filter { it.cleanliness in _enabledCleanliness.value }
+        result = result.filter { it.category.uppercase() in _enabledCategories.value }
+        result = result.filter { it.cleanliness.uppercase() in _enabledCleanliness.value }
         _excludedPaid.value?.let { excluded ->
             result = result.filter { it.is_paid != excluded }
         }

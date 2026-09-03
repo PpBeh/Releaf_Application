@@ -267,6 +267,7 @@ class ReviewRepository {
             if (reviews.isEmpty()) return
 
             val avgRating = reviews.map { it.star_rating }.average()
+            val roundedRating = (avgRating * 10).toInt() / 10.0
             val dirtyCount = reviews.count {
                 it.text.contains("dirty", ignoreCase = true) ||
                         it.text.contains("disgusting", ignoreCase = true) ||
@@ -279,12 +280,11 @@ class ReviewRepository {
             }
 
             val cleanliness = when {
-                avgRating >= 4.0 && cleanCount > dirtyCount -> "CLEAN"
-                avgRating <= 2.0 || dirtyCount > cleanCount -> "DIRTY"
+                roundedRating >= 4.0 -> "CLEAN"
+                roundedRating <= 2.0 || dirtyCount > cleanCount -> "DIRTY"
                 else -> "AVERAGE"
             }
 
-            val roundedRating = (avgRating * 10).toInt() / 10.0
             client.postgrest.from("pois").update(
                 PoiStatsUpdateDto(rating = roundedRating, cleanliness = cleanliness)
             ) { filter { eq("id", poiId) } }
