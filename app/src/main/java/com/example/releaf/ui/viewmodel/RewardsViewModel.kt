@@ -51,6 +51,11 @@ class RewardsViewModel(application: Application) : AndroidViewModel(application)
 
     private var currentUserId = ""
 
+    // Titles already notified about this session. Claimed up-front (before the
+    // network insert) so two overlapping loadRewards runs can't both pass the
+    // server-side title check and insert duplicates.
+    private val notifiedRewardTitles = mutableSetOf<String>()
+
     init {
         viewModelScope.launch {
             SupabaseModule.refreshEvent.collect {
@@ -92,7 +97,8 @@ class RewardsViewModel(application: Application) : AndroidViewModel(application)
                     SeedData.seedList.forEach { seed ->
                         if (actualExp >= seed.targetPoints) {
                             val title = "🎁 Reward Available: ${seed.name}"
-                            if (existing.none { it.title == title }) {
+                            if (title !in notifiedRewardTitles && existing.none { it.title == title }) {
+                                notifiedRewardTitles.add(title)
                                 notifRepo.sendNotification(
                                     userId = userId,
                                     title = title,

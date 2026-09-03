@@ -342,43 +342,92 @@ fun MapScreen(
 
     var isFirstLoad by remember { mutableStateOf(true) }
     var notifiedIds by remember { mutableStateOf(setOf<String>()) }
+    var lastPostedUnreadCount by remember { mutableStateOf(0) }
 
     LaunchedEffect(notifications) {
+        val settingsPrefs =
+            context.getSharedPreferences("settings_prefs", android.content.Context.MODE_PRIVATE)
+        val phoneAllowed = settingsPrefs.getBoolean("notifications_enabled", true)
+
+        val unreadLikeIds = notifications
+            .filter { !it.is_read && it.type == "LIKE" }
+            .map { it.id }
+            .toSet()
+
         if (isFirstLoad) {
+            // Baseline on cold start: never buzz for rows that already exist.
             notifiedIds = notifications.map { it.id }.toSet()
             isFirstLoad = false
-        } else {
-            val newLikes = notifications.filter {
-                !it.is_read && it.type == "LIKE" && it.id !in notifiedIds
+            lastPostedUnreadCount = 0
+            if (unreadLikeIds.isEmpty()) {
+                com.example.releaf.utils.NotificationHelper.cancelSummary(context)
             }
-
-            if (newLikes.isNotEmpty()) {
-                newLikes.forEach { notif ->
-                    com.example.releaf.utils.NotificationHelper.showNotification(
-                        context = context,
-                        title = notif.title,
-                        message = notif.body
-                    )
-                }
-                notifiedIds = notifiedIds + newLikes.map { it.id }.toSet()
-            }
+            return@LaunchedEffect
         }
+
+        val freshIds = unreadLikeIds - notifiedIds
+        // Remember everything currently visible, buzzing or not, so re-enabling
+        // the setting later can never burst old rows.
+        notifiedIds = notifiedIds + unreadLikeIds
+
+        if (!phoneAllowed) {
+            // Phone buzz is off: absorb silently and clear any live summary.
+            lastPostedUnreadCount = 0
+            com.example.releaf.utils.NotificationHelper.cancelSummary(context)
+            return@LaunchedEffect
+        }
+
+        if (unreadLikeIds.isEmpty()) {
+            if (lastPostedUnreadCount > 0) {
+                com.example.releaf.utils.NotificationHelper.cancelSummary(context)
+                lastPostedUnreadCount = 0
+            }
+            return@LaunchedEffect
+        }
+
+        val count = unreadLikeIds.size
+        val text = if (count == 1) {
+            t("notif_summary_one")
+        } else {
+            String.format(java.util.Locale.US, t("notif_summary_many"), count)
+        }
+        if (freshIds.isNotEmpty()) {
+            // Genuinely new like(s): buzz once, text updated in place.
+            com.example.releaf.utils.NotificationHelper.showOrUpdateSummary(
+                context = context,
+                title = t("app_name"),
+                message = text,
+                alert = true
+            )
+        } else if (count != lastPostedUnreadCount) {
+            // Count changed with no new arrivals (e.g. read in-app):
+            // refresh the text silently.
+            com.example.releaf.utils.NotificationHelper.showOrUpdateSummary(
+                context = context,
+                title = t("app_name"),
+                message = text,
+                alert = false
+            )
+        }
+        lastPostedUnreadCount = count
     }
 
     LaunchedEffect(currentUserId, lifecycleOwner) {
         val settingsPrefs =
             context.getSharedPreferences("settings_prefs", android.content.Context.MODE_PRIVATE)
-
-        fun notificationsEnabled() = settingsPrefs.getBoolean("notifications_enabled", true)
-        if (notificationsEnabled()) {
-            notificationsViewModel.loadNotifications(currentUserId)
-        }
+        var phoneWasAllowed = settingsPrefs.getBoolean("notifications_enabled", true)
+        // The in-app list always loads; the setting only gates phone buzzing.
+        notificationsViewModel.loadNotifications(currentUserId)
         lifecycleOwner.repeatOnLifecycle(androidx.lifecycle.Lifecycle.State.STARTED) {
             while (true) {
                 delay(10000.milliseconds)
-                if (notificationsEnabled()) {
-                    notificationsViewModel.loadNotifications(currentUserId)
+                notificationsViewModel.loadNotifications(currentUserId)
+                val phoneAllowed = settingsPrefs.getBoolean("notifications_enabled", true)
+                if (phoneWasAllowed && !phoneAllowed) {
+                    // Just muted: dismiss any live summary immediately.
+                    com.example.releaf.utils.NotificationHelper.cancelSummary(context)
                 }
+                phoneWasAllowed = phoneAllowed
             }
         }
     }
