@@ -23,6 +23,7 @@ import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
@@ -49,6 +50,7 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
+import androidx.core.content.edit
 import coil.compose.rememberAsyncImagePainter
 import coil.imageLoader
 import com.example.releaf.R
@@ -57,7 +59,6 @@ import com.example.releaf.ui.viewmodel.AppLanguage
 import com.example.releaf.ui.viewmodel.ProfileViewModel
 import com.example.releaf.ui.viewmodel.ThemeViewModel
 import kotlinx.coroutines.launch
-import androidx.core.content.edit
 
 internal const val LOG_OUT_LABEL = "Log out"
 
@@ -80,6 +81,8 @@ fun SettingsScreen(
     var showLangDialog by remember { mutableStateOf(false) }
     var showAboutDialog by remember { mutableStateOf(false) }
     var showAccountDialog by remember { mutableStateOf(false) }
+    var editName by remember { mutableStateOf("") }
+    var editPhone by remember { mutableStateOf("") }
     val profile by viewModel.profile.collectAsState()
     val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
@@ -117,27 +120,120 @@ fun SettingsScreen(
     }
 
     if (showAccountDialog) {
+
+        // Get the current avatar URL from the profile
+        val avatarUrl = profile?.avatar_url.orEmpty()
+
+        // Load current profile information into the editable fields
+        LaunchedEffect(showAccountDialog) {
+            if (showAccountDialog) {
+                editName = profile?.name ?: ""
+                editPhone = profile?.phone ?: ""
+            }
+        }
+
         AlertDialog(
-            onDismissRequest = { showAccountDialog = false },
-            title = { Text("Account") },
+            onDismissRequest = {
+                showAccountDialog = false
+            },
+
+            title = {
+                Text("Account")
+            },
+
             text = {
                 Column {
-                    Text("Name: ${profile?.name?.ifBlank { "User" } ?: "User"}")
-                    Text("Email: ${profile?.email?.ifBlank { "N/A" } ?: "N/A"}")
-                    Text("Phone: ${profile?.phone?.ifBlank { "N/A" } ?: "N/A"}")
-                    Text("Title: ${profile?.title?.ifBlank { "Gardener" } ?: "Gardener"}")
-                    Spacer(modifier = Modifier.height(8.dp))
-                    Text(
-                        "Manage your account in Profile.",
-                        style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
+
+                    OutlinedTextField(
+                        value = editName,
+                        onValueChange = {
+                            editName = it
+                        },
+                        label = {
+                            Text("Name")
+                        },
+                        singleLine = true,
+                        modifier = Modifier.fillMaxWidth()
                     )
+
+                    Spacer(modifier = Modifier.height(8.dp))
+
+                    // Email is displayed, but cannot be edited here.
+                    OutlinedTextField(
+                        value = profile?.email ?: "",
+                        onValueChange = {},
+                        label = {
+                            Text("Email")
+                        },
+                        enabled = false,
+                        singleLine = true,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+
+                    Spacer(modifier = Modifier.height(8.dp))
+
+                    OutlinedTextField(
+                        value = editPhone,
+                        onValueChange = {
+                            editPhone = it
+                        },
+                        label = {
+                            Text("Phone")
+                        },
+                        singleLine = true,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+
                 }
             },
+
+            // Save Button
             confirmButton = {
-                TextButton(onClick = {
-                    showAccountDialog = false
-                }) { Text("Close") }
+                TextButton(
+                    onClick = {
+
+                        scope.launch {
+                            try {
+
+                                viewModel.updateProfile(
+                                    userId = userId,
+                                    name = editName,
+                                    phone = editPhone,
+                                    avatarUrl = avatarUrl
+                                )
+
+                                // Reload the profile so the header
+                                // immediately displays the updated data.
+                                viewModel.loadProfile(userId)
+
+                                showAccountDialog = false
+
+                                snackbarHostState.showSnackbar(
+                                    "Profile updated successfully"
+                                )
+
+                            } catch (e: Exception) {
+
+                                snackbarHostState.showSnackbar(
+                                    e.message ?: "Failed to update profile"
+                                )
+                            }
+                        }
+                    }
+                ) {
+                    Text("Save")
+                }
+            },
+
+            // CANCEL
+            dismissButton = {
+                TextButton(
+                    onClick = {
+                        showAccountDialog = false
+                    }
+                ) {
+                    Text("Cancel")
+                }
             }
         )
     }
@@ -173,7 +269,11 @@ fun SettingsScreen(
                     )
                 }
             },
-            confirmButton = { TextButton(onClick = { showAboutDialog = false }) { Text("Close") } }
+            confirmButton = {
+                TextButton(onClick = {
+                    showAboutDialog = false
+                }) { Text("Close") }
+            }
         )
     }
 
@@ -206,7 +306,9 @@ fun SettingsScreen(
                                 onClick = null
                             )
                             Spacer(modifier = Modifier.width(8.dp))
-                            Text(lang.name.lowercase().replaceFirstChar { it.uppercase() })
+                            Text(
+                                lang.name.lowercase()
+                                    .replaceFirstChar { it.uppercase() })
                         }
                     }
                 }
@@ -243,7 +345,9 @@ fun SettingsScreen(
                                 onClick = null
                             )
                             Spacer(modifier = Modifier.width(8.dp))
-                            Text(theme.name.lowercase().replaceFirstChar { it.uppercase() })
+                            Text(
+                                theme.name.lowercase()
+                                    .replaceFirstChar { it.uppercase() })
                         }
                     }
                 }
@@ -252,11 +356,23 @@ fun SettingsScreen(
     }
 
     val rows = listOf(
-        SettingsRowData(R.drawable.ic_favorite, t("favourite_toilets"), "favourites"),
+        SettingsRowData(
+            R.drawable.ic_favorite,
+            t("favourite_toilets"),
+            "favourites"
+        ),
         SettingsRowData(R.drawable.ic_person, t("settings_account"), "account"),
         SettingsRowData(R.drawable.ic_info, t("settings_about"), "about"),
-        SettingsRowData(R.drawable.ic_notifications, t("settings_notify"), "notifications"),
-        SettingsRowData(R.drawable.ic_delete, t("settings_clear_cache"), "clear_cache"),
+        SettingsRowData(
+            R.drawable.ic_notifications,
+            t("settings_notify"),
+            "notifications"
+        ),
+        SettingsRowData(
+            R.drawable.ic_delete,
+            t("settings_clear_cache"),
+            "clear_cache"
+        ),
         SettingsRowData(R.drawable.ic_refresh, t("settings_updates"), "updates"),
         SettingsRowData(R.drawable.ic_palette, t("theme"), "theme"),
         SettingsRowData(R.drawable.ic_translate, t("language"), "language"),
@@ -293,7 +409,10 @@ fun SettingsScreen(
                             .padding(top = 8.dp, end = 8.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        IconButton(onClick = onBackClick, modifier = Modifier.padding(4.dp)) {
+                        IconButton(
+                            onClick = onBackClick,
+                            modifier = Modifier.padding(4.dp)
+                        ) {
                             Icon(
                                 painter = painterResource(id = R.drawable.ic_arrow_back),
                                 contentDescription = "Back",
@@ -304,7 +423,12 @@ fun SettingsScreen(
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(start = 20.dp, end = 20.dp, top = 4.dp, bottom = 20.dp),
+                            .padding(
+                                start = 20.dp,
+                                end = 20.dp,
+                                top = 4.dp,
+                                bottom = 20.dp
+                            ),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Box(
@@ -372,7 +496,12 @@ fun SettingsScreen(
                         notificationsEnabled = notificationsEnabled,
                         onNotificationsToggle = { enabled ->
                             notificationsEnabled = enabled
-                            prefs.edit { putBoolean("notifications_enabled", enabled) }
+                            prefs.edit {
+                                putBoolean(
+                                    "notifications_enabled",
+                                    enabled
+                                )
+                            }
                             scope.launch { snackbarHostState.showSnackbar(if (enabled) "Notifications enabled" else "Notifications disabled") }
                         },
                         onClick = {
@@ -382,7 +511,11 @@ fun SettingsScreen(
                                 "language" -> showLangDialog = true
                                 "favourites" -> {
                                     if (onFavouritesClick != null) onFavouritesClick()
-                                    else scope.launch { snackbarHostState.showSnackbar("Coming soon") }
+                                    else scope.launch {
+                                        snackbarHostState.showSnackbar(
+                                            "Coming soon"
+                                        )
+                                    }
                                 }
 
                                 "account" -> showAccountDialog = true
@@ -390,7 +523,12 @@ fun SettingsScreen(
                                 "notifications" -> {
                                     val newVal = !notificationsEnabled
                                     notificationsEnabled = newVal
-                                    prefs.edit { putBoolean("notifications_enabled", newVal) }
+                                    prefs.edit {
+                                        putBoolean(
+                                            "notifications_enabled",
+                                            newVal
+                                        )
+                                    }
                                     scope.launch { snackbarHostState.showSnackbar(if (newVal) "Notifications enabled" else "Notifications disabled") }
                                 }
 
@@ -406,7 +544,11 @@ fun SettingsScreen(
                                             "Cache cleared",
                                             android.widget.Toast.LENGTH_SHORT
                                         ).show()
-                                        scope.launch { snackbarHostState.showSnackbar("Cache cleared ✓") }
+                                        scope.launch {
+                                            snackbarHostState.showSnackbar(
+                                                "Cache cleared ✓"
+                                            )
+                                        }
                                     } catch (e: Exception) {
                                         scope.launch {
                                             snackbarHostState.showSnackbar(
@@ -428,7 +570,11 @@ fun SettingsScreen(
                                     scope.launch { snackbarHostState.showSnackbar("Releaf v$version • You are up to date ✓") }
                                 }
 
-                                else -> scope.launch { snackbarHostState.showSnackbar("Coming soon") }
+                                else -> scope.launch {
+                                    snackbarHostState.showSnackbar(
+                                        "Coming soon"
+                                    )
+                                }
                             }
                         }
                     )
@@ -460,7 +606,9 @@ fun SettingsRow(
         Spacer(modifier = Modifier.width(16.dp))
         Text(row.title, modifier = Modifier.weight(1f))
         if (row.key == "notifications") {
-            Switch(checked = notificationsEnabled, onCheckedChange = { onNotificationsToggle(it) })
+            Switch(
+                checked = notificationsEnabled,
+                onCheckedChange = { onNotificationsToggle(it) })
         } else {
             Icon(
                 painter = painterResource(id = R.drawable.ic_chevron_right),
