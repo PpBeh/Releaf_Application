@@ -25,7 +25,6 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Close
-import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
@@ -35,10 +34,8 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -65,6 +62,7 @@ import com.example.releaf.model.SeedData
 import com.example.releaf.ui.theme.string
 import com.example.releaf.ui.viewmodel.GardenViewModel
 import com.example.releaf.ui.viewmodel.ThemeViewModel
+import kotlin.time.Duration.Companion.milliseconds
 
 @Composable
 fun GardenPlotScreen(
@@ -105,7 +103,7 @@ fun GardenPlotScreen(
     // Auto-dismiss transient status banners
     LaunchedEffect(statusMessage) {
         if (!statusMessage.isNullOrBlank()) {
-            kotlinx.coroutines.delay(4000)
+            kotlinx.coroutines.delay(4000.milliseconds)
             viewModel.clearStatusMessage()
         }
     }
@@ -140,8 +138,16 @@ fun GardenPlotScreen(
                             color = if (isPlanted) Color(0xFFE8F5E9) else MaterialTheme.colorScheme.surfaceVariant
                         ) {
                             Text(
-                                if (isPlanted) String.format(java.util.Locale.US, t("active_plant"), slot.slot_index)
-                                else String.format(java.util.Locale.US, t("slot_empty"), slot.slot_index),
+                                if (isPlanted) String.format(
+                                    java.util.Locale.US,
+                                    t("active_plant"),
+                                    slot.slot_index
+                                )
+                                else String.format(
+                                    java.util.Locale.US,
+                                    t("slot_empty"),
+                                    slot.slot_index
+                                ),
                                 style = MaterialTheme.typography.labelMedium,
                                 fontWeight = FontWeight.Bold,
                                 color = if (isPlanted) Color(0xFF2E7D32) else MaterialTheme.colorScheme.onSurfaceVariant,

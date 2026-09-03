@@ -24,7 +24,8 @@ class NotificationsViewModel : ViewModel() {
                 val list = repository.getNotifications(userId)
                 _notifications.value = list
                 _unreadCount.value = list.count { !it.is_read && it.user_id != null }
-            } catch (_: Exception) { }
+            } catch (_: Exception) {
+            }
         }
     }
 
@@ -36,7 +37,8 @@ class NotificationsViewModel : ViewModel() {
                 if (notification.user_id == null) return@launch
                 repository.markAsRead(notification.id)
                 loadNotifications(userId)
-            } catch (_: Exception) { }
+            } catch (_: Exception) {
+            }
         }
     }
 
@@ -45,7 +47,8 @@ class NotificationsViewModel : ViewModel() {
             try {
                 repository.markAllAsRead(userId)
                 loadNotifications(userId)
-            } catch (_: Exception) { }
+            } catch (_: Exception) {
+            }
         }
     }
 
@@ -89,7 +92,8 @@ class NotificationsViewModel : ViewModel() {
                 }
 
                 loadNotifications(userId)
-            } catch (_: Exception) { }
+            } catch (_: Exception) {
+            }
         }
     }
 }

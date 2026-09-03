@@ -11,6 +11,7 @@ import com.example.releaf.data.remote.dto.PoiDto
 import org.osmdroid.util.GeoPoint
 import org.osmdroid.views.MapView
 import org.osmdroid.views.overlay.Overlay
+import androidx.core.graphics.toColorInt
 
 class PoiMarkersOverlay(
     private val pois: List<PoiDto>,
@@ -28,8 +29,10 @@ class PoiMarkersOverlay(
         val baseSize = (128 * scale).toInt()
         val context = mapView.context
 
-        if (toiletIcon == null) toiletIcon = androidx.core.content.ContextCompat.getDrawable(context, R.drawable.ic_toilet)
-        if (trashIcon == null) trashIcon = androidx.core.content.ContextCompat.getDrawable(context, R.drawable.ic_trash)
+        if (toiletIcon == null) toiletIcon =
+            androidx.core.content.ContextCompat.getDrawable(context, R.drawable.ic_toilet)
+        if (trashIcon == null) trashIcon =
+            androidx.core.content.ContextCompat.getDrawable(context, R.drawable.ic_trash)
 
         for (poi in pois) {
             val p = Point()
@@ -74,7 +77,7 @@ class PoiMarkersOverlay(
     }
 
     override fun onSingleTapConfirmed(e: android.view.MotionEvent, mapView: MapView): Boolean {
-        val p = android.graphics.Point(e.x.toInt(), e.y.toInt())
+        val p = Point(e.x.toInt(), e.y.toInt())
         for (poi in pois) {
             val screen = Point()
             mapView.projection.toPixels(GeoPoint(poi.latitude, poi.longitude), screen)
@@ -90,15 +93,15 @@ class PoiMarkersOverlay(
 
     private companion object {
         val TOILET_PAINT = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-            color = Color.parseColor("#E53935")
+            color = "#E53935".toColorInt()
             style = Paint.Style.FILL
         }
         val TRASH_PAINT = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-            color = Color.parseColor("#43A047")
+            color = "#43A047".toColorInt()
             style = Paint.Style.FILL
         }
         val BADGE_PAINT = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-            color = Color.parseColor("#FF9800")
+            color = "#FF9800".toColorInt()
             style = Paint.Style.FILL
         }
         val BADGE_TEXT_PAINT = Paint(Paint.ANTI_ALIAS_FLAG).apply {

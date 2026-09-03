@@ -19,7 +19,8 @@ class FavouritesViewModel : ViewModel() {
         viewModelScope.launch {
             try {
                 _favorites.value = repository.getFavoritePois(userId)
-            } catch (_: Exception) { }
+            } catch (_: Exception) {
+            }
         }
     }
 
@@ -30,7 +31,8 @@ class FavouritesViewModel : ViewModel() {
                 _favorites.value = _favorites.value.filterNot { it.id == poiId }
                 repository.removeFavorite(poiId, userId)
                 _favorites.value = repository.getFavoritePois(userId)
-            } catch (_: Exception) { }
+            } catch (_: Exception) {
+            }
         }
     }
 }

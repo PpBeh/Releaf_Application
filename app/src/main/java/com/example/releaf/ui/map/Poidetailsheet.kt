@@ -1,6 +1,5 @@
 package com.example.releaf.ui.map
 
-import android.content.Intent
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -22,10 +21,10 @@ import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Directions
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.FavoriteBorder
+import androidx.compose.material.icons.filled.Report
 import androidx.compose.material.icons.filled.Share
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.filled.Verified
-import androidx.compose.material.icons.filled.Report
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
@@ -155,7 +154,8 @@ fun PoiDetailSheet(
                 Text(
                     buildString {
                         append("Users reported this ${if (poi.category == "TRASH_CAN") "trash can" else "toilet"} $status")
-                        val time = com.example.releaf.data.remote.TimeFormatter.formatHour(statusTime.orEmpty())
+                        val time =
+                            com.example.releaf.data.remote.TimeFormatter.formatHour(statusTime.orEmpty())
                         if (time != null) append(" at $time")
                         append(".")
                     },
@@ -176,7 +176,7 @@ fun PoiDetailSheet(
 
         Spacer(modifier = Modifier.height(12.dp))
 
-            Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+        Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
             Button(
                 onClick = onDirectionClick,
                 shape = RoundedCornerShape(50),
@@ -205,7 +205,11 @@ fun PoiDetailSheet(
                 colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF4CAF50))
             ) {
                 if (isProcessing) {
-                    CircularProgressIndicator(color = Color.White, strokeWidth = 2.dp, modifier = Modifier.size(18.dp))
+                    CircularProgressIndicator(
+                        color = Color.White,
+                        strokeWidth = 2.dp,
+                        modifier = Modifier.size(18.dp)
+                    )
                     Spacer(modifier = Modifier.width(6.dp))
                     Text(t("updating"))
                 } else {
@@ -221,7 +225,11 @@ fun PoiDetailSheet(
                 colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFF44336))
             ) {
                 if (isProcessing) {
-                    CircularProgressIndicator(color = Color.White, strokeWidth = 2.dp, modifier = Modifier.size(18.dp))
+                    CircularProgressIndicator(
+                        color = Color.White,
+                        strokeWidth = 2.dp,
+                        modifier = Modifier.size(18.dp)
+                    )
                 } else {
                     Icon(Icons.Default.Report, contentDescription = null)
                     Spacer(modifier = Modifier.width(6.dp))
@@ -239,6 +247,7 @@ fun PoiDetailSheet(
                             val meters = it.message.removePrefix("too_far_")
                             t("too_far_fmt").replace("%s", meters)
                         }
+
                         it.message == "already_verified" -> t("already_verified")
                         it.message == "now_verified" -> t("now_verified")
                         it.message == "verification_counted" -> t("verification_counted")
@@ -268,7 +277,10 @@ fun PoiDetailSheet(
             photoRows.size - 1
         }
         photoRows.forEachIndexed { rowIndex, rowPhotos ->
-            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
                 rowPhotos.forEach { photo ->
                     PhotoTile(
                         url = photo.photo_url,
@@ -292,7 +304,12 @@ fun PoiDetailSheet(
 
         if (selectedFullUrl != null) {
             androidx.compose.ui.window.Dialog(onDismissRequest = { selectedFullUrl = null }) {
-                Box(modifier = Modifier.fillMaxSize().clickable { selectedFullUrl = null }, contentAlignment = Alignment.Center) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .clickable { selectedFullUrl = null },
+                    contentAlignment = Alignment.Center
+                ) {
                     Column(horizontalAlignment = Alignment.CenterHorizontally) {
                         androidx.compose.foundation.Image(
                             painter = coil.compose.rememberAsyncImagePainter(model = selectedFullUrl),
@@ -309,7 +326,12 @@ fun PoiDetailSheet(
                             color = Color.White.copy(alpha = 0.9f),
                             modifier = Modifier.clickable { selectedFullUrl = null }
                         ) {
-                            Text("✕ Close", color = Color.Black, fontWeight = FontWeight.Bold, modifier = Modifier.padding(horizontal = 20.dp, vertical = 10.dp))
+                            Text(
+                                "✕ Close",
+                                color = Color.Black,
+                                fontWeight = FontWeight.Bold,
+                                modifier = Modifier.padding(horizontal = 20.dp, vertical = 10.dp)
+                            )
                         }
                     }
                 }
@@ -319,7 +341,8 @@ fun PoiDetailSheet(
 }
 
 @Composable
-private fun PhotoTile(url: String?, modifier: Modifier = Modifier, onClick: (() -> Unit)? = null) {    if (url.isNullOrBlank()) {
+private fun PhotoTile(url: String?, modifier: Modifier = Modifier, onClick: (() -> Unit)? = null) {
+    if (url.isNullOrBlank()) {
         Column(
             modifier = modifier
                 .aspectRatio(1f)

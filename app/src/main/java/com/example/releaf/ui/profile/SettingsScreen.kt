@@ -1,5 +1,8 @@
 package com.example.releaf.ui.profile
 
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
@@ -40,20 +43,21 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
-import androidx.lifecycle.viewmodel.compose.viewModel
+import coil.compose.rememberAsyncImagePainter
 import coil.imageLoader
 import com.example.releaf.R
 import com.example.releaf.ui.theme.AppTheme
-import com.example.releaf.ui.theme.string
 import com.example.releaf.ui.viewmodel.AppLanguage
 import com.example.releaf.ui.viewmodel.ProfileViewModel
 import com.example.releaf.ui.viewmodel.ThemeViewModel
 import kotlinx.coroutines.launch
+import androidx.core.content.edit
 
 internal const val LOG_OUT_LABEL = "Log out"
 
@@ -80,14 +84,26 @@ fun SettingsScreen(
     val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
 
-    val prefs = remember { context.getSharedPreferences("settings_prefs", android.content.Context.MODE_PRIVATE) }
-    var notificationsEnabled by remember { mutableStateOf(prefs.getBoolean("notifications_enabled", true)) }
+    val prefs = remember {
+        context.getSharedPreferences(
+            "settings_prefs",
+            android.content.Context.MODE_PRIVATE
+        )
+    }
+    var notificationsEnabled by remember {
+        mutableStateOf(
+            prefs.getBoolean(
+                "notifications_enabled",
+                true
+            )
+        )
+    }
     var showLogoutConfirm by remember { mutableStateOf(false) }
     val lang by themeViewModel.language.collectAsState()
     fun t(key: String) = com.example.releaf.ui.theme.AppStrings.get(key, lang)
 
-    val avatarPicker = androidx.activity.compose.rememberLauncherForActivityResult(
-        androidx.activity.result.contract.ActivityResultContracts.GetContent()
+    val avatarPicker = rememberLauncherForActivityResult(
+        ActivityResultContracts.GetContent()
     ) { uri ->
         if (uri != null) {
             viewModel.uploadAvatar(userId, uri, context)
@@ -111,10 +127,18 @@ fun SettingsScreen(
                     Text("Phone: ${profile?.phone?.ifBlank { "N/A" } ?: "N/A"}")
                     Text("Title: ${profile?.title?.ifBlank { "Gardener" } ?: "Gardener"}")
                     Spacer(modifier = Modifier.height(8.dp))
-                    Text("Manage your account in Profile.", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Text(
+                        "Manage your account in Profile.",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
                 }
             },
-            confirmButton = { TextButton(onClick = { showAccountDialog = false }) { Text("Close") } }
+            confirmButton = {
+                TextButton(onClick = {
+                    showAccountDialog = false
+                }) { Text("Close") }
+            }
         )
     }
 
@@ -124,11 +148,29 @@ fun SettingsScreen(
             title = { Text("About Us") },
             text = {
                 Column {
-                    Text("Releaf — Find clean toilets & trash cans near you.", fontWeight = FontWeight.Bold)
+                    Text(
+                        "Releaf — Find clean toilets & trash cans near you.",
+                        fontWeight = FontWeight.Bold
+                    )
                     Spacer(modifier = Modifier.height(8.dp))
-                    Text("Version: ${try { context.packageManager.getPackageInfo(context.packageName, 0).versionName } catch (_: Exception) { "1.0" }}")
+                    Text(
+                        "Version: ${
+                            try {
+                                context.packageManager.getPackageInfo(
+                                    context.packageName,
+                                    0
+                                ).versionName
+                            } catch (_: Exception) {
+                                "1.0"
+                            }
+                        }"
+                    )
                     Spacer(modifier = Modifier.height(4.dp))
-                    Text("Built with care for community cleanliness. Share feedback via reviews!", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Text(
+                        "Built with care for community cleanliness. Share feedback via reviews!",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
                 }
             },
             confirmButton = { TextButton(onClick = { showAboutDialog = false }) { Text("Close") } }
@@ -234,7 +276,11 @@ fun SettingsScreen(
     Scaffold(
         snackbarHost = { SnackbarHost(snackbarHostState) }
     ) { scaffoldPadding ->
-        Column(modifier = Modifier.fillMaxSize().padding(scaffoldPadding)) {
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(scaffoldPadding)
+        ) {
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -242,7 +288,9 @@ fun SettingsScreen(
             ) {
                 Column {
                     Row(
-                        modifier = Modifier.fillMaxWidth().padding(top = 8.dp, end = 8.dp),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(top = 8.dp, end = 8.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         IconButton(onClick = onBackClick, modifier = Modifier.padding(4.dp)) {
@@ -269,11 +317,13 @@ fun SettingsScreen(
                         ) {
                             val avatarUrl = profile?.avatar_url.orEmpty()
                             if (avatarUrl.isNotBlank()) {
-                                androidx.compose.foundation.Image(
-                                    painter = coil.compose.rememberAsyncImagePainter(model = avatarUrl),
+                                Image(
+                                    painter = rememberAsyncImagePainter(model = avatarUrl),
                                     contentDescription = "Avatar",
-                                    modifier = Modifier.size(64.dp).clip(CircleShape),
-                                    contentScale = androidx.compose.ui.layout.ContentScale.Crop
+                                    modifier = Modifier
+                                        .size(64.dp)
+                                        .clip(CircleShape),
+                                    contentScale = ContentScale.Crop
                                 )
                             } else {
                                 Icon(
@@ -322,7 +372,7 @@ fun SettingsScreen(
                         notificationsEnabled = notificationsEnabled,
                         onNotificationsToggle = { enabled ->
                             notificationsEnabled = enabled
-                            prefs.edit().putBoolean("notifications_enabled", enabled).apply()
+                            prefs.edit { putBoolean("notifications_enabled", enabled) }
                             scope.launch { snackbarHostState.showSnackbar(if (enabled) "Notifications enabled" else "Notifications disabled") }
                         },
                         onClick = {
@@ -334,14 +384,16 @@ fun SettingsScreen(
                                     if (onFavouritesClick != null) onFavouritesClick()
                                     else scope.launch { snackbarHostState.showSnackbar("Coming soon") }
                                 }
+
                                 "account" -> showAccountDialog = true
                                 "about" -> showAboutDialog = true
                                 "notifications" -> {
                                     val newVal = !notificationsEnabled
                                     notificationsEnabled = newVal
-                                    prefs.edit().putBoolean("notifications_enabled", newVal).apply()
+                                    prefs.edit { putBoolean("notifications_enabled", newVal) }
                                     scope.launch { snackbarHostState.showSnackbar(if (newVal) "Notifications enabled" else "Notifications disabled") }
                                 }
+
                                 "clear_cache" -> {
                                     try {
                                         val imageLoader = context.imageLoader
@@ -349,16 +401,33 @@ fun SettingsScreen(
                                         imageLoader.memoryCache?.clear()
                                         // Clear osmdroid tile cache references without deleting map tiles aggressively
                                         // (removed duplicate delete in MainActivity)
-                                        android.widget.Toast.makeText(context, "Cache cleared", android.widget.Toast.LENGTH_SHORT).show()
+                                        android.widget.Toast.makeText(
+                                            context,
+                                            "Cache cleared",
+                                            android.widget.Toast.LENGTH_SHORT
+                                        ).show()
                                         scope.launch { snackbarHostState.showSnackbar("Cache cleared ✓") }
                                     } catch (e: Exception) {
-                                        scope.launch { snackbarHostState.showSnackbar("Failed to clear cache") }
+                                        scope.launch {
+                                            snackbarHostState.showSnackbar(
+                                                e.message ?: "Failed to clear cache"
+                                            )
+                                        }
                                     }
                                 }
+
                                 "updates" -> {
-                                    val version = try { context.packageManager.getPackageInfo(context.packageName, 0).versionName } catch (_: Exception) { "1.0" }
+                                    val version = try {
+                                        context.packageManager.getPackageInfo(
+                                            context.packageName,
+                                            0
+                                        ).versionName
+                                    } catch (_: Exception) {
+                                        "1.0"
+                                    }
                                     scope.launch { snackbarHostState.showSnackbar("Releaf v$version • You are up to date ✓") }
                                 }
+
                                 else -> scope.launch { snackbarHostState.showSnackbar("Coming soon") }
                             }
                         }

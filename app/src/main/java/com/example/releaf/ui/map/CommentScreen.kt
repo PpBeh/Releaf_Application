@@ -74,6 +74,7 @@ import coil.compose.rememberAsyncImagePainter
 import com.example.releaf.data.remote.dto.ReviewDto
 import com.example.releaf.ui.viewmodel.CommentViewModel
 import java.io.File
+import kotlin.time.Duration.Companion.milliseconds
 
 fun countWords(text: String): Int {
     if (text.isBlank()) return 0
@@ -142,11 +143,19 @@ fun CommentScreen(
     }
 
     var sheetUserId by remember { mutableStateOf<String?>(null) }
-    var sheetProfile by remember { mutableStateOf<com.example.releaf.data.remote.dto.ProfileDto?>(null) }
+    var sheetProfile by remember {
+        mutableStateOf<com.example.releaf.data.remote.dto.ProfileDto?>(
+            null
+        )
+    }
     var sheetAchievements by remember { mutableIntStateOf(0) }
     var sheetPoints by remember { mutableIntStateOf(0) }
     var sheetGarden by remember { mutableStateOf<com.example.releaf.data.remote.dto.GardenDto?>(null) }
-    var sheetPlantSlots by remember { mutableStateOf<List<com.example.releaf.data.remote.dto.PlantSlotDto>>(emptyList()) }
+    var sheetPlantSlots by remember {
+        mutableStateOf<List<com.example.releaf.data.remote.dto.PlantSlotDto>>(
+            emptyList()
+        )
+    }
 
     LaunchedEffect(sheetUserId) {
         val uid = sheetUserId ?: return@LaunchedEffect
@@ -156,17 +165,20 @@ fun CommentScreen(
         try {
             val authRepository = com.example.releaf.data.repository.AuthRepository()
             sheetProfile = authRepository.getProfile(uid)
-        } catch (_: Exception) { }
+        } catch (_: Exception) {
+        }
         try {
             val rewardRepository = com.example.releaf.data.repository.RewardRepository()
             sheetAchievements = rewardRepository.getUserAchievements(uid).size
             sheetPoints = sheetProfile?.total_points ?: 0
-        } catch (_: Exception) { }
+        } catch (_: Exception) {
+        }
         try {
             val gardenRepository = com.example.releaf.data.repository.GardenRepository()
             sheetGarden = gardenRepository.getGarden(uid)
             sheetPlantSlots = gardenRepository.getPlantSlots(uid)
-        } catch (_: Exception) { }
+        } catch (_: Exception) {
+        }
     }
 
     val lifecycleOwner = androidx.lifecycle.compose.LocalLifecycleOwner.current
@@ -174,7 +186,7 @@ fun CommentScreen(
         lifecycleOwner.repeatOnLifecycle(androidx.lifecycle.Lifecycle.State.STARTED) {
             viewModel.loadReviews(poiId, currentUserId)
             while (true) {
-                kotlinx.coroutines.delay(3000)
+                kotlinx.coroutines.delay(3000.milliseconds)
                 viewModel.loadReviews(poiId, currentUserId)
             }
         }
@@ -189,7 +201,9 @@ fun CommentScreen(
             Surface(
                 shape = RoundedCornerShape(20.dp),
                 color = MaterialTheme.colorScheme.surface,
-                modifier = Modifier.fillMaxWidth().padding(16.dp)
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(16.dp)
             ) {
                 Column(
                     modifier = Modifier.padding(20.dp),
@@ -213,11 +227,19 @@ fun CommentScreen(
                             .padding(12.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Icon(Icons.Default.Image, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
+                        Icon(
+                            Icons.Default.Image,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.primary
+                        )
                         Spacer(modifier = Modifier.width(16.dp))
                         Column {
                             Text(t("choose_gallery"), fontWeight = FontWeight.Bold)
-                            Text(t("gallery_hint"), style = MaterialTheme.typography.labelSmall, color = Color.Gray)
+                            Text(
+                                t("gallery_hint"),
+                                style = MaterialTheme.typography.labelSmall,
+                                color = Color.Gray
+                            )
                         }
                     }
 
@@ -233,11 +255,19 @@ fun CommentScreen(
                             .padding(12.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Icon(Icons.Default.CameraAlt, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
+                        Icon(
+                            Icons.Default.CameraAlt,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.primary
+                        )
                         Spacer(modifier = Modifier.width(16.dp))
                         Column {
                             Text(t("take_camera"), fontWeight = FontWeight.Bold)
-                            Text(t("camera_hint"), style = MaterialTheme.typography.labelSmall, color = Color.Gray)
+                            Text(
+                                t("camera_hint"),
+                                style = MaterialTheme.typography.labelSmall,
+                                color = Color.Gray
+                            )
                         }
                     }
 
@@ -262,7 +292,9 @@ fun CommentScreen(
         )
 
         Row(
-            modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp),
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
             repeat(5) { index ->
@@ -307,7 +339,12 @@ fun CommentScreen(
                             .align(Alignment.TopEnd)
                             .background(Color.Red, CircleShape)
                     ) {
-                        Icon(Icons.Default.Close, contentDescription = "Remove", tint = Color.White, modifier = Modifier.size(12.dp))
+                        Icon(
+                            Icons.Default.Close,
+                            contentDescription = "Remove",
+                            tint = Color.White,
+                            modifier = Modifier.size(12.dp)
+                        )
                     }
                 }
 
@@ -323,7 +360,9 @@ fun CommentScreen(
         }
 
         Row(
-            modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp, vertical = 8.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
             OutlinedTextField(
@@ -355,14 +394,26 @@ fun CommentScreen(
             IconButton(
                 onClick = {
                     if (commentText.isNotBlank() && !isWordLimitExceeded) {
-                        val lm = context.getSystemService(android.content.Context.LOCATION_SERVICE) as? android.location.LocationManager
+                        val lm =
+                            context.getSystemService(android.content.Context.LOCATION_SERVICE) as? android.location.LocationManager
                         val loc = try {
                             lm?.getLastKnownLocation(android.location.LocationManager.GPS_PROVIDER)
                                 ?: lm?.getLastKnownLocation(android.location.LocationManager.NETWORK_PROVIDER)
-                        } catch (_: SecurityException) { null }
+                        } catch (_: SecurityException) {
+                            null
+                        }
                         val lat = loc?.latitude ?: 0.0
                         val lng = loc?.longitude ?: 0.0
-                        viewModel.addReview(poiId, currentUserId, starRating, commentText, lat, lng, selectedPhotoUri, context)
+                        viewModel.addReview(
+                            poiId,
+                            currentUserId,
+                            starRating,
+                            commentText,
+                            lat,
+                            lng,
+                            selectedPhotoUri,
+                            context
+                        )
                     }
                 },
                 enabled = commentText.isNotBlank() && !isWordLimitExceeded && !isProcessing
@@ -373,7 +424,9 @@ fun CommentScreen(
 
         // Word Limit Counter Banner
         Row(
-            modifier = Modifier.fillMaxWidth().padding(horizontal = 20.dp),
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 20.dp),
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
@@ -422,7 +475,12 @@ fun CommentScreen(
         } else {
             LazyColumn(
                 modifier = Modifier.fillMaxSize(),
-                contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 8.dp, bottom = 80.dp)
+                contentPadding = PaddingValues(
+                    start = 16.dp,
+                    end = 16.dp,
+                    top = 8.dp,
+                    bottom = 80.dp
+                )
             ) {
                 items(reviews, key = { it.id }) { review ->
                     var showEditDialog by remember(review.id) { mutableStateOf(false) }
@@ -459,7 +517,11 @@ fun CommentScreen(
                                     )
                                     Spacer(modifier = Modifier.height(4.dp))
                                     Text(
-                                        String.format(java.util.Locale.US, "%d / 500 words", editWordCount),
+                                        String.format(
+                                            java.util.Locale.US,
+                                            "%d / 500 words",
+                                            editWordCount
+                                        ),
                                         style = MaterialTheme.typography.labelSmall,
                                         color = if (isEditExceeded) MaterialTheme.colorScheme.error else Color.Gray
                                     )
@@ -476,7 +538,10 @@ fun CommentScreen(
                                     enabled = !isProcessing && !isEditExceeded
                                 ) {
                                     if (isProcessing) {
-                                        CircularProgressIndicator(strokeWidth = 2.dp, modifier = Modifier.size(18.dp))
+                                        CircularProgressIndicator(
+                                            strokeWidth = 2.dp,
+                                            modifier = Modifier.size(18.dp)
+                                        )
                                     } else {
                                         Text(t("save"))
                                     }
@@ -495,7 +560,9 @@ fun CommentScreen(
                 if (reviews.isEmpty() && !isLoading) {
                     item {
                         Column(
-                            modifier = Modifier.fillMaxWidth().padding(32.dp),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(32.dp),
                             horizontalAlignment = Alignment.CenterHorizontally
                         ) {
                             Text(t("no_comments"), style = MaterialTheme.typography.bodyLarge)
@@ -624,7 +691,9 @@ fun CommentScreen(
                                         onAvatarClick(uid)
                                     },
                                 shape = RoundedCornerShape(12.dp),
-                                color = if (isUnlocked) Color(0xFFE8F5E9) else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
+                                color = if (isUnlocked) Color(0xFFE8F5E9) else MaterialTheme.colorScheme.surfaceVariant.copy(
+                                    alpha = 0.5f
+                                )
                             ) {
                                 Column(
                                     modifier = Modifier.padding(8.dp),
@@ -647,7 +716,9 @@ fun CommentScreen(
                                         if (isPlanted) "Planted" else if (isUnlocked) "Unlocked" else "Locked",
                                         style = MaterialTheme.typography.labelSmall,
                                         fontSize = 9.sp,
-                                        color = if (isPlanted) Color(0xFF2E7D32) else if (isUnlocked) Color(0xFF5D4037) else Color.Gray
+                                        color = if (isPlanted) Color(0xFF2E7D32) else if (isUnlocked) Color(
+                                            0xFF5D4037
+                                        ) else Color.Gray
                                     )
                                 }
                             }
@@ -709,7 +780,13 @@ private fun ReviewRowItem(
                     modifier = Modifier
                         .size(40.dp)
                         .clip(CircleShape)
-                        .then(if (frameColor != null) Modifier.border(2.dp, frameColor, CircleShape) else Modifier)
+                        .then(
+                            if (frameColor != null) Modifier.border(
+                                2.dp,
+                                frameColor,
+                                CircleShape
+                            ) else Modifier
+                        )
                         .clickable(onClick = onAvatarClick),
                     contentScale = ContentScale.Crop
                 )
@@ -718,7 +795,13 @@ private fun ReviewRowItem(
                     modifier = Modifier
                         .size(40.dp)
                         .clip(CircleShape)
-                        .then(if (frameColor != null) Modifier.border(2.dp, frameColor, CircleShape) else Modifier)
+                        .then(
+                            if (frameColor != null) Modifier.border(
+                                2.dp,
+                                frameColor,
+                                CircleShape
+                            ) else Modifier
+                        )
                         .clickable(onClick = onAvatarClick)
                         .background(MaterialTheme.colorScheme.surfaceVariant),
                     contentAlignment = Alignment.Center
@@ -740,16 +823,33 @@ private fun ReviewRowItem(
                 val stars = review.star_rating.coerceIn(0, 5)
                 Row {
                     repeat(stars) {
-                        Icon(Icons.Default.Star, contentDescription = null, tint = Color(0xFFFFC107), modifier = Modifier.size(14.dp))
+                        Icon(
+                            Icons.Default.Star,
+                            contentDescription = null,
+                            tint = Color(0xFFFFC107),
+                            modifier = Modifier.size(14.dp)
+                        )
                     }
                     repeat(5 - stars) {
-                        Icon(Icons.Default.Star, contentDescription = null, tint = MaterialTheme.colorScheme.outlineVariant, modifier = Modifier.size(14.dp))
+                        Icon(
+                            Icons.Default.Star,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.outlineVariant,
+                            modifier = Modifier.size(14.dp)
+                        )
                     }
                 }
                 Row(verticalAlignment = Alignment.Top, modifier = Modifier.fillMaxWidth()) {
-                    Text(review.text, style = MaterialTheme.typography.bodyMedium, modifier = Modifier.weight(1f))
+                    Text(
+                        review.text,
+                        style = MaterialTheme.typography.bodyMedium,
+                        modifier = Modifier.weight(1f)
+                    )
                     Box {
-                        IconButton(onClick = { menuExpanded = true }, modifier = Modifier.size(28.dp)) {
+                        IconButton(
+                            onClick = { menuExpanded = true },
+                            modifier = Modifier.size(28.dp)
+                        ) {
                             Icon(
                                 Icons.Default.MoreVert,
                                 contentDescription = "More options",
@@ -804,7 +904,9 @@ private fun ReviewRowItem(
         }
         // Likes directly under comment text with thumb icons
         Row(
-            modifier = Modifier.fillMaxWidth().padding(start = 52.dp, top = 6.dp),
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(start = 52.dp, top = 6.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
             Text(
@@ -825,7 +927,11 @@ private fun ReviewRowItem(
                     tint = if (userVote == "LIKE") Color(0xFF4285F4) else MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
-            Text(review.like_count.toString(), style = MaterialTheme.typography.labelSmall, modifier = Modifier.padding(start = 2.dp))
+            Text(
+                review.like_count.toString(),
+                style = MaterialTheme.typography.labelSmall,
+                modifier = Modifier.padding(start = 2.dp)
+            )
             Spacer(modifier = Modifier.width(8.dp))
             IconButton(
                 onClick = onDislike,
@@ -839,13 +945,22 @@ private fun ReviewRowItem(
                     tint = if (userVote == "DISLIKE") Color(0xFFE53935) else MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
-            Text(review.dislike_count.toString(), style = MaterialTheme.typography.labelSmall, modifier = Modifier.padding(start = 2.dp))
+            Text(
+                review.dislike_count.toString(),
+                style = MaterialTheme.typography.labelSmall,
+                modifier = Modifier.padding(start = 2.dp)
+            )
         }
     }
 
     if (showFullImage && !review.photo_url.isNullOrBlank()) {
         Dialog(onDismissRequest = { showFullImage = false }) {
-            Box(modifier = Modifier.fillMaxSize().clickable { showFullImage = false }, contentAlignment = Alignment.Center) {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .clickable { showFullImage = false },
+                contentAlignment = Alignment.Center
+            ) {
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
                     Image(
                         painter = rememberAsyncImagePainter(model = review.photo_url),
@@ -862,7 +977,12 @@ private fun ReviewRowItem(
                         color = Color.White.copy(alpha = 0.9f),
                         modifier = Modifier.clickable { showFullImage = false }
                     ) {
-                        Text("✕ Close", color = Color.Black, fontWeight = FontWeight.Bold, modifier = Modifier.padding(horizontal = 20.dp, vertical = 10.dp))
+                        Text(
+                            "✕ Close",
+                            color = Color.Black,
+                            fontWeight = FontWeight.Bold,
+                            modifier = Modifier.padding(horizontal = 20.dp, vertical = 10.dp)
+                        )
                     }
                 }
             }

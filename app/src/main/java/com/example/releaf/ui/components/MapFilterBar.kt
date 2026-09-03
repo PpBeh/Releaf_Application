@@ -36,7 +36,10 @@ fun MapFilterBar(
         ) {
             ToggleChip(t("all"), enabledCategories.size == 2) { onResetCategories() }
             ToggleChip(t("toilet"), "TOILET" in enabledCategories) { onToggleCategory("TOILET") }
-            ToggleChip(t("trash_can"), "TRASH_CAN" in enabledCategories) { onToggleCategory("TRASH_CAN") }
+            ToggleChip(
+                t("trash_can"),
+                "TRASH_CAN" in enabledCategories
+            ) { onToggleCategory("TRASH_CAN") }
             ToggleChip(t("unverified"), showUnverified) { onToggleUnverified() }
         }
 
@@ -48,7 +51,10 @@ fun MapFilterBar(
         ) {
             ToggleChip(t("all"), enabledCleanliness.size == 3) { onResetCleanliness() }
             ToggleChip(t("clean"), "CLEAN" in enabledCleanliness) { onToggleCleanliness("CLEAN") }
-            ToggleChip(t("average"), "AVERAGE" in enabledCleanliness) { onToggleCleanliness("AVERAGE") }
+            ToggleChip(
+                t("average"),
+                "AVERAGE" in enabledCleanliness
+            ) { onToggleCleanliness("AVERAGE") }
             ToggleChip(t("dirty"), "DIRTY" in enabledCleanliness) { onToggleCleanliness("DIRTY") }
             ToggleChip(t("all"), excludedPaid == null) { onTogglePaid(null) }
             ToggleChip(t("filter_paid"), excludedPaid == false) {

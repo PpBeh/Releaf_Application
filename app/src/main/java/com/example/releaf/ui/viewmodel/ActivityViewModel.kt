@@ -12,12 +12,15 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
-import java.util.*
+import java.util.Date
+import java.util.Locale
 import kotlin.math.max
+import androidx.core.content.edit
 
 class ActivityViewModel(application: Application) : AndroidViewModel(application) {
     private val repository = QuestRepository()
-    private val activityPrefs = application.getSharedPreferences("activity_prefs", Context.MODE_PRIVATE)
+    private val activityPrefs =
+        application.getSharedPreferences("activity_prefs", Context.MODE_PRIVATE)
 
     private val gardenPrefs = application.getSharedPreferences("garden_prefs", Context.MODE_PRIVATE)
 
@@ -44,7 +47,7 @@ class ActivityViewModel(application: Application) : AndroidViewModel(application
                 if (lastCheckIn != today) {
                     try {
                         repository.incrementQuestsByType(userId, "CHECK_IN")
-                        activityPrefs.edit().putString("check_in_$userId", today).apply()
+                        activityPrefs.edit { putString("check_in_$userId", today) }
                     } catch (e: Exception) {
                         android.util.Log.e("ActivityViewModel", "Check-in failed", e)
                     }
@@ -56,7 +59,7 @@ class ActivityViewModel(application: Application) : AndroidViewModel(application
                 val currentUserQuests = repository.getUserQuests(userId)
 
                 currentUserQuests.forEach { uq ->
-                    val lastUpdate = uq.updated_at ?: ""
+                    val lastUpdate = uq.updated_at
                     if (!lastUpdate.startsWith(today)) {
                         try {
                             repository.updateUserQuest(
@@ -86,8 +89,9 @@ class ActivityViewModel(application: Application) : AndroidViewModel(application
                 val difficultyOrder = mapOf("EASY" to 0, "MEDIUM" to 1, "HARD" to 2)
 
                 _userQuests.value = updatedQuests
-                    .filter { (it.updated_at ?: "").startsWith(today) || it.status != "CLAIMED" }
-                    .sortedWith(compareBy(
+                    .filter { it.updated_at.startsWith(today) || it.status != "CLAIMED" }
+                    .sortedWith(
+                        compareBy(
                         { statusOrder[it.status] ?: 99 },
                         { difficultyOrder[it.quest?.difficulty] ?: 99 }
                     ))
@@ -134,7 +138,7 @@ class ActivityViewModel(application: Application) : AndroidViewModel(application
                         val newExp = actualExp + quest.reward_count
                         val newPoints = garden.current_points + quest.reward_count
 
-                        gardenPrefs.edit().putInt("tree_exp_${userId}", newExp).apply()
+                        gardenPrefs.edit { putInt("tree_exp_${userId}", newExp) }
 
                         gardenRepository.upsertGardenExp(
                             userId = userId,
@@ -149,7 +153,10 @@ class ActivityViewModel(application: Application) : AndroidViewModel(application
 
                     val profile = authRepository.getProfile(userId)
                     if (profile != null) {
-                        authRepository.updateTotalPoints(userId, (profile.total_points ?: 0) + quest.reward_count)
+                        authRepository.updateTotalPoints(
+                            userId,
+                            (profile.total_points ?: 0) + quest.reward_count
+                        )
                     }
 
                     com.example.releaf.data.remote.SupabaseModule.triggerRefresh()
@@ -162,7 +169,13 @@ class ActivityViewModel(application: Application) : AndroidViewModel(application
         }
     }
 
-    fun updateQuestProgress(questId: String, userId: String, progress: Int, target: Int, status: String) {
+    fun updateQuestProgress(
+        questId: String,
+        userId: String,
+        progress: Int,
+        target: Int,
+        status: String
+    ) {
         viewModelScope.launch {
             val newStatus = if (progress >= target) "CLAIMABLE" else status
             repository.updateUserQuest(questId, userId, UserQuestUpdateDto(progress, newStatus))

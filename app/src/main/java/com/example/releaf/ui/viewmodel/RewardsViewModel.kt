@@ -17,6 +17,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import kotlin.math.max
+import androidx.core.content.edit
 
 class RewardsViewModel(application: Application) : AndroidViewModel(application) {
     private val rewardRepository = RewardRepository()
@@ -64,7 +65,8 @@ class RewardsViewModel(application: Application) : AndroidViewModel(application)
         currentUserId = userId
         viewModelScope.launch {
             try {
-                val garden = gardenRepository.getGarden(userId)?.let { gardenRepository.healNegativeBalance(userId, it) }
+                val garden = gardenRepository.getGarden(userId)
+                    ?.let { gardenRepository.healNegativeBalance(userId, it) }
                 val remoteExp = garden?.current_exp ?: 0
                 val localExp = gardenPrefs.getInt("tree_exp_${userId}", 0)
                 val actualExp = max(localExp, remoteExp)
@@ -80,7 +82,8 @@ class RewardsViewModel(application: Application) : AndroidViewModel(application)
                 try {
                     _equippedTitle.value = com.example.releaf.data.repository.AuthRepository()
                         .getProfile(userId)?.title?.takeIf { it.isNotBlank() } ?: "Gardener"
-                } catch (_: Exception) { }
+                } catch (_: Exception) {
+                }
 
                 // Check and notify available rewards
                 try {
@@ -99,7 +102,8 @@ class RewardsViewModel(application: Application) : AndroidViewModel(application)
                             }
                         }
                     }
-                } catch (_: Exception) { }
+                } catch (_: Exception) {
+                }
             } catch (e: Exception) {
                 Log.e("RewardsViewModel", "Failed to load rewards data", e)
 
@@ -146,7 +150,7 @@ class RewardsViewModel(application: Application) : AndroidViewModel(application)
         viewModelScope.launch {
             try {
                 rewardRepository.claimPlantReward(userId, slotIndex, seed.name)
-                gardenPrefs.edit().putString("slot_${userId}_$slotIndex", "GROWING").apply()
+                gardenPrefs.edit { putString("slot_${userId}_$slotIndex", "GROWING") }
                 _gardenSlots.value = loadSlotsWithLocalFallback(userId)
                 _claimStatus.value = "🌱 ${seed.name} seedling added to your Garden Plot!"
 
@@ -154,7 +158,8 @@ class RewardsViewModel(application: Application) : AndroidViewModel(application)
             } catch (e: Exception) {
                 Log.e("RewardsViewModel", "Failed to claim plant reward", e)
                 _gardenSlots.value = loadSlotsWithLocalFallback(userId)
-                _claimStatus.value = "Could not add the ${seed.name} seedling. Check your connection and try again."
+                _claimStatus.value =
+                    "Could not add the ${seed.name} seedling. Check your connection and try again."
             }
         }
     }
@@ -169,7 +174,7 @@ class RewardsViewModel(application: Application) : AndroidViewModel(application)
                 com.example.releaf.data.repository.AuthRepository().updateTitle(userId, title)
                 _equippedTitle.value = title
                 _claimStatus.value = "Title equipped: $title"
-                com.example.releaf.data.remote.SupabaseModule.triggerRefresh()
+                SupabaseModule.triggerRefresh()
             } catch (e: Exception) {
                 _claimStatus.value = "Could not equip title. Check your connection and try again."
             }
@@ -179,7 +184,10 @@ class RewardsViewModel(application: Application) : AndroidViewModel(application)
     fun purchaseFrame(userId: String, frameName: String, gemPrice: Int, pointPrice: Int) {
         viewModelScope.launch {
             try {
-                val prefs = getApplication<Application>().getSharedPreferences("frames_$userId", android.content.Context.MODE_PRIVATE)
+                val prefs = getApplication<Application>().getSharedPreferences(
+                    "frames_$userId",
+                    Context.MODE_PRIVATE
+                )
                 if (prefs.getBoolean("owned_$frameName", false)) {
                     _claimStatus.value = "You already own the $frameName frame."
                     return@launch
@@ -193,28 +201,32 @@ class RewardsViewModel(application: Application) : AndroidViewModel(application)
                 }
                 garden = garden?.let { gardenRepository.healNegativeBalance(userId, it) }
                 if (garden == null) {
-                    _claimStatus.value = "Garden data not available yet. Please try again in a moment."
+                    _claimStatus.value =
+                        "Garden data not available yet. Please try again in a moment."
                     return@launch
                 }
                 if (garden.current_points < pointPrice || garden.current_gems < gemPrice) {
                     _claimStatus.value = "Not enough Points/Gems"
                     return@launch
                 }
-                gardenRepository.updateGarden(userId, com.example.releaf.data.remote.dto.GardenUpdateDto(
-                    current_exp = garden.current_exp,
-                    exp_target = garden.exp_target,
-                    grow_uses_left = garden.grow_uses_left,
-                    fertilize_uses_left = garden.fertilize_uses_left,
-                    current_points = (garden.current_points - pointPrice).coerceAtLeast(0),
-                    current_gems = (garden.current_gems - gemPrice).coerceAtLeast(0)
-                ))
-                prefs.edit().putBoolean("owned_$frameName", true).apply()
-                com.example.releaf.data.repository.AuthRepository().updateAvatarFrame(userId, frameName)
+                gardenRepository.updateGarden(
+                    userId, com.example.releaf.data.remote.dto.GardenUpdateDto(
+                        current_exp = garden.current_exp,
+                        exp_target = garden.exp_target,
+                        grow_uses_left = garden.grow_uses_left,
+                        fertilize_uses_left = garden.fertilize_uses_left,
+                        current_points = (garden.current_points - pointPrice).coerceAtLeast(0),
+                        current_gems = (garden.current_gems - gemPrice).coerceAtLeast(0)
+                    )
+                )
+                prefs.edit { putBoolean("owned_$frameName", true) }
+                com.example.releaf.data.repository.AuthRepository()
+                    .updateAvatarFrame(userId, frameName)
                 _userPoints.value = garden.current_exp
                 _userGems.value = (garden.current_gems - gemPrice).coerceAtLeast(0)
                 _walletPoints.value = (garden.current_points - pointPrice).coerceAtLeast(0)
                 _claimStatus.value = "Purchased $frameName frame!"
-                com.example.releaf.data.remote.SupabaseModule.triggerRefresh()
+                SupabaseModule.triggerRefresh()
             } catch (e: Exception) {
                 _claimStatus.value = "Purchase failed: ${e.message}"
             }

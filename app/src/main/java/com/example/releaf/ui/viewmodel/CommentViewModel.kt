@@ -7,7 +7,6 @@ import com.example.releaf.data.remote.dto.ReviewInsertDto
 import com.example.releaf.data.repository.ReviewRepository
 import com.example.releaf.data.repository.VoteResult
 import io.github.jan.supabase.storage.storage
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -80,13 +79,15 @@ class CommentViewModel : ViewModel() {
                     emptyList()
                 }
                 if (existingReviews.count { it.user_id == userId } >= 3) {
-                    _errorMessage.value = "You have reached the limit of 3 comments for this location."
+                    _errorMessage.value =
+                        "You have reached the limit of 3 comments for this location."
                     _isProcessing.value = false
                     return@launch
                 }
 
                 val reviewerName = try {
-                    com.example.releaf.data.repository.AuthRepository().getProfile(userId)?.name?.ifBlank { "User" } ?: "User"
+                    com.example.releaf.data.repository.AuthRepository()
+                        .getProfile(userId)?.name?.ifBlank { "User" } ?: "User"
                 } catch (_: Exception) {
                     "User"
                 }
@@ -95,18 +96,27 @@ class CommentViewModel : ViewModel() {
                     try {
                         val bytes = withContext(kotlinx.coroutines.Dispatchers.IO) {
                             try {
-                                context.contentResolver.openInputStream(photoUri)?.use { it.readBytes() }
+                                context.contentResolver.openInputStream(photoUri)
+                                    ?.use { it.readBytes() }
                             } catch (_: Exception) {
-                                try { java.io.File(photoUri.path ?: "").readBytes().takeIf { it.isNotEmpty() } } catch (_: Exception) { null }
+                                try {
+                                    java.io.File(photoUri.path ?: "").readBytes()
+                                        .takeIf { it.isNotEmpty() }
+                                } catch (_: Exception) {
+                                    null
+                                }
                             }
                         }
                         if (bytes != null && bytes.isNotEmpty()) {
                             val fileName = "review_${userId}_${System.currentTimeMillis()}.jpg"
-                            com.example.releaf.data.remote.SupabaseModule.client.storage.from("poi-photos").upload(
-                                path = fileName,
-                                data = bytes
-                            ) { upsert = true }
-                            uploadedPhotoUrl = com.example.releaf.data.remote.SupabaseModule.client.storage.from("poi-photos").publicUrl(fileName)
+                            com.example.releaf.data.remote.SupabaseModule.client.storage.from("poi-photos")
+                                .upload(
+                                    path = fileName,
+                                    data = bytes
+                                ) { upsert = true }
+                            uploadedPhotoUrl =
+                                com.example.releaf.data.remote.SupabaseModule.client.storage.from("poi-photos")
+                                    .publicUrl(fileName)
                         }
                     } catch (e: Exception) {
                         e.printStackTrace()
@@ -125,7 +135,8 @@ class CommentViewModel : ViewModel() {
                     )
                 )
                 if (!posted) {
-                    _errorMessage.value = "Could not post your comment. Check your connection and try again."
+                    _errorMessage.value =
+                        "Could not post your comment. Check your connection and try again."
                     _isProcessing.value = false
                     return@launch
                 }
@@ -136,22 +147,28 @@ class CommentViewModel : ViewModel() {
                 success = true
                 _errorMessage.value = null
                 try {
-                    com.example.releaf.data.repository.QuestRepository().incrementQuestsByType(userId, "REVIEW")
-                } catch (_: Exception) { }
+                    com.example.releaf.data.repository.QuestRepository()
+                        .incrementQuestsByType(userId, "REVIEW")
+                } catch (_: Exception) {
+                }
                 try {
                     _reviews.value = repository.getReviews(poiId)
-                } catch (_: Exception) { }
+                } catch (_: Exception) {
+                }
                 try {
                     repository.updatePoiStats(poiId)
-                } catch (_: Exception) { }
+                } catch (_: Exception) {
+                }
                 try {
                     repository.analyzeReviewAndUpdatePoi(poiId, text, starRating)
-                } catch (_: Exception) { }
+                } catch (_: Exception) {
+                }
                 com.example.releaf.data.remote.SupabaseModule.triggerRefresh()
             } catch (e: Exception) {
                 e.printStackTrace()
                 android.util.Log.e("CommentViewModel", "Error adding review", e)
-                _errorMessage.value = "Could not post your comment. Check your connection and try again."
+                _errorMessage.value =
+                    "Could not post your comment. Check your connection and try again."
             }
             _isProcessing.value = false
             onAddReviewResult?.invoke(success)
@@ -213,7 +230,7 @@ class CommentViewModel : ViewModel() {
                 when (result) {
                     is VoteResult.Success -> votes[review.id] = "LIKE"
                     is VoteResult.Unvoted -> votes.remove(review.id)
-                    is VoteResult.AlreadyVoted -> { }
+                    is VoteResult.AlreadyVoted -> {}
                 }
                 _userVotes.value = votes
                 _reviews.value = repository.getReviews(currentPoiId)
@@ -233,7 +250,7 @@ class CommentViewModel : ViewModel() {
                 when (result) {
                     is VoteResult.Success -> votes[review.id] = "DISLIKE"
                     is VoteResult.Unvoted -> votes.remove(review.id)
-                    is VoteResult.AlreadyVoted -> { }
+                    is VoteResult.AlreadyVoted -> {}
                 }
                 _userVotes.value = votes
                 _reviews.value = repository.getReviews(currentPoiId)

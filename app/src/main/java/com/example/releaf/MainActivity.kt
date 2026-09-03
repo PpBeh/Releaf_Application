@@ -4,14 +4,13 @@ import android.content.Intent
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+import androidx.activity.viewModels
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Scaffold
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -21,12 +20,10 @@ import com.example.releaf.data.remote.DeepLinkHolder
 import com.example.releaf.navigation.ReleafNavGraph
 import com.example.releaf.navigation.Screen
 import com.example.releaf.ui.components.BottomNavBar
-import com.example.releaf.ui.theme.AppTheme
 import com.example.releaf.ui.theme.ReleafTheme
 import com.example.releaf.ui.viewmodel.AuthViewModel
 import com.example.releaf.ui.viewmodel.ThemeViewModel
 import org.osmdroid.config.Configuration
-import androidx.activity.viewModels
 
 class MainActivity : ComponentActivity() {
     private val authViewModel: AuthViewModel by viewModels()
@@ -74,8 +71,10 @@ class MainActivity : ComponentActivity() {
             }
             // Raw query params as fallback
             if (params["access_token"] == null) {
-                data.getQueryParameter("access_token")?.let { params["access_token"] = android.net.Uri.decode(it) }
-                data.getQueryParameter("refresh_token")?.let { params["refresh_token"] = android.net.Uri.decode(it) }
+                data.getQueryParameter("access_token")
+                    ?.let { params["access_token"] = android.net.Uri.decode(it) }
+                data.getQueryParameter("refresh_token")
+                    ?.let { params["refresh_token"] = android.net.Uri.decode(it) }
                 data.getQueryParameter("type")?.let { params["type"] = android.net.Uri.decode(it) }
             }
             if (params["access_token"] != null && params["refresh_token"] != null) {
@@ -126,22 +125,32 @@ fun ReleafApp(themeViewModel: ThemeViewModel) {
 
     // Track internet connectivity and ask the user to turn Wi-Fi/mobile data on.
     var isOnline by androidx.compose.runtime.remember { androidx.compose.runtime.mutableStateOf(true) }
-    var offlinePromptShown by androidx.compose.runtime.remember { androidx.compose.runtime.mutableStateOf(false) }
+    var offlinePromptShown by androidx.compose.runtime.remember {
+        androidx.compose.runtime.mutableStateOf(
+            false
+        )
+    }
     androidx.compose.runtime.DisposableEffect(context) {
-        val cm = context.getSystemService(android.content.Context.CONNECTIVITY_SERVICE) as? android.net.ConnectivityManager
+        val cm =
+            context.getSystemService(android.content.Context.CONNECTIVITY_SERVICE) as? android.net.ConnectivityManager
         val callback = object : android.net.ConnectivityManager.NetworkCallback() {
             override fun onAvailable(network: android.net.Network) {
                 isOnline = true
             }
+
             override fun onLost(network: android.net.Network) {
                 isOnline = cm?.activeNetwork == null
             }
         }
         try {
             cm?.registerDefaultNetworkCallback(callback)
-        } catch (_: Exception) { }
+        } catch (_: Exception) {
+        }
         onDispose {
-            try { cm?.unregisterNetworkCallback(callback) } catch (_: Exception) { }
+            try {
+                cm?.unregisterNetworkCallback(callback)
+            } catch (_: Exception) {
+            }
         }
     }
 
@@ -154,8 +163,9 @@ fun ReleafApp(themeViewModel: ThemeViewModel) {
                 androidx.compose.material3.TextButton(onClick = {
                     offlinePromptShown = true
                     try {
-                        context.startActivity(android.content.Intent(android.provider.Settings.ACTION_WIRELESS_SETTINGS))
-                    } catch (_: Exception) { }
+                        context.startActivity(Intent(android.provider.Settings.ACTION_WIRELESS_SETTINGS))
+                    } catch (_: Exception) {
+                    }
                 }) {
                     androidx.compose.material3.Text(t("open_settings"))
                 }

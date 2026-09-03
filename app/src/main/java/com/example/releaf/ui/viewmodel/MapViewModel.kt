@@ -6,13 +6,14 @@ import com.example.releaf.data.remote.dto.PoiDto
 import com.example.releaf.data.remote.dto.PoiInsertDto
 import com.example.releaf.data.remote.dto.PoiPhotoDto
 import com.example.releaf.data.repository.PoiRepository
-import com.example.releaf.data.repository.ReviewRepository
 import com.example.releaf.data.repository.ReportResult
+import com.example.releaf.data.repository.ReviewRepository
 import com.example.releaf.data.repository.VerifyResult
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import kotlin.time.Duration.Companion.milliseconds
 
 class MapViewModel : ViewModel() {
     private val repository = PoiRepository()
@@ -72,7 +73,8 @@ class MapViewModel : ViewModel() {
                 val result = repository.getAllPois()
                 _pois.value = result
                 applyFilters()
-            } catch (_: Exception) { }
+            } catch (_: Exception) {
+            }
         }
     }
 
@@ -87,7 +89,8 @@ class MapViewModel : ViewModel() {
                 val statusPair = reviewRepository.getLatestAnalyzedStatus(poi.id)
                 _analyzedStatus.value = statusPair.first
                 _analyzedStatusTime.value = statusPair.second
-            } catch (_: Exception) { }
+            } catch (_: Exception) {
+            }
         }
     }
 
@@ -101,7 +104,8 @@ class MapViewModel : ViewModel() {
         viewModelScope.launch {
             try {
                 _isFavorite.value = repository.toggleFavorite(poiId, currentUserId)
-            } catch (_: Exception) { }
+            } catch (_: Exception) {
+            }
         }
     }
 
@@ -112,7 +116,8 @@ class MapViewModel : ViewModel() {
                 val success = repository.uploadPoiPhoto(poiId, currentUserId, uri, context)
                 if (success) {
                     _photos.value = repository.getPoiPhotos(poiId)
-                    com.example.releaf.data.repository.QuestRepository().incrementQuestsByType(currentUserId, "PHOTO")
+                    com.example.releaf.data.repository.QuestRepository()
+                        .incrementQuestsByType(currentUserId, "PHOTO")
                     _actionResult.value = PoiActionResult.Message("photo_uploaded")
                 } else {
                     _actionResult.value = PoiActionResult.Message("photo_failed")
@@ -136,7 +141,8 @@ class MapViewModel : ViewModel() {
 
     fun toggleCategory(category: String) {
         val current = _enabledCategories.value
-        _enabledCategories.value = if (category in current) current - category else current + category
+        _enabledCategories.value =
+            if (category in current) current - category else current + category
         applyFilters()
     }
 
@@ -147,7 +153,8 @@ class MapViewModel : ViewModel() {
 
     fun toggleCleanliness(cleanliness: String) {
         val current = _enabledCleanliness.value
-        _enabledCleanliness.value = if (cleanliness in current) current - cleanliness else current + cleanliness
+        _enabledCleanliness.value =
+            if (cleanliness in current) current - cleanliness else current + cleanliness
         applyFilters()
     }
 
@@ -229,7 +236,9 @@ class MapViewModel : ViewModel() {
                 if (photoUri != null && context != null && match != null) {
                     val uploaded = try {
                         repository.uploadPoiPhoto(match.id, userId, photoUri, context)
-                    } catch (_: Exception) { false }
+                    } catch (_: Exception) {
+                        false
+                    }
                     _actionResult.value = if (uploaded) {
                         PoiActionResult.Message("photo_uploaded")
                     } else {
@@ -252,23 +261,35 @@ class MapViewModel : ViewModel() {
                 return@launch
             }
             when (val result = repository.verifyPoi(poiId, userId)) {
-                is VerifyResult.AlreadyVerified -> _actionResult.value = PoiActionResult.Message("already_verified")
+                is VerifyResult.AlreadyVerified -> _actionResult.value =
+                    PoiActionResult.Message("already_verified")
+
                 is VerifyResult.NowVerified -> {
-                    com.example.releaf.data.repository.QuestRepository().incrementQuestsByType(userId, "VERIFY")
+                    com.example.releaf.data.repository.QuestRepository()
+                        .incrementQuestsByType(userId, "VERIFY")
                     _actionResult.value = PoiActionResult.Message("now_verified")
                     loadPois()
                 }
+
                 is VerifyResult.Counted -> {
-                    com.example.releaf.data.repository.QuestRepository().incrementQuestsByType(userId, "VERIFY")
+                    com.example.releaf.data.repository.QuestRepository()
+                        .incrementQuestsByType(userId, "VERIFY")
                     _actionResult.value = PoiActionResult.Message("verification_counted")
                     loadPois()
                 }
-                is VerifyResult.Error -> _actionResult.value = PoiActionResult.Message("verify_failed")
+
+                is VerifyResult.Error -> _actionResult.value =
+                    PoiActionResult.Message("verify_failed")
             }
         }
     }
 
-    fun reportNotExist(poiId: String, userId: String, userLat: Double = 0.0, userLng: Double = 0.0) {
+    fun reportNotExist(
+        poiId: String,
+        userId: String,
+        userLat: Double = 0.0,
+        userLng: Double = 0.0
+    ) {
         viewModelScope.launch {
             val distance = distanceToPoi(poiId, userLat, userLng)
             if (distance != null && distance > MAX_ACTION_DISTANCE_METERS) {
@@ -276,28 +297,35 @@ class MapViewModel : ViewModel() {
                 return@launch
             }
             when (val result = repository.reportNotExist(poiId, userId)) {
-                is ReportResult.AlreadyReported -> _actionResult.value = PoiActionResult.Message("already_reported")
+                is ReportResult.AlreadyReported -> _actionResult.value =
+                    PoiActionResult.Message("already_reported")
+
                 is ReportResult.NowUnverified -> {
                     _actionResult.value = PoiActionResult.Message("now_unverified")
                     loadPois()
                 }
+
                 is ReportResult.Removed -> {
                     _actionResult.value = PoiActionResult.Message("removed")
                     _selectedPoi.value = null
                     loadPois()
                 }
+
                 is ReportResult.Counted -> {
                     _actionResult.value = PoiActionResult.Message("report_counted")
                     loadPois()
                 }
-                is ReportResult.Error -> _actionResult.value = PoiActionResult.Message("report_failed")
+
+                is ReportResult.Error -> _actionResult.value =
+                    PoiActionResult.Message("report_failed")
             }
         }
     }
 
     private fun distanceToPoi(poiId: String, userLat: Double, userLng: Double): Double? {
         if (userLat == 0.0 && userLng == 0.0) return null
-        val poi = _pois.value.find { it.id == poiId } ?: _selectedPoi.value?.takeIf { it.id == poiId }
+        val poi =
+            _pois.value.find { it.id == poiId } ?: _selectedPoi.value?.takeIf { it.id == poiId }
             ?: return null
         return haversine(userLat, userLng, poi.latitude, poi.longitude)
     }
@@ -308,7 +336,8 @@ class MapViewModel : ViewModel() {
                 val verified = repository.hasUserVerified(poiId, userId)
                 val reported = repository.hasUserReported(poiId, userId)
                 _actionResult.value = PoiActionResult.Status(verified, reported)
-            } catch (_: Exception) { }
+            } catch (_: Exception) {
+            }
         }
     }
 
@@ -325,7 +354,7 @@ class MapViewModel : ViewModel() {
             return
         }
         searchJob = viewModelScope.launch {
-            kotlinx.coroutines.delay(300)
+            kotlinx.coroutines.delay(300.milliseconds)
             _searchResults.value = repository.searchPois(query)
         }
     }
@@ -349,7 +378,8 @@ class MapViewModel : ViewModel() {
                 .minByOrNull { haversine(userLat, userLng, it.latitude, it.longitude) }
         } else null
 
-        _actionResult.value = PoiActionResult.NearestFound(toilet, trashCan, targetCategory, nearestRequestId)
+        _actionResult.value =
+            PoiActionResult.NearestFound(toilet, trashCan, targetCategory, nearestRequestId)
     }
 
     fun openPoiFromDeepLink(poiId: String) {
@@ -359,7 +389,8 @@ class MapViewModel : ViewModel() {
                 if (poi != null) {
                     selectPoi(poi)
                 }
-            } catch (_: Exception) { }
+            } catch (_: Exception) {
+            }
         }
     }
 
@@ -374,7 +405,8 @@ class MapViewModel : ViewModel() {
                     _analyzedStatus.value = statusPair.first
                     _analyzedStatusTime.value = statusPair.second
                 }
-            } catch (_: Exception) { }
+            } catch (_: Exception) {
+            }
         }
     }
 
@@ -393,5 +425,10 @@ class MapViewModel : ViewModel() {
 sealed class PoiActionResult {
     data class Message(val message: String) : PoiActionResult()
     data class Status(val hasVerified: Boolean, val hasReported: Boolean) : PoiActionResult()
-    data class NearestFound(val toilet: PoiDto?, val trashCan: PoiDto?, val targetCategory: String? = null, val requestId: Long = 0L) : PoiActionResult()
+    data class NearestFound(
+        val toilet: PoiDto?,
+        val trashCan: PoiDto?,
+        val targetCategory: String? = null,
+        val requestId: Long = 0L
+    ) : PoiActionResult()
 }

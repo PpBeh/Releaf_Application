@@ -1,6 +1,5 @@
 package com.example.releaf.ui.viewmodel
 
-import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.releaf.data.remote.dto.AchievementDto
 import com.example.releaf.data.remote.dto.GardenDto
@@ -15,12 +14,15 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import androidx.core.content.edit
 
-class ProfileViewModel(application: android.app.Application) : androidx.lifecycle.AndroidViewModel(application) {
+class ProfileViewModel(application: android.app.Application) :
+    androidx.lifecycle.AndroidViewModel(application) {
     private val authRepository = AuthRepository()
     private val rewardRepository = RewardRepository()
     private val gardenRepository = GardenRepository()
-    private val gardenPrefs = application.getSharedPreferences("garden_prefs", android.content.Context.MODE_PRIVATE)
+    private val gardenPrefs =
+        application.getSharedPreferences("garden_prefs", android.content.Context.MODE_PRIVATE)
 
     private val _profile = MutableStateFlow<ProfileDto?>(null)
     val profile: StateFlow<ProfileDto?> = _profile.asStateFlow()
@@ -72,17 +74,24 @@ class ProfileViewModel(application: android.app.Application) : androidx.lifecycl
                 if (userId.isNotBlank()) {
                     _profile.value = authRepository.getProfile(userId)
                 }
-            } catch (_: Exception) { }
+            } catch (_: Exception) {
+            }
 
             try {
                 _userGarden.value = gardenRepository.getGarden(userId)
-            } catch (_: Exception) { }
+            } catch (_: Exception) {
+            }
 
             try {
-                val remoteSlots = try { gardenRepository.getPlantSlots(userId) } catch (_: Exception) { emptyList() }
+                val remoteSlots = try {
+                    gardenRepository.getPlantSlots(userId)
+                } catch (_: Exception) {
+                    emptyList()
+                }
                 val merged = (1..6).map { idx ->
                     val remote = remoteSlots.find { it.slot_index == idx }
-                    val rawLocal = gardenPrefs.getString("slot_${userId}_$idx", null)?.let { if (it == "PLANTED") "GROWING" else it }
+                    val rawLocal = gardenPrefs.getString("slot_${userId}_$idx", null)
+                        ?.let { if (it == "PLANTED") "GROWING" else it }
                     // Server row is the source of truth when it exists; local prefs only
                     // fill in when the slot has never been synced.
                     val state = when {
@@ -90,38 +99,49 @@ class ProfileViewModel(application: android.app.Application) : androidx.lifecycl
                         rawLocal != null && rawLocal != "EMPTY_POT" -> rawLocal
                         else -> "EMPTY_POT"
                     }
-                    com.example.releaf.data.remote.dto.PlantSlotDto(
+                    PlantSlotDto(
                         id = remote?.id ?: "",
                         user_id = userId,
                         slot_index = idx,
                         state = state,
-                        plant_type = remote?.plant_type ?: com.example.releaf.model.SeedData.getSeedForSlot(idx).name
+                        plant_type = remote?.plant_type
+                            ?: com.example.releaf.model.SeedData.getSeedForSlot(idx).name
                     )
                 }
                 _userPlantSlots.value = merged
-            } catch (_: Exception) { }
+            } catch (_: Exception) {
+            }
 
             try {
-                _userReviewCount.value = com.example.releaf.data.repository.ReviewRepository().countUserReviews(userId)
-            } catch (_: Exception) { }
+                _userReviewCount.value =
+                    com.example.releaf.data.repository.ReviewRepository().countUserReviews(userId)
+            } catch (_: Exception) {
+            }
 
             try {
-                _userVerifiedCount.value = com.example.releaf.data.repository.PoiRepository().countUserVerifications(userId)
-            } catch (_: Exception) { }
+                _userVerifiedCount.value = com.example.releaf.data.repository.PoiRepository()
+                    .countUserVerifications(userId)
+            } catch (_: Exception) {
+            }
 
             try {
-                _userPhotoCount.value = com.example.releaf.data.repository.PoiRepository().countUserPhotos(userId)
-            } catch (_: Exception) { }
+                _userPhotoCount.value =
+                    com.example.releaf.data.repository.PoiRepository().countUserPhotos(userId)
+            } catch (_: Exception) {
+            }
 
             try {
                 _achievements.value = rewardRepository.getUserAchievements(userId)
-            } catch (_: Exception) { }
+            } catch (_: Exception) {
+            }
 
             try {
                 val all = rewardRepository.getAllAchievements()
                 _allAchievements.value = all
-                _totalAchievements.value = if (all.isNotEmpty()) all.size else rewardRepository.getTotalAchievements()
-            } catch (_: Exception) { }
+                _totalAchievements.value =
+                    if (all.isNotEmpty()) all.size else rewardRepository.getTotalAchievements()
+            } catch (_: Exception) {
+            }
         }
     }
 
@@ -130,7 +150,8 @@ class ProfileViewModel(application: android.app.Application) : androidx.lifecycl
             try {
                 authRepository.updateProfile(userId, ProfileUpdateDto(name, phone, avatarUrl))
                 _profile.value = authRepository.getProfile(userId)
-            } catch (_: Exception) { }
+            } catch (_: Exception) {
+            }
         }
     }
 
@@ -139,7 +160,8 @@ class ProfileViewModel(application: android.app.Application) : androidx.lifecycl
             try {
                 authRepository.updateTitle(userId, newTitle)
                 _profile.value = authRepository.getProfile(userId)
-            } catch (_: Exception) { }
+            } catch (_: Exception) {
+            }
         }
     }
 
@@ -150,7 +172,8 @@ class ProfileViewModel(application: android.app.Application) : androidx.lifecycl
                 if (url != null) {
                     _profile.value = authRepository.getProfile(userId)
                 }
-            } catch (_: Exception) { }
+            } catch (_: Exception) {
+            }
         }
     }
 
@@ -161,7 +184,8 @@ class ProfileViewModel(application: android.app.Application) : androidx.lifecycl
                 if (url != null) {
                     _profile.value = authRepository.getProfile(userId)
                 }
-            } catch (_: Exception) { }
+            } catch (_: Exception) {
+            }
         }
     }
 
@@ -174,7 +198,8 @@ class ProfileViewModel(application: android.app.Application) : androidx.lifecycl
             try {
                 authRepository.updateAvatarFrame(userId, frameId)
                 _profile.value = authRepository.getProfile(userId)
-            } catch (_: Exception) { }
+            } catch (_: Exception) {
+            }
         }
     }
 
@@ -182,7 +207,7 @@ class ProfileViewModel(application: android.app.Application) : androidx.lifecycl
         viewModelScope.launch {
             try {
                 gardenRepository.deletePlantSlot(userId, slotIndex)
-                gardenPrefs.edit().remove("slot_${userId}_$slotIndex").apply()
+                gardenPrefs.edit { remove("slot_${userId}_$slotIndex") }
                 // reload to reflect DB truth
                 loadProfile(userId)
                 com.example.releaf.data.remote.SupabaseModule.triggerRefresh()
@@ -197,10 +222,13 @@ class ProfileViewModel(application: android.app.Application) : androidx.lifecycl
             try {
                 gardenRepository.deleteGarden(userId)
                 for (i in 1..6) {
-                    try { gardenRepository.deletePlantSlot(userId, i) } catch (_: Exception) { }
-                    gardenPrefs.edit().remove("slot_${userId}_$i").apply()
+                    try {
+                        gardenRepository.deletePlantSlot(userId, i)
+                    } catch (_: Exception) {
+                    }
+                    gardenPrefs.edit {remove("slot_${userId}_$i") }
                 }
-                gardenPrefs.edit().remove("tree_exp_$userId").apply()
+                gardenPrefs.edit { remove("tree_exp_$userId") }
                 loadProfile(userId)
                 com.example.releaf.data.remote.SupabaseModule.triggerRefresh()
             } catch (e: Exception) {
@@ -216,8 +244,9 @@ class ProfileViewModel(application: android.app.Application) : androidx.lifecycl
                 gardenRepository.upsertPlantSlot(userId, slotIndex, "GROWING", seed.name)
                 try {
                     rewardRepository.claimPlantReward(userId, slotIndex, seed.name)
-                } catch (_: Exception) { }
-                gardenPrefs.edit().putString("slot_${userId}_$slotIndex", "GROWING").apply()
+                } catch (_: Exception) {
+                }
+                gardenPrefs.edit { putString("slot_${userId}_$slotIndex", "GROWING") }
                 loadProfile(userId)
                 com.example.releaf.data.remote.SupabaseModule.triggerRefresh()
             } catch (e: Exception) {

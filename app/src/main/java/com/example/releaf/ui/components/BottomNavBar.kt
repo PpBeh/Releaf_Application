@@ -41,7 +41,12 @@ fun BottomNavBar(navController: NavHostController, themeViewModel: ThemeViewMode
             NavigationBarItem(
                 selected = onGardenSection,
                 onClick = { navController.toggleGardenSection() },
-                icon = { Icon(Icons.Default.Yard, contentDescription = string("garden", themeViewModel)) },
+                icon = {
+                    Icon(
+                        Icons.Default.Yard,
+                        contentDescription = string("garden", themeViewModel)
+                    )
+                },
                 label = { Text(string("garden", themeViewModel)) }
             )
             NavigationBarItem(
@@ -52,7 +57,12 @@ fun BottomNavBar(navController: NavHostController, themeViewModel: ThemeViewMode
                         launchSingleTop = true
                     }
                 },
-                icon = { Icon(Icons.Default.MonitorHeart, contentDescription = string("activity", themeViewModel)) },
+                icon = {
+                    Icon(
+                        Icons.Default.MonitorHeart,
+                        contentDescription = string("activity", themeViewModel)
+                    )
+                },
                 label = { Text(string("activity", themeViewModel)) }
             )
             // Reserved middle slot — the real Map button floats above this space
@@ -72,7 +82,12 @@ fun BottomNavBar(navController: NavHostController, themeViewModel: ThemeViewMode
                         launchSingleTop = true
                     }
                 },
-                icon = { Icon(Icons.Default.EmojiEvents, contentDescription = string("rewards", themeViewModel)) },
+                icon = {
+                    Icon(
+                        Icons.Default.EmojiEvents,
+                        contentDescription = string("rewards", themeViewModel)
+                    )
+                },
                 label = { Text(string("rewards", themeViewModel)) }
             )
             // Profile
@@ -84,7 +99,12 @@ fun BottomNavBar(navController: NavHostController, themeViewModel: ThemeViewMode
                         launchSingleTop = true
                     }
                 },
-                icon = { Icon(Icons.Default.Person, contentDescription = string("profile", themeViewModel)) },
+                icon = {
+                    Icon(
+                        Icons.Default.Person,
+                        contentDescription = string("profile", themeViewModel)
+                    )
+                },
                 label = { Text(string("profile", themeViewModel)) }
             )
         }

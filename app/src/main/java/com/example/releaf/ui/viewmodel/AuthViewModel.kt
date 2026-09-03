@@ -11,6 +11,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import kotlin.time.Duration.Companion.milliseconds
 
 class AuthViewModel : ViewModel() {
     private val repository = AuthRepository()
@@ -45,7 +46,7 @@ class AuthViewModel : ViewModel() {
             val elapsed = System.currentTimeMillis() - startTime
             val minSplash = 2500L
             if (elapsed < minSplash) {
-                kotlinx.coroutines.delay(minSplash - elapsed)
+                kotlinx.coroutines.delay((minSplash - elapsed).milliseconds)
             }
             _isCheckingSession.value = false
         }
@@ -98,6 +99,7 @@ class AuthViewModel : ViewModel() {
     fun clearAuthSuccess() {
         _uiState.value = AuthUiState()
     }
+
     fun login(email: String, password: String) {
         viewModelScope.launch {
             _uiState.value = AuthUiState(isLoading = true)
@@ -132,8 +134,10 @@ class AuthViewModel : ViewModel() {
                             // Keep the password in memory: it is needed to log in
                             // again when the user taps "I've verified - Continue".
                             // It is cleared once verification/login succeeds.
-                            _uiState.value = AuthUiState(isRegistrationSuccess = true, registeredEmail = email)
+                            _uiState.value =
+                                AuthUiState(isRegistrationSuccess = true, registeredEmail = email)
                         }
+
                         is RegisterResult.AccountReady -> {
                             _registeredPassword.value = null
                             _registeredName.value = null
@@ -147,7 +151,8 @@ class AuthViewModel : ViewModel() {
                     val message = if (error is EmailAlreadyRegisteredException) {
                         error.message ?: "This email is already registered. Please log in instead."
                     } else {
-                        error.message ?: "Registration failed. Please check your internet connection and try again."
+                        error.message
+                            ?: "Registration failed. Please check your internet connection and try again."
                     }
                     _uiState.value = AuthUiState(error = message)
                 }
@@ -169,7 +174,8 @@ class AuthViewModel : ViewModel() {
                     _uiState.value = AuthUiState(isLoginSuccess = true)
                 },
                 onFailure = { error ->
-                    val message = error.message ?: "Email not verified yet. Check your inbox, click the confirmation link, then tap Continue."
+                    val message = error.message
+                        ?: "Email not verified yet. Check your inbox, click the confirmation link, then tap Continue."
                     _uiState.value = AuthUiState(error = message)
                 }
             )
@@ -182,7 +188,10 @@ class AuthViewModel : ViewModel() {
             val result = repository.resendVerificationEmail(email)
             result.fold(
                 onSuccess = {
-                    _uiState.value = AuthUiState(resendSuccess = true, resendMessage = "Verification email resent. Please check your inbox.")
+                    _uiState.value = AuthUiState(
+                        resendSuccess = true,
+                        resendMessage = "Verification email resent. Please check your inbox."
+                    )
                 },
                 onFailure = { e ->
                     _uiState.value = AuthUiState(error = e.message ?: "Failed to resend email")
@@ -219,7 +228,8 @@ class AuthViewModel : ViewModel() {
                     _resetState.value = ResetUiState(isSuccess = true)
                 },
                 onFailure = { error ->
-                    _resetState.value = ResetUiState(error = error.message ?: "Failed to send reset email")
+                    _resetState.value =
+                        ResetUiState(error = error.message ?: "Failed to send reset email")
                 }
             )
         }

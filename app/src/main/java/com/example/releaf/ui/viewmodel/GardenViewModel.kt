@@ -20,6 +20,7 @@ import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 import kotlin.math.max
+import androidx.core.content.edit
 
 class GardenViewModel(application: Application) : AndroidViewModel(application) {
     private val repository = GardenRepository()
@@ -83,7 +84,8 @@ class GardenViewModel(application: Application) : AndroidViewModel(application) 
         currentUserId = userId
         viewModelScope.launch {
             try {
-                val g = repository.getGarden(userId)?.let { repository.healNegativeBalance(userId, it) }
+                val g =
+                    repository.getGarden(userId)?.let { repository.healNegativeBalance(userId, it) }
                 _garden.value = g
 
                 var remoteSlots = repository.getPlantSlots(userId)
@@ -107,7 +109,8 @@ class GardenViewModel(application: Application) : AndroidViewModel(application) 
                                 plantType = SeedData.getSeedForSlot(index).name
                             )
                             pushedAny = true
-                        } catch (_: Exception) { }
+                        } catch (_: Exception) {
+                        }
                     }
                 }
                 if (pushedAny) {
@@ -148,7 +151,7 @@ class GardenViewModel(application: Application) : AndroidViewModel(application) 
                 _currentGems.value = remoteGems
 
                 if (remoteExp > localExp) {
-                    gardenPrefs.edit().putInt("tree_exp_$userId", remoteExp).apply()
+                    gardenPrefs.edit { putInt("tree_exp_$userId", remoteExp) }
                 }
 
                 val maxAllowed = getMaxUsesByExp(actualExp)
@@ -199,10 +202,10 @@ class GardenViewModel(application: Application) : AndroidViewModel(application) 
         val newExp = exp + 50
         _currentExp.value = newExp
 
-        gardenPrefs.edit()
-            .putInt("water_${userId}_$today", waterUsed + 1)
-            .putInt("tree_exp_$userId", newExp)
-            .apply()
+        gardenPrefs.edit {
+            putInt("water_${userId}_$today", waterUsed + 1)
+                .putInt("tree_exp_$userId", newExp)
+        }
         _waterUsesLeft.value = (maxAllowed - (waterUsed + 1)).coerceAtLeast(0)
 
         _statusMessage.value = "Watering completed! (+50 EXP, +10 🪙 Points, +1 💎 Gem)"
@@ -228,10 +231,10 @@ class GardenViewModel(application: Application) : AndroidViewModel(application) 
         val newExp = exp + 50
         _currentExp.value = newExp
 
-        gardenPrefs.edit()
-            .putInt("fertilize_${userId}_$today", fertilizeUsed + 1)
-            .putInt("tree_exp_$userId", newExp)
-            .apply()
+        gardenPrefs.edit {
+            putInt("fertilize_${userId}_$today", fertilizeUsed + 1)
+                .putInt("tree_exp_$userId", newExp)
+        }
         _fertilizeUsesLeft.value = (maxAllowed - (fertilizeUsed + 1)).coerceAtLeast(0)
 
         _statusMessage.value = "Fertilizing completed! (+50 EXP, +20 🪙 Points)"
@@ -286,7 +289,10 @@ class GardenViewModel(application: Application) : AndroidViewModel(application) 
 
                 val profile = authRepository.getProfile(userId)
                 if (profile != null) {
-                    authRepository.updateTotalPoints(userId, (profile.total_points ?: 0) + pointsToAdd)
+                    authRepository.updateTotalPoints(
+                        userId,
+                        (profile.total_points ?: 0) + pointsToAdd
+                    )
                 }
 
                 SupabaseModule.triggerRefresh()
@@ -321,7 +327,7 @@ class GardenViewModel(application: Application) : AndroidViewModel(application) 
                 }
                 if (targetSlot != null) {
                     repository.deletePlantSlot(userId, targetSlot.slot_index)
-                    gardenPrefs.edit().remove("slot_${userId}_${targetSlot.slot_index}").apply()
+                    gardenPrefs.edit { remove("slot_${userId}_${targetSlot.slot_index}") }
                 }
 
                 questRepository.incrementQuestsByType(userId, "HARVEST")
@@ -342,14 +348,16 @@ class GardenViewModel(application: Application) : AndroidViewModel(application) 
                 repository.upsertPlantSlot(userId, slotIndex, "GROWING", seed.name)
                 try {
                     rewardRepository.claimPlantReward(userId, slotIndex, seed.name)
-                } catch (_: Exception) { }
-                gardenPrefs.edit().putString("slot_${userId}_$slotIndex", "GROWING").apply()
-                _statusMessage.value = "Planted ${seed.nickname.ifBlank { seed.name }} in Slot $slotIndex! 🌱"
+                } catch (_: Exception) {
+                }
+                gardenPrefs.edit { putString("slot_${userId}_$slotIndex", "GROWING") }
+                _statusMessage.value =
+                    "Planted ${seed.nickname.ifBlank { seed.name }} in Slot $slotIndex! 🌱"
                 loadGarden(userId)
                 SupabaseModule.triggerRefresh()
             } catch (e: Exception) {
                 e.printStackTrace()
-                gardenPrefs.edit().putString("slot_${userId}_$slotIndex", "GROWING").apply()
+                gardenPrefs.edit { putString("slot_${userId}_$slotIndex", "GROWING") }
                 _statusMessage.value = "Planted ${SeedData.getSeedForSlot(slotIndex).name}! 🌱"
                 loadGarden(userId)
             }
@@ -360,15 +368,19 @@ class GardenViewModel(application: Application) : AndroidViewModel(application) 
         viewModelScope.launch {
             try {
                 repository.deletePlantSlot(userId, slotIndex)
-                gardenPrefs.edit().remove("slot_${userId}_$slotIndex").apply()
+                gardenPrefs.edit { remove("slot_${userId}_$slotIndex") }
                 _plantSlots.value = _plantSlots.value.map {
-                    if (it.slot_index == slotIndex) it.copy(state = "EMPTY_POT", plant_type = null, id = "") else it
+                    if (it.slot_index == slotIndex) it.copy(
+                        state = "EMPTY_POT",
+                        plant_type = null,
+                        id = ""
+                    ) else it
                 }
                 _statusMessage.value = "Plant in slot $slotIndex removed"
                 SupabaseModule.triggerRefresh()
             } catch (e: Exception) {
                 e.printStackTrace()
-                gardenPrefs.edit().remove("slot_${userId}_$slotIndex").apply()
+                gardenPrefs.edit { remove("slot_${userId}_$slotIndex") }
                 loadGarden(userId)
             }
         }
@@ -380,10 +392,13 @@ class GardenViewModel(application: Application) : AndroidViewModel(application) 
                 repository.deleteGarden(userId)
                 // Also delete all plant slots
                 for (i in 1..6) {
-                    try { repository.deletePlantSlot(userId, i) } catch (_: Exception) { }
-                    gardenPrefs.edit().remove("slot_${userId}_$i").apply()
+                    try {
+                        repository.deletePlantSlot(userId, i)
+                    } catch (_: Exception) {
+                    }
+                    gardenPrefs.edit { remove("slot_${userId}_$i") }
                 }
-                gardenPrefs.edit().remove("tree_exp_$userId").apply()
+                gardenPrefs.edit { remove("tree_exp_$userId") }
                 _garden.value = null
                 _plantSlots.value = emptyList()
                 _currentExp.value = 0

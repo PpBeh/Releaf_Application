@@ -99,16 +99,19 @@ fun RewardsScreen(
                     modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {
-                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(16.dp)) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Text("🌟", style = MaterialTheme.typography.bodyMedium)
-                        Spacer(modifier = Modifier.width(6.dp))
-                        Text(
-                            text = "$userPoints / $nextTargetExp EXP",
-                            fontWeight = FontWeight.Bold,
-                            color = MaterialTheme.colorScheme.primary
-                        )
-                    }
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(16.dp)
+                    ) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Text("🌟", style = MaterialTheme.typography.bodyMedium)
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text(
+                                text = "$userPoints / $nextTargetExp EXP",
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.primary
+                            )
+                        }
                         Text("•", color = MaterialTheme.colorScheme.onSurfaceVariant)
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Text("💎", style = MaterialTheme.typography.bodyMedium)
@@ -118,7 +121,11 @@ fun RewardsScreen(
                                 fontWeight = FontWeight.Bold,
                                 color = Color(0xFF00ACC1)
                             )
-                            Text(" Gems", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            Text(
+                                " Gems",
+                                style = MaterialTheme.typography.labelMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
                         }
                     }
                     Spacer(modifier = Modifier.height(6.dp))
@@ -159,7 +166,11 @@ fun RewardsScreen(
             Spacer(modifier = Modifier.height(8.dp))
             val equippedTitle by viewModel.equippedTitle.collectAsState()
             val titles = listOf(
-                "Gardener" to 0, "Sprout" to 500, "Green Thumb" to 2000, "Expert Gardener" to 5000, "Master Gardener" to 10000
+                "Gardener" to 0,
+                "Sprout" to 500,
+                "Green Thumb" to 2000,
+                "Expert Gardener" to 5000,
+                "Master Gardener" to 10000
             )
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 titles.forEach { (titleName, req) ->
@@ -170,15 +181,29 @@ fun RewardsScreen(
                         colors = CardDefaults.cardColors(containerColor = if (isUnlocked) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceVariant),
                         modifier = Modifier.fillMaxWidth()
                     ) {
-                        Row(modifier = Modifier.padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
-                            Text(if (isEquipped) "⭐" else if (isUnlocked) "✓" else "🔒", modifier = Modifier.padding(end = 8.dp))
+                        Row(
+                            modifier = Modifier.padding(12.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(
+                                if (isEquipped) "⭐" else if (isUnlocked) "✓" else "🔒",
+                                modifier = Modifier.padding(end = 8.dp)
+                            )
                             Column(modifier = Modifier.weight(1f)) {
-                                Text(titleName, fontWeight = FontWeight.Bold, style = MaterialTheme.typography.bodyMedium)
+                                Text(
+                                    titleName,
+                                    fontWeight = FontWeight.Bold,
+                                    style = MaterialTheme.typography.bodyMedium
+                                )
                                 Text(
                                     when {
                                         isEquipped -> t("currently_equipped")
                                         isUnlocked -> t("unlocked_tap_equip")
-                                        else -> String.format(java.util.Locale.US, t("requires_exp_fmt"), req)
+                                        else -> String.format(
+                                            java.util.Locale.US,
+                                            t("requires_exp_fmt"),
+                                            req
+                                        )
                                     },
                                     style = MaterialTheme.typography.labelSmall,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant
@@ -203,9 +228,17 @@ fun RewardsScreen(
             Text(t("avatar_frames_title"), style = MaterialTheme.typography.titleMedium)
             Spacer(modifier = Modifier.height(4.dp))
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Text("💎 $userGems " + t("gems"), fontWeight = FontWeight.Bold, color = Color(0xFF00ACC1))
+                Text(
+                    "💎 $userGems " + t("gems"),
+                    fontWeight = FontWeight.Bold,
+                    color = Color(0xFF00ACC1)
+                )
                 Spacer(modifier = Modifier.width(8.dp))
-                Text("🪙 $walletPoints " + t("points"), fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
+                Text(
+                    "🪙 $walletPoints " + t("points"),
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.primary
+                )
             }
             Spacer(modifier = Modifier.height(2.dp))
             Text(
@@ -219,15 +252,23 @@ fun RewardsScreen(
                 android.content.Context.MODE_PRIVATE
             )
             val frames = listOf(
-                Triple("None", 0 to 0, "No frame"), Triple("Leaf", 0 to 0, "🍃"), Triple("Blocks", 100 to 1000, "🧱"), Triple("Gold", 200 to 2000, "🏆"), Triple("Diamond", 500 to 5000, "💎")
+                Triple("None", 0 to 0, "No frame"),
+                Triple("Leaf", 0 to 0, "🍃"),
+                Triple("Blocks", 100 to 1000, "🧱"),
+                Triple("Gold", 200 to 2000, "🏆"),
+                Triple("Diamond", 500 to 5000, "💎")
             )
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 frames.forEach { (frameName, price, icon) ->
                     val (gemPrice, pointPrice) = price
                     val alreadyOwned = framePrefs.getBoolean("owned_$frameName", false)
-                    val canAfford = !alreadyOwned && userGems >= gemPrice && walletPoints >= pointPrice
+                    val canAfford =
+                        !alreadyOwned && userGems >= gemPrice && walletPoints >= pointPrice
                     Card(shape = RoundedCornerShape(12.dp), modifier = Modifier.fillMaxWidth()) {
-                        Row(modifier = Modifier.padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
+                        Row(
+                            modifier = Modifier.padding(12.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
                             Text(icon, fontSize = 24.sp, modifier = Modifier.padding(end = 12.dp))
                             Column(modifier = Modifier.weight(1f)) {
                                 Text(frameName, fontWeight = FontWeight.Bold)
@@ -238,7 +279,14 @@ fun RewardsScreen(
                                 )
                             }
                             Button(
-                                onClick = { viewModel.purchaseFrame(userId, frameName, gemPrice, pointPrice) },
+                                onClick = {
+                                    viewModel.purchaseFrame(
+                                        userId,
+                                        frameName,
+                                        gemPrice,
+                                        pointPrice
+                                    )
+                                },
                                 enabled = canAfford,
                                 shape = RoundedCornerShape(8.dp)
                             ) {
@@ -281,7 +329,12 @@ private fun TierBox(points: Int, target: Int, unlocked: Boolean, themeViewModel:
         contentAlignment = Alignment.CenterStart
     ) {
         Text(
-            text = "$points/$target ${if (unlocked) string("unlocked", themeViewModel) else string("locked", themeViewModel)}",
+            text = "$points/$target ${
+                if (unlocked) string(
+                    "unlocked",
+                    themeViewModel
+                ) else string("locked", themeViewModel)
+            }",
             fontWeight = FontWeight.SemiBold,
             color = if (unlocked) Color.White else MaterialTheme.colorScheme.onSurfaceVariant
         )
