@@ -31,6 +31,7 @@ fun OsmMap(
     pois: List<PoiDto>,
     onPoiClick: (PoiDto) -> Unit,
     centerOnLocation: Boolean = false,
+    onCenterConsumed: () -> Unit = {},
     focusPoint: GeoPoint? = null,
     isDarkMode: Boolean = false,
     modifier: Modifier = Modifier
@@ -121,23 +122,14 @@ fun OsmMap(
         }
     }
 
+    // One-shot centering: center on the user position ONCE when requested, then
+    // consume the flag so the map never keeps snapping back to the user.
     LaunchedEffect(centerOnLocation, hasLocationPermission, mapViewRef) {
         if (!centerOnLocation || !hasLocationPermission || mapViewRef == null) {
             return@LaunchedEffect
         }
+        val map = mapViewRef ?: return@LaunchedEffect
         val mainLooper = android.os.Looper.getMainLooper()
-
-        val listener = object : android.location.LocationListener {
-            override fun onLocationChanged(location: android.location.Location) {
-                userLocation = GeoPoint(location.latitude, location.longitude)
-                mapViewRef?.let { centerPlain(it, userLocation) }
-            }
-
-            @Deprecated("Deprecated in Java")
-            override fun onStatusChanged(provider: String?, status: Int, extras: android.os.Bundle?) {}
-            override fun onProviderEnabled(provider: String) {}
-            override fun onProviderDisabled(provider: String) {}
-        }
 
         try {
             val now = System.currentTimeMillis()
@@ -152,13 +144,37 @@ fun OsmMap(
 
             if (fresh != null) {
                 userLocation = GeoPoint(fresh.latitude, fresh.longitude)
-                mapViewRef?.let { centerPlain(it, userLocation) }
+                centerPlain(map, userLocation)
+                try { onCenterConsumed() } catch (_: Exception) { }
+                return@LaunchedEffect
+            }
+
+            var consumed = false
+            val listener = object : android.location.LocationListener {
+                override fun onLocationChanged(location: android.location.Location) {
+                    if (consumed) return
+                    consumed = true
+                    userLocation = GeoPoint(location.latitude, location.longitude)
+                    mapViewRef?.let { centerPlain(it, userLocation) }
+                    try {
+                        locationManager?.removeUpdates(this)
+                    } catch (_: Exception) { }
+                    registeredListeners.remove(this)
+                    try { onCenterConsumed() } catch (_: Exception) { }
+                }
+
+                @Deprecated("Deprecated in Java")
+                override fun onStatusChanged(provider: String?, status: Int, extras: android.os.Bundle?) {}
+                override fun onProviderEnabled(provider: String) {}
+                override fun onProviderDisabled(provider: String) {}
             }
 
             locationManager?.requestLocationUpdates(LocationManager.GPS_PROVIDER, 0L, 0f, listener, mainLooper)
             locationManager?.requestLocationUpdates(LocationManager.NETWORK_PROVIDER, 0L, 0f, listener, mainLooper)
             registeredListeners.add(listener)
-        } catch (_: SecurityException) { }
+        } catch (_: SecurityException) {
+            try { onCenterConsumed() } catch (_: Exception) { }
+        }
     }
 
     // Rebuild the marker overlay only when the POI data actually changes, not on

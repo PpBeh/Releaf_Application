@@ -372,6 +372,7 @@ fun MapScreen(
                     pois = filteredSearchPois,
                     onPoiClick = { viewModel.selectPoi(it) },
                     centerOnLocation = centerOnLocation,
+                    onCenterConsumed = { centerOnLocation = false },
                     focusPoint = focusPoint,
                     isDarkMode = isDarkMode,
                     modifier = Modifier.fillMaxSize()
@@ -583,7 +584,7 @@ fun MapScreen(
                     )
                 }
                 SmallFloatingActionButton(
-                    onClick = { centerOnLocation = !centerOnLocation },
+                    onClick = { centerOnLocation = true },
                     containerColor = MaterialTheme.colorScheme.surface
                 ) {
                     Icon(
@@ -705,9 +706,13 @@ fun MapScreen(
                 onDismiss = { showPhotoSourcePickerForPoi = false },
                 onGalleryClick = { detailPhotoPicker.launch("image/*") },
                 onCameraClick = {
-                    val newUri = createCameraImageUri(context)
-                    tempCameraUriForPoi = newUri
-                    cameraPhotoPicker.launch(newUri)
+                    try {
+                        val newUri = createCameraImageUri(context)
+                        tempCameraUriForPoi = newUri
+                        cameraPhotoPicker.launch(newUri)
+                    } catch (_: Exception) {
+                        scope.launch { snackbarHostState.showSnackbar(t("camera_unavailable")) }
+                    }
                 },
                 lang = lang
             )
@@ -976,9 +981,13 @@ fun MapScreen(
                 onDismiss = { showAddPhotoSourcePicker = false },
                 onGalleryClick = { photoPicker.launch("image/*") },
                 onCameraClick = {
-                    val newUri = createCameraImageUri(context)
-                    tempCameraUriForAddPoi = newUri
-                    addPoiCameraPicker.launch(newUri)
+                    try {
+                        val newUri = createCameraImageUri(context)
+                        tempCameraUriForAddPoi = newUri
+                        addPoiCameraPicker.launch(newUri)
+                    } catch (_: Exception) {
+                        scope.launch { snackbarHostState.showSnackbar(t("camera_unavailable")) }
+                    }
                 },
                 lang = lang
             )

@@ -136,6 +136,7 @@ fun CommentScreen(
     }
 
     var tempCameraUri by remember { mutableStateOf<Uri?>(null) }
+    var cameraError by remember { mutableStateOf<String?>(null) }
 
     val cameraLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.TakePicture()
@@ -253,9 +254,14 @@ fun CommentScreen(
                             .fillMaxWidth()
                             .clickable {
                                 showPhotoSourcePicker = false
-                                val newUri = createCameraImageUri(context)
-                                tempCameraUri = newUri
-                                cameraLauncher.launch(newUri)
+                                try {
+                                    val newUri = createCameraImageUri(context)
+                                    tempCameraUri = newUri
+                                    cameraError = null
+                                    cameraLauncher.launch(newUri)
+                                } catch (_: Exception) {
+                                    cameraError = t("camera_unavailable")
+                                }
                             }
                             .padding(12.dp),
                         verticalAlignment = Alignment.CenterVertically
@@ -457,6 +463,15 @@ fun CommentScreen(
         if (errorMessage != null) {
             Text(
                 errorMessage ?: "",
+                color = MaterialTheme.colorScheme.error,
+                style = MaterialTheme.typography.bodySmall,
+                modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp)
+            )
+        }
+
+        if (cameraError != null) {
+            Text(
+                cameraError ?: "",
                 color = MaterialTheme.colorScheme.error,
                 style = MaterialTheme.typography.bodySmall,
                 modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp)
