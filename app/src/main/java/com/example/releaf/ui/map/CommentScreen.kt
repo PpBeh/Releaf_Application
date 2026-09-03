@@ -81,12 +81,13 @@ fun countWords(text: String): Int {
     return text.trim().split("\\s+".toRegex()).size
 }
 
-fun saveBitmapToUri(context: android.content.Context, bitmap: Bitmap): Uri {
+fun createCameraImageUri(context: android.content.Context): Uri {
     val file = File(context.cacheDir, "comment_camera_${System.currentTimeMillis()}.jpg")
-    file.outputStream().use { out ->
-        bitmap.compress(Bitmap.CompressFormat.JPEG, 90, out)
-    }
-    return Uri.fromFile(file)
+    return androidx.core.content.FileProvider.getUriForFile(
+        context,
+        "${context.packageName}.fileprovider",
+        file
+    )
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -134,11 +135,13 @@ fun CommentScreen(
         }
     }
 
+    var tempCameraUri by remember { mutableStateOf<Uri?>(null) }
+
     val cameraLauncher = rememberLauncherForActivityResult(
-        ActivityResultContracts.TakePicturePreview()
-    ) { bitmap ->
-        if (bitmap != null) {
-            selectedPhotoUri = saveBitmapToUri(context, bitmap)
+        ActivityResultContracts.TakePicture()
+    ) { success ->
+        if (success && tempCameraUri != null) {
+            selectedPhotoUri = tempCameraUri
         }
     }
 
@@ -250,7 +253,9 @@ fun CommentScreen(
                             .fillMaxWidth()
                             .clickable {
                                 showPhotoSourcePicker = false
-                                cameraLauncher.launch(null)
+                                val newUri = createCameraImageUri(context)
+                                tempCameraUri = newUri
+                                cameraLauncher.launch(newUri)
                             }
                             .padding(12.dp),
                         verticalAlignment = Alignment.CenterVertically

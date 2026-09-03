@@ -172,24 +172,24 @@ fun MapScreen(
         }
     }
 
+    var tempCameraUriForPoi by remember { mutableStateOf<Uri?>(null) }
     val cameraPhotoPicker = rememberLauncherForActivityResult(
-        ActivityResultContracts.TakePicturePreview()
-    ) { bitmap ->
-        if (bitmap != null) {
-            val uri = saveBitmapToUri(context, bitmap)
+        ActivityResultContracts.TakePicture()
+    ) { success ->
+        if (success && tempCameraUriForPoi != null) {
+            val uri = tempCameraUriForPoi!!
             viewModel.selectedPoi.value?.let { poi ->
                 viewModel.uploadPhoto(poi.id, uri, context)
             }
         }
     }
 
-    // Camera capture for the "Add New POI" picture (kept in a local Uri like the
-    // comment camera so it uploads from the same picker flow).
+    var tempCameraUriForAddPoi by remember { mutableStateOf<Uri?>(null) }
     val addPoiCameraPicker = rememberLauncherForActivityResult(
-        ActivityResultContracts.TakePicturePreview()
-    ) { bitmap ->
-        if (bitmap != null) {
-            selectedPhotoUri = saveBitmapToUri(context, bitmap)
+        ActivityResultContracts.TakePicture()
+    ) { success ->
+        if (success && tempCameraUriForAddPoi != null) {
+            selectedPhotoUri = tempCameraUriForAddPoi
         }
     }
 
@@ -704,7 +704,11 @@ fun MapScreen(
                 title = t("upload_facility_photo"),
                 onDismiss = { showPhotoSourcePickerForPoi = false },
                 onGalleryClick = { detailPhotoPicker.launch("image/*") },
-                onCameraClick = { cameraPhotoPicker.launch(null) },
+                onCameraClick = {
+                    val newUri = createCameraImageUri(context)
+                    tempCameraUriForPoi = newUri
+                    cameraPhotoPicker.launch(newUri)
+                },
                 lang = lang
             )
         }
@@ -971,7 +975,11 @@ fun MapScreen(
                 title = t("add_new_toilet"),
                 onDismiss = { showAddPhotoSourcePicker = false },
                 onGalleryClick = { photoPicker.launch("image/*") },
-                onCameraClick = { addPoiCameraPicker.launch(null) },
+                onCameraClick = {
+                    val newUri = createCameraImageUri(context)
+                    tempCameraUriForAddPoi = newUri
+                    addPoiCameraPicker.launch(newUri)
+                },
                 lang = lang
             )
         }

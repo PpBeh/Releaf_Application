@@ -68,7 +68,20 @@ class PoiRepository {
     suspend fun uploadPoiPhoto(poiId: String, userId: String, uri: android.net.Uri, context: android.content.Context): Boolean {
         return kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
             try {
-                val bytes = context.contentResolver.openInputStream(uri)?.use { it.readBytes() } ?: return@withContext false
+                val bytes: ByteArray = run {
+                    var result: ByteArray? = null
+                    try {
+                        result = context.contentResolver.openInputStream(uri)?.use { it.readBytes() }
+                    } catch (_: Exception) { }
+
+                    if (result == null && uri.scheme == "file" && !uri.path.isNullOrBlank()) {
+                        try {
+                            result = java.io.File(uri.path!!).readBytes()
+                        } catch (_: Exception) { }
+                    }
+                    result
+                } ?: return@withContext false
+
                 val fileName = "${poiId}_${System.currentTimeMillis()}.jpg"
                 client.storage.from("poi-photos").upload(
                     path = fileName,
@@ -81,7 +94,8 @@ class PoiRepository {
                     PoiPhotoDto(poi_id = poiId, photo_url = url, uploaded_by = userId)
                 )
                 true
-            } catch (_: Exception) {
+            } catch (e: Exception) {
+                e.printStackTrace()
                 false
             }
         }
