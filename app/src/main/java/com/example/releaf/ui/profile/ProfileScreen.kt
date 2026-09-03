@@ -22,14 +22,16 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.AlertDialog
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ElevatedCard
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -52,10 +54,6 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.filled.Close
-import androidx.compose.material.icons.filled.Settings
 import coil.compose.rememberAsyncImagePainter
 import com.example.releaf.R
 import com.example.releaf.model.SeedData
@@ -126,21 +124,89 @@ fun ProfileScreen(
     val phone = profile?.phone?.takeIf { it.isNotBlank() } ?: "N/A"
     val email = profile?.email?.takeIf { it.isNotBlank() } ?: "N/A"
     val isOwnProfile = userId == currentUserId
-    var showLogoutConfirm by androidx.compose.runtime.remember { androidx.compose.runtime.mutableStateOf(false) }
+    var showLogoutConfirm by androidx.compose.runtime.remember {
+        mutableStateOf(
+            false
+        )
+    }
 
     // Garden EXP (used for the title unlocks)
     val gardenExp = userGarden?.current_exp ?: profile?.total_points ?: 0
 
     // Build achievements list with progress
     val defaultMasterAchievements = listOf(
-        AchievementItemData("1", "Expert Reviewer", "Write 10 reviews", false, R.drawable.ic_star, 0, 10),
-        AchievementItemData("2", "Expert Gardener", "Grow 50 plants", false, R.drawable.ic_plant_1, 0, 50),
-        AchievementItemData("3", "Toilet Scout", "Verify 5 toilets", false, R.drawable.ic_toilet, 0, 5),
-        AchievementItemData("4", "Clean Crusader", "Rate 10 toilets", false, R.drawable.ic_favorite, 0, 10),
-        AchievementItemData("5", "Early Adopter", "Joined during launch", false, R.drawable.ic_person, 0, 1),
-        AchievementItemData("6", "Photo Fanatic", "Upload 20 photos", false, R.drawable.ic_palette, 0, 20),
-        AchievementItemData("7", "Social Butterfly", "Interact 50 times", false, R.drawable.ic_favorite, 0, 50),
-        AchievementItemData("8", "Master Navigator", "Navigate 20 facilities", false, R.drawable.ic_refresh, 0, 20)
+        AchievementItemData(
+            "1",
+            "Expert Reviewer",
+            "Write 10 reviews",
+            false,
+            R.drawable.ic_star,
+            0,
+            10
+        ),
+        AchievementItemData(
+            "2",
+            "Expert Gardener",
+            "Grow 50 plants",
+            false,
+            R.drawable.ic_plant_1,
+            0,
+            50
+        ),
+        AchievementItemData(
+            "3",
+            "Toilet Scout",
+            "Verify 5 toilets",
+            false,
+            R.drawable.ic_toilet,
+            0,
+            5
+        ),
+        AchievementItemData(
+            "4",
+            "Clean Crusader",
+            "Rate 10 toilets",
+            false,
+            R.drawable.ic_favorite,
+            0,
+            10
+        ),
+        AchievementItemData(
+            "5",
+            "Early Adopter",
+            "Joined during launch",
+            false,
+            R.drawable.ic_person,
+            0,
+            1
+        ),
+        AchievementItemData(
+            "6",
+            "Photo Fanatic",
+            "Upload 20 photos",
+            false,
+            R.drawable.ic_palette,
+            0,
+            20
+        ),
+        AchievementItemData(
+            "7",
+            "Social Butterfly",
+            "Interact 50 times",
+            false,
+            R.drawable.ic_favorite,
+            0,
+            50
+        ),
+        AchievementItemData(
+            "8",
+            "Master Navigator",
+            "Navigate 20 facilities",
+            false,
+            R.drawable.ic_refresh,
+            0,
+            20
+        )
     )
 
     // Calculate progress from actual user data
@@ -188,9 +254,17 @@ fun ProfileScreen(
                     modifier = Modifier.fillMaxSize(),
                     contentScale = ContentScale.Crop
                 )
-                Box(modifier = Modifier.fillMaxSize().background(Color.Black.copy(alpha = 0.35f)))
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .background(Color.Black.copy(alpha = 0.35f))
+                )
             } else {
-                Box(modifier = Modifier.fillMaxSize().background(MaterialTheme.colorScheme.primary))
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .background(MaterialTheme.colorScheme.primary)
+                )
             }
             Row(
                 modifier = Modifier
@@ -211,7 +285,9 @@ fun ProfileScreen(
             }
             if (isOwnProfile) {
                 Row(
-                    modifier = Modifier.align(Alignment.TopEnd).padding(8.dp),
+                    modifier = Modifier
+                        .align(Alignment.TopEnd)
+                        .padding(8.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     if (isVip) {
@@ -222,10 +298,18 @@ fun ProfileScreen(
                             color = Color.White.copy(alpha = 0.9f),
                             modifier = Modifier.clickable { bannerPicker.launch("image/*") }
                         ) {
-                            Row(modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp), verticalAlignment = Alignment.CenterVertically) {
+                            Row(
+                                modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
                                 Text("✏️", fontSize = 12.sp)
                                 Spacer(modifier = Modifier.width(4.dp))
-                                Text("Edit Banner", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = Color(0xFF2E7D32))
+                                Text(
+                                    "Edit Banner",
+                                    fontSize = 11.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = Color(0xFF2E7D32)
+                                )
                             }
                         }
                         Spacer(modifier = Modifier.width(8.dp))
@@ -234,15 +318,34 @@ fun ProfileScreen(
                             color = Color.White.copy(alpha = 0.9f),
                             modifier = Modifier.clickable { showFramePicker = true }
                         ) {
-                            Row(modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp), verticalAlignment = Alignment.CenterVertically) {
+                            Row(
+                                modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
                                 Text("🖼️", fontSize = 12.sp)
                                 Spacer(modifier = Modifier.width(4.dp))
-                                Text(if (currentFrame.isBlank()) "Frame: None" else "Frame: $currentFrame", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = Color(0xFF2E7D32))
+                                Text(
+                                    if (currentFrame.isBlank()) "Frame: None" else "Frame: $currentFrame",
+                                    fontSize = 11.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = Color(0xFF2E7D32)
+                                )
                             }
                         }
                         if (showFramePicker) {
-                            val frames = listOf("None" to "No frame", "Leaf" to "🍃 Leaf", "Blocks" to "🧱 Blocks", "Gold" to "🏆 Gold", "Diamond" to "💎 Diamond")
-                            val prefs = remember { context.getSharedPreferences("frames_${userId}", android.content.Context.MODE_PRIVATE) }
+                            val frames = listOf(
+                                "None" to "No frame",
+                                "Leaf" to "🍃 Leaf",
+                                "Blocks" to "🧱 Blocks",
+                                "Gold" to "🏆 Gold",
+                                "Diamond" to "💎 Diamond"
+                            )
+                            val prefs = remember {
+                                context.getSharedPreferences(
+                                    "frames_${userId}",
+                                    android.content.Context.MODE_PRIVATE
+                                )
+                            }
                             androidx.compose.material3.AlertDialog(
                                 onDismissRequest = { showFramePicker = false },
                                 title = { Text("Choose Frame") },
@@ -252,22 +355,46 @@ fun ProfileScreen(
                                             // A frame is usable if it is free, purchased on this device,
                                             // or currently equipped on the server (survives reinstalls).
                                             val owned = fid == "None" || fid == "Leaf" ||
-                                                    currentFrame == fid || prefs.getBoolean("owned_$fid", false)
+                                                    currentFrame == fid || prefs.getBoolean(
+                                                "owned_$fid",
+                                                false
+                                            )
                                             Row(
-                                                modifier = Modifier.fillMaxWidth().clickable(enabled = owned) {
-                                                    viewModel.updateAvatarFrame(userId, if (fid == "None") "" else fid)
-                                                    showFramePicker = false
-                                                }.padding(8.dp),
+                                                modifier = Modifier
+                                                    .fillMaxWidth()
+                                                    .clickable(enabled = owned) {
+                                                        viewModel.updateAvatarFrame(
+                                                            userId,
+                                                            if (fid == "None") "" else fid
+                                                        )
+                                                        showFramePicker = false
+                                                    }
+                                                    .padding(8.dp),
                                                 verticalAlignment = Alignment.CenterVertically
                                             ) {
                                                 Text(label, modifier = Modifier.weight(1f))
-                                                if (!owned) Text("🔒", fontSize = 12.sp) else if (currentFrame == fid || (fid == "None" && currentFrame.isBlank())) Text("✓", color = Color(0xFF2E7D32))
+                                                if (!owned) Text(
+                                                    "🔒",
+                                                    fontSize = 12.sp
+                                                ) else if (currentFrame == fid || (fid == "None" && currentFrame.isBlank())) Text(
+                                                    "✓",
+                                                    color = Color(0xFF2E7D32)
+                                                )
                                             }
                                         }
-                                        Text("Buy frames in Rewards → Avatar Frames", style = MaterialTheme.typography.labelSmall, color = Color.Gray, modifier = Modifier.padding(top = 8.dp))
+                                        Text(
+                                            "Buy frames in Rewards → Avatar Frames",
+                                            style = MaterialTheme.typography.labelSmall,
+                                            color = Color.Gray,
+                                            modifier = Modifier.padding(top = 8.dp)
+                                        )
                                     }
                                 },
-                                confirmButton = { TextButton(onClick = { showFramePicker = false }) { Text("Close") } }
+                                confirmButton = {
+                                    TextButton(onClick = {
+                                        showFramePicker = false
+                                    }) { Text("Close") }
+                                }
                             )
                         }
                         Spacer(modifier = Modifier.width(8.dp))
@@ -276,7 +403,12 @@ fun ProfileScreen(
                             shape = RoundedCornerShape(16.dp),
                             color = Color.White.copy(alpha = 0.2f)
                         ) {
-                            Text("VIP only", fontSize = 10.sp, color = Color.White, modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp))
+                            Text(
+                                "VIP only",
+                                fontSize = 10.sp,
+                                color = Color.White,
+                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+                            )
                         }
                         Spacer(modifier = Modifier.width(8.dp))
                     }
@@ -308,7 +440,8 @@ fun ProfileScreen(
                         "Diamond" -> Color(0xFF00BCD4)
                         else -> Color.White.copy(alpha = 0.6f)
                     }
-                    val frameWidth = if (selectedFrame.isBlank() || selectedFrame == "None") 2.dp else 5.dp
+                    val frameWidth =
+                        if (selectedFrame.isBlank() || selectedFrame == "None") 2.dp else 5.dp
                     Box(
                         modifier = Modifier
                             .size(78.dp)
@@ -325,24 +458,24 @@ fun ProfileScreen(
                                 .background(Color.White.copy(alpha = 0.2f)),
                             contentAlignment = Alignment.Center
                         ) {
-                        val avatarUrl = profile?.avatar_url.orEmpty()
-                        if (avatarUrl.isNotBlank()) {
-                            Image(
-                                painter = rememberAsyncImagePainter(model = avatarUrl),
-                                contentDescription = "Avatar",
-                                modifier = Modifier
-                                    .size(72.dp)
-                                    .clip(CircleShape),
-                                contentScale = ContentScale.Crop
-                            )
-                        } else {
-                            Icon(
-                                painter = painterResource(id = R.drawable.ic_person),
-                                contentDescription = "Add photo",
-                                tint = Color.White,
-                                modifier = Modifier.size(36.dp)
-                            )
-                        }
+                            val avatarUrl = profile?.avatar_url.orEmpty()
+                            if (avatarUrl.isNotBlank()) {
+                                Image(
+                                    painter = rememberAsyncImagePainter(model = avatarUrl),
+                                    contentDescription = "Avatar",
+                                    modifier = Modifier
+                                        .size(72.dp)
+                                        .clip(CircleShape),
+                                    contentScale = ContentScale.Crop
+                                )
+                            } else {
+                                Icon(
+                                    painter = painterResource(id = R.drawable.ic_person),
+                                    contentDescription = "Add photo",
+                                    tint = Color.White,
+                                    modifier = Modifier.size(36.dp)
+                                )
+                            }
                         }
                     }
 
@@ -358,23 +491,50 @@ fun ProfileScreen(
                             )
                             if (isVip && isOwnProfile) {
                                 Spacer(modifier = Modifier.width(6.dp))
-                                Surface(shape = RoundedCornerShape(8.dp), color = Color(0xFFFFD700)) {
-                                    Text("VIP", fontSize = 10.sp, fontWeight = FontWeight.Bold, color = Color.Black, modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp))
+                                Surface(
+                                    shape = RoundedCornerShape(8.dp),
+                                    color = Color(0xFFFFD700)
+                                ) {
+                                    Text(
+                                        "VIP",
+                                        fontSize = 10.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = Color.Black,
+                                        modifier = Modifier.padding(
+                                            horizontal = 6.dp,
+                                            vertical = 2.dp
+                                        )
+                                    )
                                 }
                             }
                         }
                         var showTitlePicker by remember { mutableStateOf(false) }
-                        val titles = listOf("Gardener" to 0, "Sprout" to 500, "Green Thumb" to 2000, "Expert Gardener" to 5000, "Master Gardener" to 10000)
+                        val titles = listOf(
+                            "Gardener" to 0,
+                            "Sprout" to 500,
+                            "Green Thumb" to 2000,
+                            "Expert Gardener" to 5000,
+                            "Master Gardener" to 10000
+                        )
                         val titleMetric = gardenExp
                         Surface(
                             shape = RoundedCornerShape(12.dp),
                             color = Color.White.copy(alpha = 0.2f),
                             modifier = Modifier
                                 .padding(vertical = 4.dp)
-                                .clickable(enabled = isOwnProfile) { if (isOwnProfile) showTitlePicker = true }
+                                .clickable(enabled = isOwnProfile) {
+                                    if (isOwnProfile) showTitlePicker = true
+                                }
                         ) {
-                            Row(modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp), verticalAlignment = Alignment.CenterVertically) {
-                                Text(title, color = Color.White, style = MaterialTheme.typography.labelMedium)
+                            Row(
+                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Text(
+                                    title,
+                                    color = Color.White,
+                                    style = MaterialTheme.typography.labelMedium
+                                )
                                 if (isOwnProfile) {
                                     Spacer(modifier = Modifier.width(4.dp))
                                     Text("▼", fontSize = 10.sp, color = Color.White)
@@ -390,21 +550,39 @@ fun ProfileScreen(
                                         titles.forEach { (tName, req) ->
                                             val unlocked = titleMetric >= req
                                             Row(
-                                                modifier = Modifier.fillMaxWidth().clickable(enabled = unlocked) {
-                                                    if (unlocked) {
-                                                        viewModel.updateTitle(userId, tName)
-                                                        showTitlePicker = false
+                                                modifier = Modifier
+                                                    .fillMaxWidth()
+                                                    .clickable(enabled = unlocked) {
+                                                        if (unlocked) {
+                                                            viewModel.updateTitle(userId, tName)
+                                                            showTitlePicker = false
+                                                        }
                                                     }
-                                                }.padding(8.dp),
+                                                    .padding(8.dp),
                                                 verticalAlignment = Alignment.CenterVertically
                                             ) {
-                                                Text(tName, modifier = Modifier.weight(1f), color = if (unlocked) Color.Black else Color.Gray)
-                                                if (!unlocked) Text("🔒 $req EXP", fontSize = 11.sp, color = Color.Gray) else if (title == tName) Text("✓", color = Color(0xFF2E7D32))
+                                                Text(
+                                                    tName,
+                                                    modifier = Modifier.weight(1f),
+                                                    color = if (unlocked) Color.Black else Color.Gray
+                                                )
+                                                if (!unlocked) Text(
+                                                    "🔒 $req EXP",
+                                                    fontSize = 11.sp,
+                                                    color = Color.Gray
+                                                ) else if (title == tName) Text(
+                                                    "✓",
+                                                    color = Color(0xFF2E7D32)
+                                                )
                                             }
                                         }
                                     }
                                 },
-                                confirmButton = { TextButton(onClick = { showTitlePicker = false }) { Text("Close") } }
+                                confirmButton = {
+                                    TextButton(onClick = {
+                                        showTitlePicker = false
+                                    }) { Text("Close") }
+                                }
                             )
                         }
 
@@ -434,10 +612,18 @@ fun ProfileScreen(
 
                         if (isOwnProfile) {
                             if (phone != "N/A") {
-                                Text(phone, color = Color.White.copy(alpha = 0.8f), style = MaterialTheme.typography.bodySmall)
+                                Text(
+                                    phone,
+                                    color = Color.White.copy(alpha = 0.8f),
+                                    style = MaterialTheme.typography.bodySmall
+                                )
                             }
                             if (email != "N/A") {
-                                Text(email, color = Color.White.copy(alpha = 0.8f), style = MaterialTheme.typography.bodySmall)
+                                Text(
+                                    email,
+                                    color = Color.White.copy(alpha = 0.8f),
+                                    style = MaterialTheme.typography.bodySmall
+                                )
                             }
                         }
                     }
@@ -586,11 +772,16 @@ fun ProfileScreen(
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-            Text(
-                String.format(java.util.Locale.US, t("achievements_fmt"), unlockedCount, achievementItems.size),
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.Bold
-            )
+                Text(
+                    String.format(
+                        java.util.Locale.US,
+                        t("achievements_fmt"),
+                        unlockedCount,
+                        achievementItems.size
+                    ),
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold
+                )
             }
 
             Spacer(modifier = Modifier.height(8.dp))
@@ -607,7 +798,11 @@ fun ProfileScreen(
                             .clip(RoundedCornerShape(16.dp))
                             .then(
                                 if (achievement.isUnlocked) {
-                                    Modifier.border(1.5.dp, Color(0xFF81C784), RoundedCornerShape(16.dp))
+                                    Modifier.border(
+                                        1.5.dp,
+                                        Color(0xFF81C784),
+                                        RoundedCornerShape(16.dp)
+                                    )
                                 } else Modifier
                             ),
                         shape = RoundedCornerShape(16.dp),
@@ -630,7 +825,9 @@ fun ProfileScreen(
                                     .size(48.dp)
                                     .clip(CircleShape)
                                     .background(
-                                        if (achievement.isUnlocked) Color(0xFFFFD54F) else Color.Gray.copy(alpha = 0.2f)
+                                        if (achievement.isUnlocked) Color(0xFFFFD54F) else Color.Gray.copy(
+                                            alpha = 0.2f
+                                        )
                                     ),
                                 contentAlignment = Alignment.Center
                             ) {
@@ -667,7 +864,10 @@ fun ProfileScreen(
                                 Spacer(modifier = Modifier.height(6.dp))
                                 LinearProgressIndicator(
                                     progress = { achievement.progress.toFloat() / achievement.target.toFloat() },
-                                    modifier = Modifier.fillMaxWidth().height(6.dp).clip(RoundedCornerShape(3.dp)),
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .height(6.dp)
+                                        .clip(RoundedCornerShape(3.dp)),
                                     color = Color(0xFF4CAF50),
                                     trackColor = Color.Gray.copy(alpha = 0.3f)
                                 )
@@ -684,7 +884,9 @@ fun ProfileScreen(
 
                             Surface(
                                 shape = RoundedCornerShape(10.dp),
-                                color = if (achievement.isUnlocked) Color(0xFF2E7D32) else Color.Gray.copy(alpha = 0.2f)
+                                color = if (achievement.isUnlocked) Color(0xFF2E7D32) else Color.Gray.copy(
+                                    alpha = 0.2f
+                                )
                             ) {
                                 Text(
                                     text = if (achievement.isUnlocked) "Unlocked ✓" else "Locked 🔒",
@@ -735,7 +937,11 @@ fun ProfileScreen(
                                 tint = MaterialTheme.colorScheme.primary
                             )
                             Spacer(modifier = Modifier.width(16.dp))
-                            Text(t("favourite_locations"), modifier = Modifier.weight(1f), fontWeight = FontWeight.Medium)
+                            Text(
+                                t("favourite_locations"),
+                                modifier = Modifier.weight(1f),
+                                fontWeight = FontWeight.Medium
+                            )
                             Icon(
                                 painter = painterResource(id = R.drawable.ic_chevron_right),
                                 contentDescription = null,
@@ -756,7 +962,11 @@ fun ProfileScreen(
                                 tint = MaterialTheme.colorScheme.primary
                             )
                             Spacer(modifier = Modifier.width(16.dp))
-                            Text(t("settings_prefs"), modifier = Modifier.weight(1f), fontWeight = FontWeight.Medium)
+                            Text(
+                                t("settings_prefs"),
+                                modifier = Modifier.weight(1f),
+                                fontWeight = FontWeight.Medium
+                            )
                             Icon(
                                 painter = painterResource(id = R.drawable.ic_chevron_right),
                                 contentDescription = null,
@@ -777,7 +987,12 @@ fun ProfileScreen(
                                 tint = MaterialTheme.colorScheme.error
                             )
                             Spacer(modifier = Modifier.width(16.dp))
-                            Text(t("logout"), modifier = Modifier.weight(1f), color = MaterialTheme.colorScheme.error, fontWeight = FontWeight.Medium)
+                            Text(
+                                t("logout"),
+                                modifier = Modifier.weight(1f),
+                                color = MaterialTheme.colorScheme.error,
+                                fontWeight = FontWeight.Medium
+                            )
                             Icon(
                                 painter = painterResource(id = R.drawable.ic_chevron_right),
                                 contentDescription = null,
@@ -790,7 +1005,6 @@ fun ProfileScreen(
 
             Spacer(modifier = Modifier.height(32.dp))
         }
-
 
 
     }
@@ -999,9 +1213,15 @@ fun ProfileScreen(
                             },
                             modifier = Modifier.fillMaxWidth(),
                             shape = RoundedCornerShape(16.dp),
-                            colors = androidx.compose.material3.ButtonDefaults.buttonColors(containerColor = Color(0xFF4CAF50))
+                            colors = androidx.compose.material3.ButtonDefaults.buttonColors(
+                                containerColor = Color(0xFF4CAF50)
+                            )
                         ) {
-                            Text("🌱 Plant in Garden Plot", fontWeight = FontWeight.Bold, color = Color.White)
+                            Text(
+                                "🌱 Plant in Garden Plot",
+                                fontWeight = FontWeight.Bold,
+                                color = Color.White
+                            )
                         }
                     }
                 }
