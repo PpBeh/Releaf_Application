@@ -330,6 +330,41 @@ fun MapScreen(
     val unreadCount by notificationsViewModel.unreadCount.collectAsState()
     var showNotifications by remember { mutableStateOf(false) }
 
+    val notificationPermissionLauncher = rememberLauncherForActivityResult(
+        contract = androidx.activity.result.contract.ActivityResultContracts.RequestPermission()
+    ) { }
+
+    LaunchedEffect(Unit) {
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.TIRAMISU) {
+            notificationPermissionLauncher.launch(android.Manifest.permission.POST_NOTIFICATIONS)
+        }
+    }
+
+    var isFirstLoad by remember { mutableStateOf(true) }
+    var notifiedIds by remember { mutableStateOf(setOf<String>()) }
+
+    LaunchedEffect(notifications) {
+        if (isFirstLoad) {
+            notifiedIds = notifications.map { it.id }.toSet()
+            isFirstLoad = false
+        } else {
+            val newLikes = notifications.filter {
+                !it.is_read && it.type == "LIKE" && it.id !in notifiedIds
+            }
+
+            if (newLikes.isNotEmpty()) {
+                newLikes.forEach { notif ->
+                    com.example.releaf.utils.NotificationHelper.showNotification(
+                        context = context,
+                        title = notif.title,
+                        message = notif.body
+                    )
+                }
+                notifiedIds = notifiedIds + newLikes.map { it.id }.toSet()
+            }
+        }
+    }
+
     LaunchedEffect(currentUserId, lifecycleOwner) {
         val settingsPrefs =
             context.getSharedPreferences("settings_prefs", android.content.Context.MODE_PRIVATE)
