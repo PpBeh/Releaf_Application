@@ -1,6 +1,8 @@
 package com.example.releaf.ui.profile
 
 import android.content.Context
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -24,6 +26,8 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ElevatedCard
 import androidx.compose.material3.Icon
@@ -47,11 +51,13 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.window.Dialog
 import coil.compose.rememberAsyncImagePainter
 import com.example.releaf.R
 import com.example.releaf.model.SeedData
@@ -95,15 +101,15 @@ fun ProfileScreen(
     var selectedSeedForDialog by remember { mutableStateOf<SeedInfo?>(null) }
 
 
-    val avatarPicker = androidx.activity.compose.rememberLauncherForActivityResult(
-        androidx.activity.result.contract.ActivityResultContracts.GetContent()
+    val avatarPicker = rememberLauncherForActivityResult(
+        ActivityResultContracts.GetContent()
     ) { uri ->
         if (uri != null) {
             viewModel.uploadAvatar(userId, uri, context)
         }
     }
-    val bannerPicker = androidx.activity.compose.rememberLauncherForActivityResult(
-        androidx.activity.result.contract.ActivityResultContracts.GetContent()
+    val bannerPicker = rememberLauncherForActivityResult(
+        ActivityResultContracts.GetContent()
     ) { uri ->
         if (uri != null) {
             viewModel.uploadBanner(userId, uri, context)
@@ -124,7 +130,7 @@ fun ProfileScreen(
     val phone = profile?.phone?.takeIf { it.isNotBlank() } ?: "N/A"
     val email = profile?.email?.takeIf { it.isNotBlank() } ?: "N/A"
     val isOwnProfile = userId == currentUserId
-    var showLogoutConfirm by androidx.compose.runtime.remember {
+    var showLogoutConfirm by remember {
         mutableStateOf(
             false
         )
@@ -957,7 +963,7 @@ fun ProfileScreen(
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             Icon(
-                                painter = painterResource(id = R.drawable.ic_palette),
+                                painter = painterResource(id = R.drawable.ic_settings),
                                 contentDescription = null,
                                 tint = MaterialTheme.colorScheme.primary
                             )
@@ -1027,7 +1033,7 @@ fun ProfileScreen(
         val isPlanted = com.example.releaf.model.isPlantedState(state)
         val isUnlocked = isPlanted || gardenExp >= seedInfo.targetPoints
 
-        androidx.compose.ui.window.Dialog(onDismissRequest = { selectedSeedForDialog = null }) {
+        Dialog(onDismissRequest = { selectedSeedForDialog = null }) {
             Surface(
                 shape = RoundedCornerShape(24.dp),
                 color = MaterialTheme.colorScheme.surface,
@@ -1072,7 +1078,10 @@ fun ProfileScreen(
                         }
 
                         IconButton(onClick = { selectedSeedForDialog = null }) {
-                            Icon(painter = painterResource(id = R.drawable.ic_close), contentDescription = "Close")
+                            Icon(
+                                painter = painterResource(id = R.drawable.ic_close),
+                                contentDescription = "Close"
+                            )
                         }
                     }
 
@@ -1133,7 +1142,7 @@ fun ProfileScreen(
                             Text(
                                 seedInfo.quote,
                                 style = MaterialTheme.typography.bodySmall,
-                                fontStyle = androidx.compose.ui.text.font.FontStyle.Italic,
+                                fontStyle = FontStyle.Italic,
                                 fontWeight = FontWeight.Medium,
                                 color = Color(0xFF795548),
                                 textAlign = TextAlign.Center,
@@ -1206,14 +1215,14 @@ fun ProfileScreen(
                     Spacer(modifier = Modifier.height(16.dp))
 
                     if (isOwnProfile && isUnlocked && !isPlanted) {
-                        androidx.compose.material3.Button(
+                        Button(
                             onClick = {
                                 viewModel.plantSeed(slotIndex, userId)
                                 selectedSeedForDialog = null
                             },
                             modifier = Modifier.fillMaxWidth(),
                             shape = RoundedCornerShape(16.dp),
-                            colors = androidx.compose.material3.ButtonDefaults.buttonColors(
+                            colors = ButtonDefaults.buttonColors(
                                 containerColor = Color(0xFF4CAF50)
                             )
                         ) {
