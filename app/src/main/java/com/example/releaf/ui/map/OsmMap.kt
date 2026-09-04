@@ -1,9 +1,16 @@
 package com.example.releaf.ui.map
 
 import android.Manifest
+import android.content.Context.LOCATION_SERVICE
 import android.content.pm.PackageManager
 import android.graphics.Color
+import android.graphics.ColorMatrixColorFilter
+import android.location.Location
+import android.location.LocationListener
 import android.location.LocationManager
+import android.os.Build
+import android.os.Bundle
+import android.os.Looper
 import android.widget.TextView
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -41,14 +48,17 @@ fun OsmMap(
     var mapViewRef by remember { mutableStateOf<MapView?>(null) }
     var userLocation by remember { mutableStateOf(GeoPoint(3.1390, 101.6869)) }
 
-    val locationManager = context.getSystemService(android.content.Context.LOCATION_SERVICE) as? LocationManager
-    val registeredListeners = remember { mutableListOf<android.location.LocationListener>() }
+    val locationManager = context.getSystemService(LOCATION_SERVICE) as? LocationManager
+    val registeredListeners = remember { mutableListOf<LocationListener>() }
 
     // Never leave location listeners behind when the map leaves composition.
     DisposableEffect(Unit) {
         onDispose {
             registeredListeners.forEach {
-                try { locationManager?.removeUpdates(it) } catch (_: Exception) { }
+                try {
+                    locationManager?.removeUpdates(it)
+                } catch (_: Exception) {
+                }
             }
             registeredListeners.clear()
         }
@@ -70,24 +80,36 @@ fun OsmMap(
     }
 
     LaunchedEffect(Unit) {
-        val fine = ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED
-        val coarse = ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_COARSE_LOCATION) == PackageManager.PERMISSION_GRANTED
+        val fine = ContextCompat.checkSelfPermission(
+            context,
+            Manifest.permission.ACCESS_FINE_LOCATION
+        ) == PackageManager.PERMISSION_GRANTED
+        val coarse = ContextCompat.checkSelfPermission(
+            context,
+            Manifest.permission.ACCESS_COARSE_LOCATION
+        ) == PackageManager.PERMISSION_GRANTED
 
         if (fine || coarse) {
             hasLocationPermission = true
             shouldAskNotification = true
         } else {
             locationLauncher.launch(
-                arrayOf(Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.ACCESS_COARSE_LOCATION)
+                arrayOf(
+                    Manifest.permission.ACCESS_FINE_LOCATION,
+                    Manifest.permission.ACCESS_COARSE_LOCATION
+                )
             )
         }
     }
 
     LaunchedEffect(shouldAskNotification) {
-        if (shouldAskNotification && android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.TIRAMISU) {
-            val hasNotif = ContextCompat.checkSelfPermission(context, android.Manifest.permission.POST_NOTIFICATIONS) == PackageManager.PERMISSION_GRANTED
+        if (shouldAskNotification && Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            val hasNotif = ContextCompat.checkSelfPermission(
+                context,
+                Manifest.permission.POST_NOTIFICATIONS
+            ) == PackageManager.PERMISSION_GRANTED
             if (!hasNotif) {
-                notificationLauncher.launch(android.Manifest.permission.POST_NOTIFICATIONS)
+                notificationLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
             }
         }
     }
@@ -96,29 +118,37 @@ fun OsmMap(
         if (hasLocationPermission) {
             val map = mapViewRef
             if (map != null) {
-                val mainLooper = android.os.Looper.getMainLooper()
+                val mainLooper = Looper.getMainLooper()
                 val now = System.currentTimeMillis()
                 val freshThreshold = 2 * 60 * 1000L
 
-                val listener = object : android.location.LocationListener {
-                    override fun onLocationChanged(location: android.location.Location) {
+                val listener = object : LocationListener {
+                    override fun onLocationChanged(location: Location) {
                         userLocation = GeoPoint(location.latitude, location.longitude)
                         mapViewRef?.let { centerPlain(it, userLocation) }
                         try {
                             locationManager?.removeUpdates(this)
-                        } catch (_: Exception) { }
+                        } catch (_: Exception) {
+                        }
                         registeredListeners.remove(this)
                     }
 
                     @Deprecated("Deprecated in Java")
-                    override fun onStatusChanged(provider: String?, status: Int, extras: android.os.Bundle?) {}
+                    override fun onStatusChanged(
+                        provider: String?,
+                        status: Int,
+                        extras: Bundle?
+                    ) {
+                    }
+
                     override fun onProviderEnabled(provider: String) {}
                     override fun onProviderDisabled(provider: String) {}
                 }
 
                 try {
                     val gps = locationManager?.getLastKnownLocation(LocationManager.GPS_PROVIDER)
-                    val network = locationManager?.getLastKnownLocation(LocationManager.NETWORK_PROVIDER)
+                    val network =
+                        locationManager?.getLastKnownLocation(LocationManager.NETWORK_PROVIDER)
 
                     val fresh = listOfNotNull(gps, network)
                         .filter { now - it.time < freshThreshold }
@@ -129,17 +159,32 @@ fun OsmMap(
                         centerPlain(map, userLocation)
                     } else {
                         try {
-                            locationManager?.requestLocationUpdates(LocationManager.GPS_PROVIDER, 0L, 0f, listener, mainLooper)
-                            locationManager?.requestLocationUpdates(LocationManager.NETWORK_PROVIDER, 0L, 0f, listener, mainLooper)
+                            locationManager?.requestLocationUpdates(
+                                LocationManager.GPS_PROVIDER,
+                                0L,
+                                0f,
+                                listener,
+                                mainLooper
+                            )
+                            locationManager?.requestLocationUpdates(
+                                LocationManager.NETWORK_PROVIDER,
+                                0L,
+                                0f,
+                                listener,
+                                mainLooper
+                            )
                             registeredListeners.add(listener)
-                        } catch (_: SecurityException) { }
+                        } catch (_: SecurityException) {
+                        }
                     }
-                } catch (_: SecurityException) { }
+                } catch (_: SecurityException) {
+                }
                 try {
                     val overlay = MyLocationNewOverlay(GpsMyLocationProvider(context), map)
                     overlay.enableMyLocation()
                     map.overlays.add(overlay)
-                } catch (_: Exception) { }
+                } catch (_: Exception) {
+                }
             }
         }
     }
@@ -151,7 +196,7 @@ fun OsmMap(
             return@LaunchedEffect
         }
         val map = mapViewRef ?: return@LaunchedEffect
-        val mainLooper = android.os.Looper.getMainLooper()
+        val mainLooper = Looper.getMainLooper()
 
         try {
             val now = System.currentTimeMillis()
@@ -167,35 +212,63 @@ fun OsmMap(
             if (fresh != null) {
                 userLocation = GeoPoint(fresh.latitude, fresh.longitude)
                 centerPlain(map, userLocation)
-                try { onCenterConsumed() } catch (_: Exception) { }
+                try {
+                    onCenterConsumed()
+                } catch (_: Exception) {
+                }
                 return@LaunchedEffect
             }
 
             var consumed = false
-            val listener = object : android.location.LocationListener {
-                override fun onLocationChanged(location: android.location.Location) {
+            val listener = object : LocationListener {
+                override fun onLocationChanged(location: Location) {
                     if (consumed) return
                     consumed = true
                     userLocation = GeoPoint(location.latitude, location.longitude)
                     mapViewRef?.let { centerPlain(it, userLocation) }
                     try {
                         locationManager?.removeUpdates(this)
-                    } catch (_: Exception) { }
+                    } catch (_: Exception) {
+                    }
                     registeredListeners.remove(this)
-                    try { onCenterConsumed() } catch (_: Exception) { }
+                    try {
+                        onCenterConsumed()
+                    } catch (_: Exception) {
+                    }
                 }
 
                 @Deprecated("Deprecated in Java")
-                override fun onStatusChanged(provider: String?, status: Int, extras: android.os.Bundle?) {}
+                override fun onStatusChanged(
+                    provider: String?,
+                    status: Int,
+                    extras: Bundle?
+                ) {
+                }
+
                 override fun onProviderEnabled(provider: String) {}
                 override fun onProviderDisabled(provider: String) {}
             }
 
-            locationManager?.requestLocationUpdates(LocationManager.GPS_PROVIDER, 0L, 0f, listener, mainLooper)
-            locationManager?.requestLocationUpdates(LocationManager.NETWORK_PROVIDER, 0L, 0f, listener, mainLooper)
+            locationManager?.requestLocationUpdates(
+                LocationManager.GPS_PROVIDER,
+                0L,
+                0f,
+                listener,
+                mainLooper
+            )
+            locationManager?.requestLocationUpdates(
+                LocationManager.NETWORK_PROVIDER,
+                0L,
+                0f,
+                listener,
+                mainLooper
+            )
             registeredListeners.add(listener)
         } catch (_: SecurityException) {
-            try { onCenterConsumed() } catch (_: Exception) { }
+            try {
+                onCenterConsumed()
+            } catch (_: Exception) {
+            }
         }
     }
 
@@ -238,7 +311,8 @@ fun OsmMap(
         update = { view ->
             if (view is MapView) {
                 try {
-                    val poisKey = pois.joinToString(",") { "${it.id}:${it.is_verified}:${it.cleanliness}:${it.rating}" }
+                    val poisKey =
+                        pois.joinToString(",") { "${it.id}:${it.is_verified}:${it.cleanliness}:${it.rating}" }
                     if (poisKey != lastPoisKey) {
                         lastPoisKey = poisKey
                         view.overlays.removeIf { it is PoiMarkersOverlay }
@@ -254,10 +328,11 @@ fun OsmMap(
                             0f, 0f, -0.6f, 0f, 230f, // Blue: Slightly bluer water/bg
                             0f, 0f, 0f, 1.0f, 0f
                         )
-                        android.graphics.ColorMatrixColorFilter(matrix)
+                        ColorMatrixColorFilter(matrix)
                     } else null
                     view.overlayManager.tilesOverlay.setColorFilter(filter)
-                } catch (_: Exception) { }
+                } catch (_: Exception) {
+                }
             }
         }
     )
@@ -268,6 +343,7 @@ private fun centerPlain(mapView: MapView, point: GeoPoint) {
         try {
             mapView.controller.setCenter(point)
             mapView.controller.setZoom(19.0)
-        } catch (_: Exception) { }
+        } catch (_: Exception) {
+        }
     }
 }

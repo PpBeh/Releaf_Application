@@ -15,10 +15,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.FavoriteBorder
-import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.filled.Verified
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -35,8 +32,10 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import com.example.releaf.R
 import com.example.releaf.data.remote.dto.PoiDto
 import com.example.releaf.ui.theme.string
 import com.example.releaf.ui.viewmodel.FavouritesViewModel
@@ -62,7 +61,7 @@ fun FavouritesScreen(
             title = { Text(string("favourite_toilets", themeViewModel)) },
             navigationIcon = {
                 IconButton(onClick = onBackClick) {
-                    Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+                    Icon(painter = painterResource(id = R.drawable.ic_arrow_back), contentDescription = "Back")
                 }
             }
         )
@@ -153,7 +152,7 @@ private fun FavoritePoiCard(poi: PoiDto, onRemove: () -> Unit, onClick: () -> Un
                 }
                 IconButton(onClick = onRemove) {
                     Icon(
-                        Icons.Default.Favorite,
+                        painter = painterResource(id = R.drawable.ic_favorite),
                         contentDescription = "Remove from favourites",
                         tint = Color(0xFFE53935)
                     )
@@ -161,7 +160,7 @@ private fun FavoritePoiCard(poi: PoiDto, onRemove: () -> Unit, onClick: () -> Un
             }
 
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Icon(Icons.Default.Star, contentDescription = null, tint = Color(0xFFFFC107))
+                Icon(painter = painterResource(id = R.drawable.ic_star), contentDescription = null, tint = Color(0xFFFFC107))
                 Spacer(modifier = Modifier.width(4.dp))
                 Text(
                     String.format(java.util.Locale.US, "%.1f", poi.rating),

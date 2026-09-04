@@ -26,7 +26,6 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.Send
 import androidx.compose.material.icons.filled.AccountCircle
 import androidx.compose.material.icons.filled.AddAPhoto
@@ -34,7 +33,6 @@ import androidx.compose.material.icons.filled.CameraAlt
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Image
 import androidx.compose.material.icons.filled.MoreVert
-import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.filled.ThumbDown
 import androidx.compose.material.icons.filled.ThumbUp
 import androidx.compose.material3.AlertDialog
@@ -71,6 +69,7 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.lifecycle.repeatOnLifecycle
 import coil.compose.rememberAsyncImagePainter
+import com.example.releaf.R
 import com.example.releaf.data.remote.dto.ReviewDto
 import com.example.releaf.ui.viewmodel.CommentViewModel
 import java.io.File
@@ -299,7 +298,7 @@ fun CommentScreen(
             title = { Text(t("comments_title")) },
             navigationIcon = {
                 IconButton(onClick = onBackClick) {
-                    Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+                    Icon(painter = painterResource(id = R.drawable.ic_arrow_back), contentDescription = "Back")
                 }
             }
         )
@@ -316,7 +315,7 @@ fun CommentScreen(
                     modifier = Modifier.size(28.dp)
                 ) {
                     Icon(
-                        Icons.Default.Star,
+                        painter = painterResource(id = R.drawable.ic_star),
                         contentDescription = null,
                         tint = if (index < starRating) Color(0xFFFFC107) else MaterialTheme.colorScheme.outlineVariant,
                         modifier = Modifier.size(20.dp)
@@ -687,15 +686,15 @@ fun CommentScreen(
 
                             val imgRes = if (isUnlocked) {
                                 when (slotIdx) {
-                                    1 -> com.example.releaf.R.drawable.ic_plant_1
-                                    2 -> com.example.releaf.R.drawable.ic_plant_2
-                                    3 -> com.example.releaf.R.drawable.ic_plant_3
-                                    4 -> com.example.releaf.R.drawable.ic_plant_4
-                                    5 -> com.example.releaf.R.drawable.ic_plant_5
-                                    else -> com.example.releaf.R.drawable.ic_plant_6
+                                    1 -> R.drawable.ic_plant_1
+                                    2 -> R.drawable.ic_plant_2
+                                    3 -> R.drawable.ic_plant_3
+                                    4 -> R.drawable.ic_plant_4
+                                    5 -> R.drawable.ic_plant_5
+                                    else -> R.drawable.ic_plant_6
                                 }
                             } else {
-                                com.example.releaf.R.drawable.ic_pot_empty
+                                R.drawable.ic_pot_empty
                             }
 
                             Surface(
@@ -842,7 +841,7 @@ private fun ReviewRowItem(
                 Row {
                     repeat(stars) {
                         Icon(
-                            Icons.Default.Star,
+                            painter = painterResource(id = R.drawable.ic_star),
                             contentDescription = null,
                             tint = Color(0xFFFFC107),
                             modifier = Modifier.size(14.dp)
@@ -850,7 +849,7 @@ private fun ReviewRowItem(
                     }
                     repeat(5 - stars) {
                         Icon(
-                            Icons.Default.Star,
+                            painter = painterResource(id = R.drawable.ic_star),
                             contentDescription = null,
                             tint = MaterialTheme.colorScheme.outlineVariant,
                             modifier = Modifier.size(14.dp)

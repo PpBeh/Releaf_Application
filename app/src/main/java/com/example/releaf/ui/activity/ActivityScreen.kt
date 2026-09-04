@@ -17,8 +17,6 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
@@ -40,12 +38,15 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import com.example.releaf.R
 import com.example.releaf.data.remote.dto.UserQuestDto
 import com.example.releaf.ui.theme.string
 import com.example.releaf.ui.viewmodel.ActivityViewModel
 import com.example.releaf.ui.viewmodel.ThemeViewModel
+import kotlin.time.Duration.Companion.milliseconds
 
 @Composable
 fun ActivityScreen(
@@ -73,7 +74,7 @@ fun ActivityScreen(
     LaunchedEffect(refreshTick) {
         if (refreshTick > 0) {
             showRefreshed = true
-            kotlinx.coroutines.delay(2000)
+            kotlinx.coroutines.delay(2000.milliseconds)
             showRefreshed = false
         }
     }
@@ -123,7 +124,7 @@ fun ActivityScreen(
                             strokeWidth = 2.dp
                         )
                     } else {
-                        Icon(Icons.Default.Refresh, contentDescription = "Refresh", modifier = Modifier.size(16.dp))
+                        Icon(painter = painterResource(id = R.drawable.ic_refresh), contentDescription = "Refresh", modifier = Modifier.size(16.dp))
                     }
                 }
             }
@@ -325,7 +326,7 @@ private fun QuestCard(
                             when (userQuest.status) {
                                 "CLAIMABLE" -> t("quest_reward_claim")
                                 "CLAIMED" -> t("quest_completed")
-                                else -> "${userQuest.progress_current}/${userQuest.quest?.progress_target ?: 1}"
+                                else -> "${userQuest.progress_current}/${userQuest.quest.progress_target ?: 1}"
                             },
                             fontWeight = FontWeight.Bold
                         )

@@ -1,28 +1,44 @@
 package com.example.releaf
 
+import android.content.Context
 import android.content.Intent
+import android.net.ConnectivityManager
+import android.net.Network
+import android.net.Uri
 import android.os.Bundle
+import android.provider.Settings
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.viewModels
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.padding
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import com.example.releaf.data.remote.DeepLinkHolder
+import com.example.releaf.data.repository.SessionState
 import com.example.releaf.navigation.ReleafNavGraph
 import com.example.releaf.navigation.Screen
 import com.example.releaf.ui.components.BottomNavBar
+import com.example.releaf.ui.theme.AppStrings
 import com.example.releaf.ui.theme.ReleafTheme
 import com.example.releaf.ui.viewmodel.AuthViewModel
 import com.example.releaf.ui.viewmodel.ThemeViewModel
+import com.example.releaf.utils.NotificationHelper
 import org.osmdroid.config.Configuration
 
 class MainActivity : ComponentActivity() {
@@ -60,7 +76,7 @@ class MainActivity : ComponentActivity() {
 
     private fun handleNotificationTap(intent: Intent?) {
         if (intent?.getBooleanExtra(
-                com.example.releaf.utils.NotificationHelper.EXTRA_OPEN_NOTIFICATIONS,
+                NotificationHelper.EXTRA_OPEN_NOTIFICATIONS,
                 false
             ) == true
         ) {
@@ -77,17 +93,17 @@ class MainActivity : ComponentActivity() {
                 raw.split("&").forEach { part ->
                     val kv = part.split("=", limit = 2)
                     if (kv.size == 2 && params[kv[0]] == null) {
-                        params[kv[0]] = android.net.Uri.decode(kv[1])
+                        params[kv[0]] = Uri.decode(kv[1])
                     }
                 }
             }
             // Raw query params as fallback
             if (params["access_token"] == null) {
                 data.getQueryParameter("access_token")
-                    ?.let { params["access_token"] = android.net.Uri.decode(it) }
+                    ?.let { params["access_token"] = Uri.decode(it) }
                 data.getQueryParameter("refresh_token")
-                    ?.let { params["refresh_token"] = android.net.Uri.decode(it) }
-                data.getQueryParameter("type")?.let { params["type"] = android.net.Uri.decode(it) }
+                    ?.let { params["refresh_token"] = Uri.decode(it) }
+                data.getQueryParameter("type")?.let { params["type"] = Uri.decode(it) }
             }
             if (params["access_token"] != null && params["refresh_token"] != null) {
                 DeepLinkHolder.setTokens(
@@ -114,7 +130,7 @@ class MainActivity : ComponentActivity() {
 fun ReleafApp(themeViewModel: ThemeViewModel) {
     val navController = rememberNavController()
     val authViewModel: AuthViewModel = viewModel()
-    val context = androidx.compose.ui.platform.LocalContext.current
+    val context = LocalContext.current
 
     val navBackStackEntry by navController.currentBackStackEntryAsState()
     val currentRoute = navBackStackEntry?.destination?.route
@@ -124,10 +140,10 @@ fun ReleafApp(themeViewModel: ThemeViewModel) {
     val pendingPoiId by DeepLinkHolder.pendingPoiIdFlow.collectAsState()
     val openNotifications by DeepLinkHolder.openNotificationsFlow.collectAsState()
     val lang by themeViewModel.language.collectAsState()
-    fun t(key: String) = com.example.releaf.ui.theme.AppStrings.get(key, lang)
+    fun t(key: String) = AppStrings.get(key, lang)
 
-    androidx.compose.runtime.LaunchedEffect(pendingPoiId, isChecking, session) {
-        if (!isChecking && pendingPoiId != null && session is com.example.releaf.data.repository.SessionState.LoggedIn) {
+    LaunchedEffect(pendingPoiId, isChecking, session) {
+        if (!isChecking && pendingPoiId != null && session is SessionState.LoggedIn) {
             if (currentRoute != Screen.Map.route) {
                 navController.navigate(Screen.Map.route) {
                     launchSingleTop = true
@@ -136,8 +152,8 @@ fun ReleafApp(themeViewModel: ThemeViewModel) {
         }
     }
 
-    androidx.compose.runtime.LaunchedEffect(openNotifications, isChecking, session) {
-        if (!isChecking && openNotifications && session is com.example.releaf.data.repository.SessionState.LoggedIn) {
+    LaunchedEffect(openNotifications, isChecking, session) {
+        if (!isChecking && openNotifications && session is SessionState.LoggedIn) {
             if (currentRoute != Screen.Map.route) {
                 navController.navigate(Screen.Map.route) {
                     launchSingleTop = true
@@ -148,29 +164,29 @@ fun ReleafApp(themeViewModel: ThemeViewModel) {
 
     // Logging out (or tapping a stale notification while logged out) must never
     // leave a shade entry or a pending sheet-open behind for the next account.
-    androidx.compose.runtime.LaunchedEffect(session) {
-        if (session is com.example.releaf.data.repository.SessionState.LoggedOut) {
-            com.example.releaf.utils.NotificationHelper.cancelSummary(context)
+    LaunchedEffect(session) {
+        if (session is SessionState.LoggedOut) {
+            NotificationHelper.cancelSummary(context)
             DeepLinkHolder.consumeOpenNotifications()
         }
     }
 
     // Track internet connectivity and ask the user to turn Wi-Fi/mobile data on.
-    var isOnline by androidx.compose.runtime.remember { androidx.compose.runtime.mutableStateOf(true) }
-    var offlinePromptShown by androidx.compose.runtime.remember {
-        androidx.compose.runtime.mutableStateOf(
+    var isOnline by remember { mutableStateOf(true) }
+    var offlinePromptShown by remember {
+        mutableStateOf(
             false
         )
     }
-    androidx.compose.runtime.DisposableEffect(context) {
+    DisposableEffect(context) {
         val cm =
-            context.getSystemService(android.content.Context.CONNECTIVITY_SERVICE) as? android.net.ConnectivityManager
-        val callback = object : android.net.ConnectivityManager.NetworkCallback() {
-            override fun onAvailable(network: android.net.Network) {
+            context.getSystemService(Context.CONNECTIVITY_SERVICE) as? ConnectivityManager
+        val callback = object : ConnectivityManager.NetworkCallback() {
+            override fun onAvailable(network: Network) {
                 isOnline = true
             }
 
-            override fun onLost(network: android.net.Network) {
+            override fun onLost(network: Network) {
                 isOnline = cm?.activeNetwork == null
             }
         }
@@ -187,24 +203,24 @@ fun ReleafApp(themeViewModel: ThemeViewModel) {
     }
 
     if (!isOnline && !offlinePromptShown) {
-        androidx.compose.material3.AlertDialog(
+        AlertDialog(
             onDismissRequest = { offlinePromptShown = true },
-            title = { androidx.compose.material3.Text(t("no_internet_title")) },
-            text = { androidx.compose.material3.Text(t("no_internet_text")) },
+            title = { Text(t("no_internet_title")) },
+            text = { Text(t("no_internet_text")) },
             confirmButton = {
-                androidx.compose.material3.TextButton(onClick = {
+                TextButton(onClick = {
                     offlinePromptShown = true
                     try {
-                        context.startActivity(Intent(android.provider.Settings.ACTION_WIRELESS_SETTINGS))
+                        context.startActivity(Intent(Settings.ACTION_WIRELESS_SETTINGS))
                     } catch (_: Exception) {
                     }
                 }) {
-                    androidx.compose.material3.Text(t("open_settings"))
+                    Text(t("open_settings"))
                 }
             },
             dismissButton = {
-                androidx.compose.material3.TextButton(onClick = { offlinePromptShown = true }) {
-                    androidx.compose.material3.Text(t("ok"))
+                TextButton(onClick = { offlinePromptShown = true }) {
+                    Text(t("ok"))
                 }
             }
         )

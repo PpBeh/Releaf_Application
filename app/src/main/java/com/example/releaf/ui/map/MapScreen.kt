@@ -29,14 +29,10 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.CameraAlt
-import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Image
-import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.MyLocation
-import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.ThumbUp
-import androidx.compose.material.icons.filled.Wc
 import androidx.compose.material3.Badge
 import androidx.compose.material3.BadgedBox
 import androidx.compose.material3.Button
@@ -70,11 +66,13 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.repeatOnLifecycle
 import coil.compose.rememberAsyncImagePainter
+import com.example.releaf.R
 import com.example.releaf.ui.components.MapFilterBar
 import com.example.releaf.ui.theme.AppStrings
 import com.example.releaf.ui.theme.string
@@ -509,7 +507,7 @@ fun MapScreen(
                                     verticalAlignment = Alignment.CenterVertically
                                 ) {
                                     Icon(
-                                        if (result.category == "TOILET") Icons.Default.Wc else Icons.Default.Delete,
+                                        painter = painterResource(id = if (result.category == "TOILET") R.drawable.ic_toilet else R.drawable.ic_delete),
                                         contentDescription = null,
                                         tint = MaterialTheme.colorScheme.onSurfaceVariant
                                     )
@@ -566,7 +564,7 @@ fun MapScreen(
                     onClick = { showNotifications = true },
                     containerColor = MaterialTheme.colorScheme.surface
                 ) {
-                    Icon(Icons.Default.Notifications, contentDescription = "Notifications")
+                    Icon(painter = painterResource(id = R.drawable.ic_notifications), contentDescription = "Notifications")
                 }
             }
 
@@ -616,7 +614,7 @@ fun MapScreen(
                     contentColor = MaterialTheme.colorScheme.onPrimary
                 ) {
                     Icon(
-                        Icons.Default.Wc,
+                        painter = painterResource(id = R.drawable.ic_toilet),
                         contentDescription = string("nearest_toilet", themeViewModel)
                     )
                 }
@@ -634,7 +632,7 @@ fun MapScreen(
                     contentColor = MaterialTheme.colorScheme.onPrimary
                 ) {
                     Icon(
-                        Icons.Default.Delete,
+                        painter = painterResource(id = R.drawable.ic_delete),
                         contentDescription = string("nearest_trash_can", themeViewModel)
                     )
                 }
@@ -1144,11 +1142,11 @@ fun MapScreen(
                                     verticalAlignment = Alignment.CenterVertically
                                 ) {
                                     Icon(
-                                        when (notification.type) {
-                                            "ANNOUNCEMENT" -> Icons.Default.Notifications
-                                            "LIKE" -> Icons.Default.ThumbUp
-                                            else -> Icons.Default.Info
-                                        },
+                                        painter = painterResource(id = when (notification.type) {
+                                            "ANNOUNCEMENT" -> R.drawable.ic_notifications
+                                            "LIKE" -> R.drawable.ic_favorite // Mapping LIKE to ic_favorite if ThumbUp is missing
+                                            else -> R.drawable.ic_info
+                                        }),
                                         contentDescription = null,
                                         tint = if (isRead) {
                                             Color(0xFFB0BEC5)

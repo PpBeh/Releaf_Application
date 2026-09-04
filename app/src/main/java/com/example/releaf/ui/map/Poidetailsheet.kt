@@ -19,11 +19,9 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Directions
-import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.FavoriteBorder
 import androidx.compose.material.icons.filled.Report
 import androidx.compose.material.icons.filled.Share
-import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.filled.Verified
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -43,8 +41,10 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import com.example.releaf.R
 import com.example.releaf.data.remote.dto.PoiDto
 import com.example.releaf.data.remote.dto.PoiPhotoDto
 import com.example.releaf.ui.viewmodel.PoiActionResult
@@ -78,11 +78,19 @@ fun PoiDetailSheet(
 
         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
             IconButton(onClick = onFavoriteClick) {
-                Icon(
-                    if (isFavorite) Icons.Default.Favorite else Icons.Default.FavoriteBorder,
-                    contentDescription = "Favorite",
-                    tint = if (isFavorite) Color(0xFFE53935) else MaterialTheme.colorScheme.onSurface
-                )
+                if (isFavorite) {
+                    Icon(
+                        painter = painterResource(id = R.drawable.ic_favorite),
+                        contentDescription = "Favorite",
+                        tint = Color(0xFFE53935)
+                    )
+                } else {
+                    Icon(
+                        imageVector = Icons.Default.FavoriteBorder,
+                        contentDescription = "Favorite",
+                        tint = MaterialTheme.colorScheme.onSurface
+                    )
+                }
             }
             IconButton(onClick = onShareClick) {
                 Icon(Icons.Default.Share, contentDescription = "Share")
@@ -114,7 +122,7 @@ fun PoiDetailSheet(
         }
 
         Row(verticalAlignment = Alignment.CenterVertically) {
-            Icon(Icons.Default.Star, contentDescription = null, tint = Color(0xFFFFC107))
+            Icon(painter = painterResource(id = R.drawable.ic_star), contentDescription = null, tint = Color(0xFFFFC107))
             Spacer(modifier = Modifier.width(4.dp))
             Text(
                 text = String.format(java.util.Locale.US, "%.1f", poi.rating),

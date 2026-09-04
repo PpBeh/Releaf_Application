@@ -23,9 +23,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Close
-import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ElevatedCard
@@ -276,7 +274,7 @@ fun ProfileScreen(
                 if (!isOwnProfile && onBackClick != null) {
                     IconButton(onClick = { onBackClick() }) {
                         Icon(
-                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                            painter = painterResource(id = R.drawable.ic_arrow_back),
                             contentDescription = "Back",
                             tint = Color.White,
                             modifier = Modifier.size(26.dp)
@@ -417,7 +415,7 @@ fun ProfileScreen(
                         onClick = { onSettingsClick() }
                     ) {
                         Icon(
-                            imageVector = Icons.Filled.Settings,
+                            painter = painterResource(id = R.drawable.ic_settings),
                             contentDescription = "Settings",
                             tint = Color.White,
                             modifier = Modifier.size(26.dp)
