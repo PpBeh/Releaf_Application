@@ -72,7 +72,19 @@ fun PoiDetailSheet(
 
     Column(modifier = Modifier.padding(horizontal = 20.dp, vertical = 8.dp)) {
 
-        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Icon(
+                painter = painterResource(id = if (poi.category == "TOILET") R.drawable.ic_toilet else R.drawable.ic_trash),
+                contentDescription = poi.category,
+                tint = if (poi.category == "TOILET") Color(0xFF1976D2) else Color(0xFF388E3C),
+                modifier = Modifier.size(32.dp)
+            )
+
+            Spacer(modifier = Modifier.weight(1f))
+
             IconButton(onClick = onFavoriteClick) {
                 if (isFavorite) {
                     Icon(
