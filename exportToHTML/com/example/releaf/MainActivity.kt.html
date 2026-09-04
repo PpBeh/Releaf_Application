@@ -1,0 +1,128 @@
+<html>
+<head>
+<title>MainActivity.kt</title>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+<style type="text/css">
+.s0 { color: #cf8e6d;}
+.s1 { color: #bcbec4;}
+.s2 { color: #bcbec4;}
+.s3 { color: #6aab73;}
+.s4 { color: #2aacb8;}
+</style>
+</head>
+<body bgcolor="#191a1c">
+<table CELLSPACING=0 CELLPADDING=5 COLS=1 WIDTH="100%" BGCOLOR="#606060" >
+<tr><td><center>
+<font face="Arial, Helvetica" color="#000000">
+MainActivity.kt</font>
+</center></td></tr></table>
+<pre><span class="s0">package </span><span class="s1">com</span><span class="s2">.</span><span class="s1">example</span><span class="s2">.</span><span class="s1">releaf</span>
+
+<span class="s1">import android</span><span class="s2">.</span><span class="s1">content</span><span class="s2">.</span><span class="s1">Intent</span>
+<span class="s1">import android</span><span class="s2">.</span><span class="s1">os</span><span class="s2">.</span><span class="s1">Bundle</span>
+<span class="s1">import androidx</span><span class="s2">.</span><span class="s1">activity</span><span class="s2">.</span><span class="s1">ComponentActivity</span>
+<span class="s1">import androidx</span><span class="s2">.</span><span class="s1">activity</span><span class="s2">.</span><span class="s1">compose</span><span class="s2">.</span><span class="s1">setContent</span>
+<span class="s1">import androidx</span><span class="s2">.</span><span class="s1">compose</span><span class="s2">.</span><span class="s1">foundation</span><span class="s2">.</span><span class="s1">layout</span><span class="s2">.</span><span class="s1">Box</span>
+<span class="s1">import androidx</span><span class="s2">.</span><span class="s1">compose</span><span class="s2">.</span><span class="s1">foundation</span><span class="s2">.</span><span class="s1">layout</span><span class="s2">.</span><span class="s1">padding</span>
+<span class="s1">import androidx</span><span class="s2">.</span><span class="s1">compose</span><span class="s2">.</span><span class="s1">material3</span><span class="s2">.</span><span class="s1">Scaffold</span>
+<span class="s1">import androidx</span><span class="s2">.</span><span class="s1">compose</span><span class="s2">.</span><span class="s1">runtime</span><span class="s2">.</span><span class="s1">Composable</span>
+<span class="s1">import androidx</span><span class="s2">.</span><span class="s1">compose</span><span class="s2">.</span><span class="s1">runtime</span><span class="s2">.</span><span class="s1">collectAsState</span>
+<span class="s1">import androidx</span><span class="s2">.</span><span class="s1">compose</span><span class="s2">.</span><span class="s1">runtime</span><span class="s2">.</span><span class="s1">getValue</span>
+<span class="s1">import androidx</span><span class="s2">.</span><span class="s1">compose</span><span class="s2">.</span><span class="s1">ui</span><span class="s2">.</span><span class="s1">Modifier</span>
+<span class="s1">import androidx</span><span class="s2">.</span><span class="s1">lifecycle</span><span class="s2">.</span><span class="s1">viewmodel</span><span class="s2">.</span><span class="s1">compose</span><span class="s2">.</span><span class="s1">viewModel</span>
+<span class="s1">import androidx</span><span class="s2">.</span><span class="s1">navigation</span><span class="s2">.</span><span class="s1">compose</span><span class="s2">.</span><span class="s1">currentBackStackEntryAsState</span>
+<span class="s1">import androidx</span><span class="s2">.</span><span class="s1">navigation</span><span class="s2">.</span><span class="s1">compose</span><span class="s2">.</span><span class="s1">rememberNavController</span>
+<span class="s1">import com</span><span class="s2">.</span><span class="s1">example</span><span class="s2">.</span><span class="s1">releaf</span><span class="s2">.</span><span class="s1">data</span><span class="s2">.</span><span class="s1">remote</span><span class="s2">.</span><span class="s1">DeepLinkHolder</span>
+<span class="s1">import com</span><span class="s2">.</span><span class="s1">example</span><span class="s2">.</span><span class="s1">releaf</span><span class="s2">.</span><span class="s1">navigation</span><span class="s2">.</span><span class="s1">ReleafNavGraph</span>
+<span class="s1">import com</span><span class="s2">.</span><span class="s1">example</span><span class="s2">.</span><span class="s1">releaf</span><span class="s2">.</span><span class="s1">navigation</span><span class="s2">.</span><span class="s1">Screen</span>
+<span class="s1">import com</span><span class="s2">.</span><span class="s1">example</span><span class="s2">.</span><span class="s1">releaf</span><span class="s2">.</span><span class="s1">ui</span><span class="s2">.</span><span class="s1">components</span><span class="s2">.</span><span class="s1">BottomNavBar</span>
+<span class="s1">import com</span><span class="s2">.</span><span class="s1">example</span><span class="s2">.</span><span class="s1">releaf</span><span class="s2">.</span><span class="s1">ui</span><span class="s2">.</span><span class="s1">theme</span><span class="s2">.</span><span class="s1">AppTheme</span>
+<span class="s1">import com</span><span class="s2">.</span><span class="s1">example</span><span class="s2">.</span><span class="s1">releaf</span><span class="s2">.</span><span class="s1">ui</span><span class="s2">.</span><span class="s1">theme</span><span class="s2">.</span><span class="s1">ReleafTheme</span>
+<span class="s1">import com</span><span class="s2">.</span><span class="s1">example</span><span class="s2">.</span><span class="s1">releaf</span><span class="s2">.</span><span class="s1">ui</span><span class="s2">.</span><span class="s1">viewmodel</span><span class="s2">.</span><span class="s1">AuthViewModel</span>
+<span class="s1">import com</span><span class="s2">.</span><span class="s1">example</span><span class="s2">.</span><span class="s1">releaf</span><span class="s2">.</span><span class="s1">ui</span><span class="s2">.</span><span class="s1">viewmodel</span><span class="s2">.</span><span class="s1">ThemeViewModel</span>
+<span class="s1">import org</span><span class="s2">.</span><span class="s1">osmdroid</span><span class="s2">.</span><span class="s1">config</span><span class="s2">.</span><span class="s1">Configuration</span>
+
+<span class="s0">class </span><span class="s1">MainActivity : ComponentActivity</span><span class="s2">() {</span>
+    <span class="s1">override </span><span class="s0">fun </span><span class="s1">onCreate</span><span class="s2">(</span><span class="s1">savedInstanceState: Bundle?</span><span class="s2">) {</span>
+        <span class="s0">super</span><span class="s2">.</span><span class="s1">onCreate</span><span class="s2">(</span><span class="s1">savedInstanceState</span><span class="s2">)</span>
+        <span class="s1">Configuration</span><span class="s2">.</span><span class="s1">getInstance</span><span class="s2">().</span><span class="s1">apply </span><span class="s2">{</span>
+            <span class="s1">userAgentValue </span><span class="s2">= </span><span class="s3">&quot;ReleafToiletFinder/1.0&quot;</span>
+            <span class="s1">osmdroidBasePath </span><span class="s2">= </span><span class="s1">filesDir</span>
+            <span class="s1">osmdroidTileCache </span><span class="s2">= </span><span class="s1">filesDir</span><span class="s2">.</span><span class="s1">resolve</span><span class="s2">(</span><span class="s3">&quot;tiles&quot;</span><span class="s2">).</span><span class="s1">also </span><span class="s2">{</span>
+                <span class="s1">it</span><span class="s2">.</span><span class="s1">mkdirs</span><span class="s2">()</span>
+                <span class="s1">it</span><span class="s2">.</span><span class="s1">listFiles</span><span class="s2">()</span><span class="s1">?</span><span class="s2">.</span><span class="s1">forEach </span><span class="s2">{ </span><span class="s1">f </span><span class="s2">-&gt; </span><span class="s1">f</span><span class="s2">.</span><span class="s1">deleteRecursively</span><span class="s2">() }</span>
+            <span class="s2">}</span>
+        <span class="s2">}</span>
+        <span class="s1">handleDeepLink</span><span class="s2">(</span><span class="s1">intent</span><span class="s2">)</span>
+        <span class="s1">setContent </span><span class="s2">{</span>
+            <span class="s0">val </span><span class="s1">themeViewModel: ThemeViewModel </span><span class="s2">= </span><span class="s1">viewModel</span><span class="s2">()</span>
+            <span class="s0">val </span><span class="s1">appTheme by themeViewModel</span><span class="s2">.</span><span class="s1">theme</span><span class="s2">.</span><span class="s1">collectAsState</span><span class="s2">()</span>
+            <span class="s1">ReleafTheme</span><span class="s2">(</span><span class="s1">appTheme </span><span class="s2">= </span><span class="s1">appTheme</span><span class="s2">) {</span>
+                <span class="s1">ReleafApp</span><span class="s2">(</span><span class="s1">themeViewModel </span><span class="s2">= </span><span class="s1">themeViewModel</span><span class="s2">)</span>
+            <span class="s2">}</span>
+        <span class="s2">}</span>
+    <span class="s2">}</span>
+
+    <span class="s1">override </span><span class="s0">fun </span><span class="s1">onNewIntent</span><span class="s2">(</span><span class="s1">intent: Intent</span><span class="s2">) {</span>
+        <span class="s0">super</span><span class="s2">.</span><span class="s1">onNewIntent</span><span class="s2">(</span><span class="s1">intent</span><span class="s2">)</span>
+        <span class="s1">handleDeepLink</span><span class="s2">(</span><span class="s1">intent</span><span class="s2">)</span>
+    <span class="s2">}</span>
+
+    <span class="s1">private </span><span class="s0">fun </span><span class="s1">handleDeepLink</span><span class="s2">(</span><span class="s1">intent: Intent?</span><span class="s2">) {</span>
+        <span class="s0">val </span><span class="s1">data </span><span class="s2">= </span><span class="s1">intent?</span><span class="s2">.</span><span class="s1">data ?: </span><span class="s0">return</span>
+        <span class="s0">if </span><span class="s2">(</span><span class="s1">data</span><span class="s2">.</span><span class="s1">scheme </span><span class="s2">== </span><span class="s3">&quot;releaf&quot; </span><span class="s2">&amp;&amp; </span><span class="s1">data</span><span class="s2">.</span><span class="s1">host </span><span class="s2">== </span><span class="s3">&quot;login-callback&quot;</span><span class="s2">) {</span>
+            <span class="s0">val </span><span class="s1">fragment </span><span class="s2">= </span><span class="s1">data</span><span class="s2">.</span><span class="s1">encodedFragment ?: </span><span class="s3">&quot;&quot;</span>
+            <span class="s0">val </span><span class="s1">params </span><span class="s2">= </span><span class="s1">fragment</span><span class="s2">.</span><span class="s1">split</span><span class="s2">(</span><span class="s3">&quot;&amp;&quot;</span><span class="s2">).</span><span class="s1">mapNotNull </span><span class="s2">{ </span><span class="s1">part </span><span class="s2">-&gt;</span>
+                <span class="s0">val </span><span class="s1">kv </span><span class="s2">= </span><span class="s1">part</span><span class="s2">.</span><span class="s1">split</span><span class="s2">(</span><span class="s3">&quot;=&quot;</span><span class="s2">, </span><span class="s1">limit </span><span class="s2">= </span><span class="s4">2</span><span class="s2">)</span>
+                <span class="s0">if </span><span class="s2">(</span><span class="s1">kv</span><span class="s2">.</span><span class="s1">size </span><span class="s2">== </span><span class="s4">2</span><span class="s2">) </span><span class="s1">kv</span><span class="s2">[</span><span class="s4">0</span><span class="s2">] </span><span class="s1">to kv</span><span class="s2">[</span><span class="s4">1</span><span class="s2">] </span><span class="s0">else null</span>
+            <span class="s2">}.</span><span class="s1">toMap</span><span class="s2">()</span>
+
+            <span class="s1">DeepLinkHolder</span><span class="s2">.</span><span class="s1">accessToken </span><span class="s2">= </span><span class="s1">params</span><span class="s2">[</span><span class="s3">&quot;access_token&quot;</span><span class="s2">]</span><span class="s1">?</span><span class="s2">.</span><span class="s1">let </span><span class="s2">{ </span><span class="s1">android</span><span class="s2">.</span><span class="s1">net</span><span class="s2">.</span><span class="s1">Uri</span><span class="s2">.</span><span class="s1">decode</span><span class="s2">(</span><span class="s1">it</span><span class="s2">) }</span>
+            <span class="s1">DeepLinkHolder</span><span class="s2">.</span><span class="s1">refreshToken </span><span class="s2">= </span><span class="s1">params</span><span class="s2">[</span><span class="s3">&quot;refresh_token&quot;</span><span class="s2">]</span><span class="s1">?</span><span class="s2">.</span><span class="s1">let </span><span class="s2">{ </span><span class="s1">android</span><span class="s2">.</span><span class="s1">net</span><span class="s2">.</span><span class="s1">Uri</span><span class="s2">.</span><span class="s1">decode</span><span class="s2">(</span><span class="s1">it</span><span class="s2">) }</span>
+            <span class="s1">DeepLinkHolder</span><span class="s2">.</span><span class="s1">type </span><span class="s2">= </span><span class="s1">params</span><span class="s2">[</span><span class="s3">&quot;type&quot;</span><span class="s2">]</span>
+        <span class="s2">} </span><span class="s0">else if </span><span class="s2">(</span><span class="s1">data</span><span class="s2">.</span><span class="s1">scheme </span><span class="s2">== </span><span class="s3">&quot;releaf&quot; </span><span class="s2">&amp;&amp; </span><span class="s1">data</span><span class="s2">.</span><span class="s1">host </span><span class="s2">== </span><span class="s3">&quot;poi&quot;</span><span class="s2">) {</span>
+            <span class="s0">val </span><span class="s1">poiId </span><span class="s2">= </span><span class="s1">data</span><span class="s2">.</span><span class="s1">pathSegments</span><span class="s2">.</span><span class="s1">firstOrNull</span><span class="s2">() </span><span class="s1">?: </span><span class="s3">&quot;&quot;</span>
+            <span class="s0">if </span><span class="s2">(</span><span class="s1">poiId</span><span class="s2">.</span><span class="s1">isNotBlank</span><span class="s2">()) {</span>
+                <span class="s1">DeepLinkHolder</span><span class="s2">.</span><span class="s1">pendingPoiId </span><span class="s2">= </span><span class="s1">poiId</span>
+            <span class="s2">}</span>
+        <span class="s2">}</span>
+    <span class="s2">}</span>
+<span class="s2">}</span>
+
+<span class="s1">@Composable</span>
+<span class="s0">fun </span><span class="s1">ReleafApp</span><span class="s2">(</span><span class="s1">themeViewModel: ThemeViewModel</span><span class="s2">) {</span>
+    <span class="s0">val </span><span class="s1">navController </span><span class="s2">= </span><span class="s1">rememberNavController</span><span class="s2">()</span>
+    <span class="s0">val </span><span class="s1">authViewModel: AuthViewModel </span><span class="s2">= </span><span class="s1">viewModel</span><span class="s2">()</span>
+
+    <span class="s0">val </span><span class="s1">navBackStackEntry by navController</span><span class="s2">.</span><span class="s1">currentBackStackEntryAsState</span><span class="s2">()</span>
+    <span class="s0">val </span><span class="s1">currentRoute </span><span class="s2">= </span><span class="s1">navBackStackEntry?</span><span class="s2">.</span><span class="s1">destination?</span><span class="s2">.</span><span class="s1">route</span>
+
+    <span class="s0">val </span><span class="s1">isChecking by authViewModel</span><span class="s2">.</span><span class="s1">isCheckingSession</span><span class="s2">.</span><span class="s1">collectAsState</span><span class="s2">()</span>
+
+    <span class="s0">val </span><span class="s1">isAuthScreen </span><span class="s2">= </span><span class="s1">currentRoute </span><span class="s2">== </span><span class="s1">Screen</span><span class="s2">.</span><span class="s1">Login</span><span class="s2">.</span><span class="s1">route </span><span class="s2">||</span>
+            <span class="s1">currentRoute </span><span class="s2">== </span><span class="s1">Screen</span><span class="s2">.</span><span class="s1">Register</span><span class="s2">.</span><span class="s1">route </span><span class="s2">||</span>
+            <span class="s1">currentRoute </span><span class="s2">== </span><span class="s1">Screen</span><span class="s2">.</span><span class="s1">ForgotPassword</span><span class="s2">.</span><span class="s1">route </span><span class="s2">||</span>
+            <span class="s1">currentRoute </span><span class="s2">== </span><span class="s1">Screen</span><span class="s2">.</span><span class="s1">SetNewPassword</span><span class="s2">.</span><span class="s1">route </span><span class="s2">||</span>
+            <span class="s1">currentRoute?</span><span class="s2">.</span><span class="s1">startsWith</span><span class="s2">(</span><span class="s1">Screen</span><span class="s2">.</span><span class="s1">Verify</span><span class="s2">.</span><span class="s1">route</span><span class="s2">.</span><span class="s1">substringBefore</span><span class="s2">(</span><span class="s3">&quot;/{&quot;</span><span class="s2">)) == </span><span class="s0">true</span>
+
+    <span class="s0">val </span><span class="s1">showBottomBar </span><span class="s2">= !</span><span class="s1">isChecking </span><span class="s2">&amp;&amp; !</span><span class="s1">isAuthScreen</span>
+
+    <span class="s1">Scaffold</span><span class="s2">(</span>
+        <span class="s1">bottomBar </span><span class="s2">= {</span>
+            <span class="s0">if </span><span class="s2">(</span><span class="s1">showBottomBar</span><span class="s2">) {</span>
+                <span class="s1">BottomNavBar</span><span class="s2">(</span><span class="s1">navController </span><span class="s2">= </span><span class="s1">navController</span><span class="s2">, </span><span class="s1">themeViewModel </span><span class="s2">= </span><span class="s1">themeViewModel</span><span class="s2">)</span>
+            <span class="s2">}</span>
+        <span class="s2">}</span>
+    <span class="s2">) { </span><span class="s1">innerPadding </span><span class="s2">-&gt;</span>
+        <span class="s1">Box</span><span class="s2">(</span><span class="s1">modifier </span><span class="s2">= </span><span class="s1">Modifier</span><span class="s2">.</span><span class="s1">padding</span><span class="s2">(</span><span class="s1">innerPadding</span><span class="s2">)) {</span>
+            <span class="s1">ReleafNavGraph</span><span class="s2">(</span>
+                <span class="s1">navController </span><span class="s2">= </span><span class="s1">navController</span><span class="s2">,</span>
+                <span class="s1">authViewModel </span><span class="s2">= </span><span class="s1">authViewModel</span><span class="s2">,</span>
+                <span class="s1">themeViewModel </span><span class="s2">= </span><span class="s1">themeViewModel</span>
+            <span class="s2">)</span>
+        <span class="s2">}</span>
+    <span class="s2">}</span>
+<span class="s2">}</span>
+</pre>
+</body>
+</html>
