@@ -1,5 +1,6 @@
 package com.example.releaf.ui.auth
 
+import android.util.Patterns
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
@@ -11,8 +12,6 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Email
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -36,6 +35,8 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.example.releaf.R
+import com.example.releaf.ui.theme.AppStrings
+import com.example.releaf.ui.viewmodel.ThemeViewModel
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -46,10 +47,10 @@ fun ForgotPasswordScreen(
     onSendClick: (email: String) -> Unit,
     onBackClick: () -> Unit,
     onClearError: () -> Unit,
-    themeViewModel: com.example.releaf.ui.viewmodel.ThemeViewModel
+    themeViewModel: ThemeViewModel
 ) {
     val lang by themeViewModel.language.collectAsState()
-    fun t(key: String) = com.example.releaf.ui.theme.AppStrings.get(key, lang)
+    fun t(key: String) = AppStrings.get(key, lang)
     var email by remember { mutableStateOf("") }
     var emailError by remember { mutableStateOf<String?>(null) }
 
@@ -72,7 +73,7 @@ fun ForgotPasswordScreen(
                 verticalArrangement = Arrangement.Center
             ) {
                 Icon(
-                    Icons.Default.Email,
+                    painter = painterResource(id = R.drawable.ic_email),
                     contentDescription = null,
                     modifier = Modifier.size(64.dp),
                     tint = MaterialTheme.colorScheme.primary
@@ -119,7 +120,7 @@ fun ForgotPasswordScreen(
                     value = email,
                     onValueChange = {
                         email = it
-                        emailError = if (it.isNotBlank() && !android.util.Patterns.EMAIL_ADDRESS.matcher(it).matches()) {
+                        emailError = if (it.isNotBlank() && !Patterns.EMAIL_ADDRESS.matcher(it).matches()) {
                             "Invalid email address — e.g. name@example.com"
                         } else null
                         if (error != null) onClearError()
@@ -145,7 +146,7 @@ fun ForgotPasswordScreen(
 
                 Button(
                     onClick = {
-                        if (!android.util.Patterns.EMAIL_ADDRESS.matcher(email).matches()) {
+                        if (!Patterns.EMAIL_ADDRESS.matcher(email).matches()) {
                             emailError = t("invalid_email_fmt")
                             return@Button
                         }

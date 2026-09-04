@@ -22,8 +22,6 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Close
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
@@ -58,6 +56,8 @@ import androidx.compose.ui.window.Dialog
 import com.example.releaf.R
 import com.example.releaf.data.remote.dto.PlantSlotDto
 import com.example.releaf.model.SeedData
+import com.example.releaf.model.isPlantedState
+import com.example.releaf.ui.theme.AppStrings
 import com.example.releaf.ui.theme.string
 import com.example.releaf.ui.viewmodel.GardenViewModel
 import com.example.releaf.ui.viewmodel.ThemeViewModel
@@ -72,7 +72,7 @@ fun GardenPlotScreen(
 ) {
     val context = LocalContext.current
     val lang by themeViewModel.language.collectAsState()
-    fun t(key: String) = com.example.releaf.ui.theme.AppStrings.get(key, lang)
+    fun t(key: String) = AppStrings.get(key, lang)
     val currentExp by viewModel.currentExp.collectAsState()
     val plantSlots by viewModel.plantSlots.collectAsState()
     val waterUsesLeft by viewModel.waterUsesLeft.collectAsState()
@@ -97,7 +97,7 @@ fun GardenPlotScreen(
         List(6) { i -> PlantSlotDto(user_id = userId, slot_index = i + 1, state = "EMPTY_POT") }
     }
 
-    val hasPlantedPlant = slots.any { com.example.releaf.model.isPlantedState(it.state) }
+    val hasPlantedPlant = slots.any { isPlantedState(it.state) }
 
     // Auto-dismiss transient status banners
     LaunchedEffect(statusMessage) {
@@ -110,7 +110,7 @@ fun GardenPlotScreen(
     if (selectedSlotForDetails != null) {
         val slot = selectedSlotForDetails!!
         val seedInfo = SeedData.getSeedForSlot(slot.slot_index)
-        val isPlanted = com.example.releaf.model.isPlantedState(slot.state)
+        val isPlanted = isPlantedState(slot.state)
 
         Dialog(onDismissRequest = { selectedSlotForDetails = null }) {
             Surface(
@@ -155,7 +155,7 @@ fun GardenPlotScreen(
                         }
 
                         IconButton(onClick = { selectedSlotForDetails = null }) {
-                            Icon(Icons.Default.Close, contentDescription = "Close")
+                            Icon(painter = painterResource(id = R.drawable.ic_close), contentDescription = "Close")
                         }
                     }
 

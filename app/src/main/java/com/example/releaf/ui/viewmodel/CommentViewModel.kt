@@ -1,5 +1,8 @@
 package com.example.releaf.ui.viewmodel
 
+import android.content.Context
+import android.net.Uri
+import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.releaf.data.remote.dto.ReviewDto
@@ -66,8 +69,8 @@ class CommentViewModel : ViewModel() {
         text: String,
         userLat: Double,
         userLng: Double,
-        photoUri: android.net.Uri? = null,
-        context: android.content.Context? = null
+        photoUri: Uri? = null,
+        context: Context? = null
     ) {
         viewModelScope.launch {
             _isProcessing.value = true
@@ -120,7 +123,7 @@ class CommentViewModel : ViewModel() {
                         }
                     } catch (e: Exception) {
                         e.printStackTrace()
-                        android.util.Log.e("CommentVM", "photo upload failed", e)
+                        Log.e("CommentVM", "photo upload failed", e)
                     }
                 }
 
@@ -166,7 +169,7 @@ class CommentViewModel : ViewModel() {
                 com.example.releaf.data.remote.SupabaseModule.triggerRefresh()
             } catch (e: Exception) {
                 e.printStackTrace()
-                android.util.Log.e("CommentViewModel", "Error adding review", e)
+                Log.e("CommentViewModel", "Error adding review", e)
                 _errorMessage.value =
                     "Could not post your comment. Check your connection and try again."
             }

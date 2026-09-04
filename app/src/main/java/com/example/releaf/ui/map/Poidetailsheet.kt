@@ -15,14 +15,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.Close
-import androidx.compose.material.icons.filled.Directions
-import androidx.compose.material.icons.filled.FavoriteBorder
-import androidx.compose.material.icons.filled.Report
-import androidx.compose.material.icons.filled.Share
-import androidx.compose.material.icons.filled.Verified
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
@@ -44,10 +36,14 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import coil.compose.rememberAsyncImagePainter
 import com.example.releaf.R
+import com.example.releaf.data.remote.TimeFormatter
 import com.example.releaf.data.remote.dto.PoiDto
 import com.example.releaf.data.remote.dto.PoiPhotoDto
+import com.example.releaf.ui.theme.AppStrings
 import com.example.releaf.ui.viewmodel.PoiActionResult
+import com.example.releaf.ui.viewmodel.ThemeViewModel
 
 @Composable
 fun PoiDetailSheet(
@@ -67,11 +63,11 @@ fun PoiDetailSheet(
     onShareClick: () -> Unit,
     onAddPhotoClick: () -> Unit,
     actionResult: PoiActionResult?,
-    themeViewModel: com.example.releaf.ui.viewmodel.ThemeViewModel
+    themeViewModel: ThemeViewModel
 ) {
     val context = LocalContext.current
     val lang by themeViewModel.language.collectAsState()
-    fun t(key: String) = com.example.releaf.ui.theme.AppStrings.get(key, lang)
+    fun t(key: String) = AppStrings.get(key, lang)
     val validPhotos = photos.filter { !it.photo_url.isNullOrBlank() }
 
     Column(modifier = Modifier.padding(horizontal = 20.dp, vertical = 8.dp)) {
@@ -86,17 +82,17 @@ fun PoiDetailSheet(
                     )
                 } else {
                     Icon(
-                        imageVector = Icons.Default.FavoriteBorder,
+                        painter = painterResource(id = R.drawable.ic_favorite_border),
                         contentDescription = "Favorite",
                         tint = MaterialTheme.colorScheme.onSurface
                     )
                 }
             }
             IconButton(onClick = onShareClick) {
-                Icon(Icons.Default.Share, contentDescription = "Share")
+                Icon(painter = painterResource(id = R.drawable.ic_share), contentDescription = "Share")
             }
             IconButton(onClick = onCloseClick) {
-                Icon(Icons.Default.Close, contentDescription = "Close")
+                Icon(painter = painterResource(id = R.drawable.ic_close), contentDescription = "Close")
             }
         }
 
@@ -117,7 +113,7 @@ fun PoiDetailSheet(
                     maxLines = 1
                 )
             } else {
-                Icon(Icons.Default.Verified, contentDescription = null, tint = Color(0xFF4CAF50))
+                Icon(painter = painterResource(id = R.drawable.ic_verified), contentDescription = null, tint = Color(0xFF4CAF50))
             }
         }
 
@@ -163,7 +159,7 @@ fun PoiDetailSheet(
                     buildString {
                         append("Users reported this ${if (poi.category == "TRASH_CAN") "trash can" else "toilet"} $status")
                         val time =
-                            com.example.releaf.data.remote.TimeFormatter.formatHour(statusTime.orEmpty())
+                            TimeFormatter.formatHour(statusTime.orEmpty())
                         if (time != null) append(" at $time")
                         append(".")
                     },
@@ -190,7 +186,7 @@ fun PoiDetailSheet(
                 shape = RoundedCornerShape(50),
                 colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
             ) {
-                Icon(Icons.Default.Directions, contentDescription = null)
+                Icon(painter = painterResource(id = R.drawable.ic_directions), contentDescription = null)
                 Spacer(modifier = Modifier.width(6.dp))
                 Text(t("direction"))
             }
@@ -221,7 +217,7 @@ fun PoiDetailSheet(
                     Spacer(modifier = Modifier.width(6.dp))
                     Text(t("updating"))
                 } else {
-                    Icon(Icons.Default.Verified, contentDescription = null)
+                    Icon(painter = painterResource(id = R.drawable.ic_verified), contentDescription = null)
                     Spacer(modifier = Modifier.width(6.dp))
                     Text(t("verify"))
                 }
@@ -239,7 +235,7 @@ fun PoiDetailSheet(
                         modifier = Modifier.size(18.dp)
                     )
                 } else {
-                    Icon(Icons.Default.Report, contentDescription = null)
+                    Icon(painter = painterResource(id = R.drawable.ic_report), contentDescription = null)
                     Spacer(modifier = Modifier.width(6.dp))
                     Text(t("not_exist"))
                 }
@@ -320,7 +316,7 @@ fun PoiDetailSheet(
                 ) {
                     Column(horizontalAlignment = Alignment.CenterHorizontally) {
                         androidx.compose.foundation.Image(
-                            painter = coil.compose.rememberAsyncImagePainter(model = selectedFullUrl),
+                            painter = rememberAsyncImagePainter(model = selectedFullUrl),
                             contentDescription = "Full photo",
                             modifier = Modifier
                                 .fillMaxWidth(0.95f)
@@ -358,7 +354,7 @@ private fun PhotoTile(url: String?, modifier: Modifier = Modifier, onClick: (() 
         ) {}
     } else {
         androidx.compose.foundation.Image(
-            painter = coil.compose.rememberAsyncImagePainter(model = url),
+            painter = rememberAsyncImagePainter(model = url),
             contentDescription = "Photo",
             modifier = modifier
                 .aspectRatio(1f)
@@ -379,6 +375,6 @@ private fun AddPhotoTile(modifier: Modifier = Modifier, onClick: () -> Unit) {
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center
     ) {
-        Icon(Icons.Default.Add, contentDescription = "Add photo")
+        Icon(painter = painterResource(id = R.drawable.ic_add), contentDescription = "Add photo")
     }
 }

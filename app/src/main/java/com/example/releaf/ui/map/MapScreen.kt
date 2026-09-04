@@ -1,8 +1,15 @@
 package com.example.releaf.ui.map
 
+import android.content.Context
 import android.content.Intent
+import android.location.Location
+import android.provider.Settings
+import android.location.LocationListener
 import android.location.LocationManager
 import android.net.Uri
+import android.os.Bundle
+import android.os.Handler
+import android.os.Looper
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.Image
@@ -26,19 +33,13 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.CameraAlt
-import androidx.compose.material.icons.filled.Image
-import androidx.compose.material.icons.filled.MyLocation
-import androidx.compose.material.icons.filled.Search
-import androidx.compose.material.icons.filled.ThumbUp
 import androidx.compose.material3.Badge
 import androidx.compose.material3.BadgedBox
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
@@ -66,13 +67,23 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.repeatOnLifecycle
+import java.util.Locale
 import coil.compose.rememberAsyncImagePainter
 import com.example.releaf.R
+import com.example.releaf.data.remote.DeepLinkHolder
+import com.example.releaf.data.remote.SupabaseModule
+import com.example.releaf.data.remote.TimeFormatter
+import com.example.releaf.utils.NotificationHelper
+import com.example.releaf.utils.NotificationSummary
+import com.example.releaf.data.remote.dto.GardenUpdateDto
 import com.example.releaf.ui.components.MapFilterBar
 import com.example.releaf.ui.theme.AppStrings
 import com.example.releaf.ui.theme.string
@@ -111,7 +122,7 @@ fun MapScreen(
     val enabledCleanliness by viewModel.enabledCleanliness.collectAsState()
     val excludedPaid by viewModel.excludedPaid.collectAsState()
     val showUnverified by viewModel.showUnverified.collectAsState()
-    val context = androidx.compose.ui.platform.LocalContext.current
+    val context = LocalContext.current
     var showAddPoiDialog by remember { mutableStateOf(false) }
     var isFetchingLocation by remember { mutableStateOf(false) }
     var currentLat by remember { mutableStateOf(3.1390) }
@@ -121,7 +132,7 @@ fun MapScreen(
     var selectedPhotoUri by remember { mutableStateOf<Uri?>(null) }
     var showSubscriptionDialog by remember { mutableStateOf(false) }
     val billingPrefs =
-        context.getSharedPreferences("billing_prefs", android.content.Context.MODE_PRIVATE)
+        context.getSharedPreferences("billing_prefs", Context.MODE_PRIVATE)
     var isSubscribed by remember { mutableStateOf(false) }
     var isSubscribing by remember { mutableStateOf(false) }
     var dailyPointsClaimed by remember {
@@ -210,7 +221,7 @@ fun MapScreen(
     LaunchedEffect(Unit, lifecycleOwner) {
         viewModel.setCurrentUserId(currentUserId)
         viewModel.loadPois()
-        lifecycleOwner.repeatOnLifecycle(androidx.lifecycle.Lifecycle.State.STARTED) {
+        lifecycleOwner.repeatOnLifecycle(Lifecycle.State.STARTED) {
             while (true) {
                 delay(5000.milliseconds)
                 viewModel.loadPois()
@@ -219,7 +230,7 @@ fun MapScreen(
     }
 
     // Handle POI deep links arriving via onNewIntent while MapScreen is active
-    val pendingPoiId by com.example.releaf.data.remote.DeepLinkHolder.pendingPoiIdFlow.collectAsState()
+    val pendingPoiId by DeepLinkHolder.pendingPoiIdFlow.collectAsState()
     LaunchedEffect(pendingPoiId) {
         val poiId = pendingPoiId ?: return@LaunchedEffect
         delay(300.milliseconds)
@@ -232,7 +243,7 @@ fun MapScreen(
                 focusPoint = org.osmdroid.util.GeoPoint(poi.latitude, poi.longitude)
             }
         }
-        com.example.releaf.data.remote.DeepLinkHolder.clearPoiId()
+            DeepLinkHolder.clearPoiId()
     }
 
     LaunchedEffect(actionResult) {
@@ -313,7 +324,7 @@ fun MapScreen(
 
     LaunchedEffect(selectedPoi?.id, lifecycleOwner) {
         val poiId = selectedPoi?.id ?: return@LaunchedEffect
-        lifecycleOwner.repeatOnLifecycle(androidx.lifecycle.Lifecycle.State.STARTED) {
+        lifecycleOwner.repeatOnLifecycle(Lifecycle.State.STARTED) {
             while (true) {
                 delay(4000.milliseconds)
                 viewModel.refreshPoiDetails(poiId)
@@ -329,21 +340,21 @@ fun MapScreen(
     var showNotifications by remember { mutableStateOf(false) }
 
     // Opened from a tapped phone notification: show the same sheet as the bell.
-    val openNotificationsRequest by com.example.releaf.data.remote.DeepLinkHolder.openNotificationsFlow.collectAsState()
+    val openNotificationsRequest by DeepLinkHolder.openNotificationsFlow.collectAsState()
     LaunchedEffect(openNotificationsRequest) {
         if (openNotificationsRequest) {
-            com.example.releaf.data.remote.DeepLinkHolder.consumeOpenNotifications()
+            DeepLinkHolder.consumeOpenNotifications()
             showNotifications = true
         }
     }
 
     var summaryState by remember {
-        mutableStateOf(com.example.releaf.utils.NotificationSummary.State())
+        mutableStateOf(NotificationSummary.State())
     }
 
     LaunchedEffect(notifications) {
         val settingsPrefs =
-            context.getSharedPreferences("settings_prefs", android.content.Context.MODE_PRIVATE)
+            context.getSharedPreferences("settings_prefs", Context.MODE_PRIVATE)
         val phoneAllowed = settingsPrefs.getBoolean("notifications_enabled", true)
 
         val unreadLikeIds = notifications
@@ -353,7 +364,7 @@ fun MapScreen(
 
         // Decision logic lives in NotificationSummary (unit-tested); this block
         // only applies the resulting side effects.
-        val decision = com.example.releaf.utils.NotificationSummary.decide(
+        val decision = NotificationSummary.decide(
             state = summaryState,
             phoneAllowed = phoneAllowed,
             allIds = notifications.map { it.id }.toSet(),
@@ -361,17 +372,17 @@ fun MapScreen(
         )
         summaryState = decision.state
         when (val action = decision.action) {
-            is com.example.releaf.utils.NotificationSummary.Action.None -> Unit
-            is com.example.releaf.utils.NotificationSummary.Action.Cancel -> {
-                com.example.releaf.utils.NotificationHelper.cancelSummary(context)
+            is NotificationSummary.Action.None -> Unit
+            is NotificationSummary.Action.Cancel -> {
+                NotificationHelper.cancelSummary(context)
             }
-            is com.example.releaf.utils.NotificationSummary.Action.Post -> {
+            is NotificationSummary.Action.Post -> {
                 val text = if (action.unreadCount == 1) {
                     t("notif_summary_one")
                 } else {
-                    String.format(java.util.Locale.US, t("notif_summary_many"), action.unreadCount)
+                    String.format(Locale.US, t("notif_summary_many"), action.unreadCount)
                 }
-                com.example.releaf.utils.NotificationHelper.showOrUpdateSummary(
+                NotificationHelper.showOrUpdateSummary(
                     context = context,
                     title = t("app_name"),
                     message = text,
@@ -383,18 +394,18 @@ fun MapScreen(
 
     LaunchedEffect(currentUserId, lifecycleOwner) {
         val settingsPrefs =
-            context.getSharedPreferences("settings_prefs", android.content.Context.MODE_PRIVATE)
+            context.getSharedPreferences("settings_prefs", Context.MODE_PRIVATE)
         var phoneWasAllowed = settingsPrefs.getBoolean("notifications_enabled", true)
         // The in-app list always loads; the setting only gates phone buzzing.
         notificationsViewModel.loadNotifications(currentUserId)
-        lifecycleOwner.repeatOnLifecycle(androidx.lifecycle.Lifecycle.State.STARTED) {
+        lifecycleOwner.repeatOnLifecycle(Lifecycle.State.STARTED) {
             while (true) {
                 delay(10000.milliseconds)
                 notificationsViewModel.loadNotifications(currentUserId)
                 val phoneAllowed = settingsPrefs.getBoolean("notifications_enabled", true)
                 if (phoneWasAllowed && !phoneAllowed) {
                     // Just muted: dismiss any live summary immediately.
-                    com.example.releaf.utils.NotificationHelper.cancelSummary(context)
+                    NotificationHelper.cancelSummary(context)
                 }
                 phoneWasAllowed = phoneAllowed
             }
@@ -451,7 +462,7 @@ fun MapScreen(
                         },
                         modifier = Modifier.weight(1f),
                         placeholder = { Text(string("search_placeholder", themeViewModel)) },
-                        leadingIcon = { Icon(Icons.Default.Search, contentDescription = null) },
+                        leadingIcon = { Icon(painter = painterResource(id = R.drawable.ic_search), contentDescription = null) },
                         singleLine = true,
                         shape = RoundedCornerShape(12.dp)
                     )
@@ -598,7 +609,7 @@ fun MapScreen(
                     containerColor = MaterialTheme.colorScheme.primary,
                     contentColor = MaterialTheme.colorScheme.onPrimary
                 ) {
-                    Icon(Icons.Default.Add, contentDescription = "Add pin")
+                    Icon(painter = painterResource(id = R.drawable.ic_add), contentDescription = "Add pin")
                 }
                 SmallFloatingActionButton(
                     onClick = {
@@ -641,7 +652,7 @@ fun MapScreen(
                     containerColor = MaterialTheme.colorScheme.surface
                 ) {
                     Icon(
-                        Icons.Default.MyLocation,
+                        painter = painterResource(id = R.drawable.ic_my_location),
                         contentDescription = string("my_location", themeViewModel)
                     )
                 }
@@ -686,7 +697,7 @@ fun MapScreen(
                     onVerifyClick = {
                         if (isLocationEnabled(context)) {
                             val lm =
-                                context.getSystemService(android.content.Context.LOCATION_SERVICE) as? LocationManager
+                                context.getSystemService(Context.LOCATION_SERVICE) as? LocationManager
                             val loc = try {
                                 lm?.getLastKnownLocation(LocationManager.GPS_PROVIDER)
                                     ?: lm?.getLastKnownLocation(LocationManager.NETWORK_PROVIDER)
@@ -712,7 +723,7 @@ fun MapScreen(
                     onReportNotExist = {
                         if (isLocationEnabled(context)) {
                             val lm =
-                                context.getSystemService(android.content.Context.LOCATION_SERVICE) as? LocationManager
+                                context.getSystemService(Context.LOCATION_SERVICE) as? LocationManager
                             val loc = try {
                                 lm?.getLastKnownLocation(LocationManager.GPS_PROVIDER)
                                     ?: lm?.getLastKnownLocation(LocationManager.NETWORK_PROVIDER)
@@ -772,7 +783,7 @@ fun MapScreen(
         }
 
         if (showSubscriptionDialog) {
-            androidx.compose.ui.window.Dialog(onDismissRequest = {
+            Dialog(onDismissRequest = {
                 showSubscriptionDialog = false
             }) {
                 Surface(
@@ -934,7 +945,7 @@ fun MapScreen(
                                                     if (garden != null) {
                                                         gardenRepo.updateGarden(
                                                             currentUserId,
-                                                            com.example.releaf.data.remote.dto.GardenUpdateDto(
+                                                            GardenUpdateDto(
                                                                 current_exp = garden.current_exp + 100,
                                                                 exp_target = garden.exp_target,
                                                                 grow_uses_left = garden.grow_uses_left,
@@ -956,7 +967,7 @@ fun MapScreen(
                                                         currentUserId
                                                     )
                                                     dailyPointsClaimed = true
-                                                    com.example.releaf.data.remote.SupabaseModule.triggerRefresh()
+                                                            SupabaseModule.triggerRefresh()
                                                     snackbarHostState.showSnackbar("🎁 Claimed today's 100 Points & 5 Gems!")
                                                 } catch (e: Exception) {
                                                     snackbarHostState.showSnackbar("Could not claim today's reward. Check your connection and try again.")
@@ -1047,7 +1058,7 @@ fun MapScreen(
         }
 
         if (showEnableLocationDialog) {
-            androidx.compose.material3.AlertDialog(
+            AlertDialog(
                 onDismissRequest = { showEnableLocationDialog = false },
                 title = { Text(t("location_off_title")) },
                 text = { Text(t("location_off_text")) },
@@ -1055,7 +1066,7 @@ fun MapScreen(
                     TextButton(onClick = {
                         showEnableLocationDialog = false
                         try {
-                            context.startActivity(Intent(android.provider.Settings.ACTION_LOCATION_SOURCE_SETTINGS))
+                            context.startActivity(Intent(Settings.ACTION_LOCATION_SOURCE_SETTINGS))
                         } catch (_: Exception) {
                         }
                     }) {
@@ -1170,7 +1181,7 @@ fun MapScreen(
                                             color = if (isRead) Color(0xFFBDBDBD) else MaterialTheme.colorScheme.onSurfaceVariant
                                         )
                                         Text(
-                                            com.example.releaf.data.remote.TimeFormatter.formatCommentTime(
+                                            TimeFormatter.formatCommentTime(
                                                 notification.created_at
                                             ),
                                             style = MaterialTheme.typography.labelSmall,
@@ -1230,7 +1241,7 @@ private fun PhotoSourcePickerDialog(
     lang: com.example.releaf.ui.viewmodel.AppLanguage = com.example.releaf.ui.viewmodel.AppLanguage.ENGLISH
 ) {
     fun t(key: String) = AppStrings.get(key, lang)
-    androidx.compose.ui.window.Dialog(onDismissRequest = onDismiss) {
+    Dialog(onDismissRequest = onDismiss) {
         Surface(
             shape = RoundedCornerShape(20.dp),
             color = MaterialTheme.colorScheme.surface,
@@ -1261,7 +1272,7 @@ private fun PhotoSourcePickerDialog(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Icon(
-                        Icons.Default.Image,
+                        painter = painterResource(id = R.drawable.ic_image),
                         contentDescription = null,
                         tint = MaterialTheme.colorScheme.primary
                     )
@@ -1289,7 +1300,7 @@ private fun PhotoSourcePickerDialog(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Icon(
-                        Icons.Default.CameraAlt,
+                        painter = painterResource(id = R.drawable.ic_camera),
                         contentDescription = null,
                         tint = MaterialTheme.colorScheme.primary
                     )
@@ -1331,7 +1342,7 @@ private fun AddPoiDialog(
     var description by remember { mutableStateOf("") }
     var isPaid by remember { mutableStateOf(false) }
 
-    androidx.compose.material3.AlertDialog(
+    AlertDialog(
         onDismissRequest = onDismiss,
         title = { Text(if (category == "TOILET") tt("add_new_toilet") else tt("add_new_trash")) },
         text = {
@@ -1419,7 +1430,7 @@ private fun AddPoiDialog(
 
 private fun isLocationEnabled(context: android.content.Context): Boolean {
     val lm =
-        context.getSystemService(android.content.Context.LOCATION_SERVICE) as? LocationManager
+        context.getSystemService(Context.LOCATION_SERVICE) as? LocationManager
             ?: return false
     return try {
         lm.isProviderEnabled(LocationManager.GPS_PROVIDER) ||
@@ -1434,8 +1445,8 @@ private fun fetchFreshLocation(
     onResult: (lat: Double, lng: Double) -> Unit
 ) {
     val lm =
-        context.getSystemService(android.content.Context.LOCATION_SERVICE) as? LocationManager
-    val mainLooper = android.os.Looper.getMainLooper()
+        context.getSystemService(Context.LOCATION_SERVICE) as? LocationManager
+    val mainLooper = Looper.getMainLooper()
     val now = System.currentTimeMillis()
     val freshThreshold = 2 * 60 * 1000L
 
@@ -1468,8 +1479,8 @@ private fun fetchFreshLocation(
         onResult(lat, lng)
     }
 
-    val listener = object : android.location.LocationListener {
-        override fun onLocationChanged(location: android.location.Location) {
+    val listener = object : LocationListener {
+        override fun onLocationChanged(location: Location) {
             deliver(location.latitude, location.longitude)
             try {
                 lm?.removeUpdates(this)
@@ -1478,14 +1489,14 @@ private fun fetchFreshLocation(
         }
 
         @Deprecated("Deprecated in Java")
-        override fun onStatusChanged(provider: String?, status: Int, extras: android.os.Bundle?) {
+        override fun onStatusChanged(provider: String?, status: Int, extras: Bundle?) {
         }
 
         override fun onProviderEnabled(provider: String) {}
         override fun onProviderDisabled(provider: String) {}
     }
 
-    val handler = android.os.Handler(mainLooper)
+    val handler = Handler(mainLooper)
     val timeout = Runnable {
         try {
             lm?.removeUpdates(listener)

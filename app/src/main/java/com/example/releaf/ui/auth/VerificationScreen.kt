@@ -14,10 +14,6 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.CheckCircle
-import androidx.compose.material.icons.filled.Email
-import androidx.compose.material.icons.filled.MarkEmailRead
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
@@ -38,6 +34,8 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.example.releaf.R
 import com.example.releaf.ui.components.LeafLogo
+import com.example.releaf.ui.theme.AppStrings
+import com.example.releaf.ui.viewmodel.ThemeViewModel
 
 @Composable
 fun VerificationScreen(
@@ -48,10 +46,10 @@ fun VerificationScreen(
     onVerifyClick: () -> Unit,
     onResendClick: () -> Unit,
     onBackClick: () -> Unit,
-    themeViewModel: com.example.releaf.ui.viewmodel.ThemeViewModel
+    themeViewModel: ThemeViewModel
 ) {
     val lang by themeViewModel.language.collectAsState()
-    fun t(key: String) = com.example.releaf.ui.theme.AppStrings.get(key, lang)
+    fun t(key: String) = AppStrings.get(key, lang)
     val green = Color(0xFF2E7D32)
     Box(
         modifier = Modifier
@@ -113,7 +111,7 @@ fun VerificationScreen(
             ) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Icon(
-                        Icons.Default.Email,
+                        painter = painterResource(id = R.drawable.ic_email),
                         contentDescription = null,
                         tint = green,
                         modifier = Modifier.size(18.dp)
@@ -139,7 +137,7 @@ fun VerificationScreen(
             ) {
                 Row(verticalAlignment = Alignment.Top) {
                     Icon(
-                        Icons.Default.MarkEmailRead,
+                        painter = painterResource(id = R.drawable.ic_mark_email_read),
                         contentDescription = null,
                         tint = green,
                         modifier = Modifier.size(22.dp)
@@ -156,7 +154,7 @@ fun VerificationScreen(
 
                 Row(verticalAlignment = Alignment.Top) {
                     Icon(
-                        Icons.Default.CheckCircle,
+                        painter = painterResource(id = R.drawable.ic_check_circle),
                         contentDescription = null,
                         tint = green,
                         modifier = Modifier.size(22.dp)
@@ -188,7 +186,7 @@ fun VerificationScreen(
                 ) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Icon(
-                            Icons.Default.CheckCircle,
+                            painter = painterResource(id = R.drawable.ic_check_circle),
                             contentDescription = null,
                             tint = green,
                             modifier = Modifier.size(18.dp)

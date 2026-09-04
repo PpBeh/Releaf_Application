@@ -4,11 +4,6 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.EmojiEvents
-import androidx.compose.material.icons.filled.Map
-import androidx.compose.material.icons.filled.MonitorHeart
-import androidx.compose.material.icons.filled.Yard
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.NavigationBar
@@ -44,7 +39,7 @@ fun BottomNavBar(navController: NavHostController, themeViewModel: ThemeViewMode
                 onClick = { navController.toggleGardenSection() },
                 icon = {
                     Icon(
-                        Icons.Default.Yard,
+                        painter = painterResource(id = R.drawable.ic_yard),
                         contentDescription = string("garden", themeViewModel)
                     )
                 },
@@ -60,7 +55,7 @@ fun BottomNavBar(navController: NavHostController, themeViewModel: ThemeViewMode
                 },
                 icon = {
                     Icon(
-                        Icons.Default.MonitorHeart,
+                        painter = painterResource(id = R.drawable.ic_monitor_heart),
                         contentDescription = string("activity", themeViewModel)
                     )
                 },
@@ -85,7 +80,7 @@ fun BottomNavBar(navController: NavHostController, themeViewModel: ThemeViewMode
                 },
                 icon = {
                     Icon(
-                        Icons.Default.EmojiEvents,
+                        painter = painterResource(id = R.drawable.ic_emoji_events),
                         contentDescription = string("rewards", themeViewModel)
                     )
                 },
@@ -127,7 +122,7 @@ fun BottomNavBar(navController: NavHostController, themeViewModel: ThemeViewMode
             containerColor = Color(0xFF2196F3),
             contentColor = Color.White
         ) {
-            Icon(Icons.Default.Map, contentDescription = string("map", themeViewModel))
+            Icon(painter = painterResource(id = R.drawable.ic_map), contentDescription = string("map", themeViewModel))
         }
     }
 }

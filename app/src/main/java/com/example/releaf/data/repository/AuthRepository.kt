@@ -1,5 +1,9 @@
 package com.example.releaf.data.repository
 
+import android.content.Context
+import android.net.Uri
+import android.util.Log
+import android.util.Patterns
 import com.example.releaf.data.remote.DeepLinkHolder
 import com.example.releaf.data.remote.SupabaseModule
 import com.example.releaf.data.remote.dto.ProfileDto
@@ -7,9 +11,11 @@ import com.example.releaf.data.remote.dto.ProfileUpdateDto
 import io.github.jan.supabase.auth.OtpType
 import io.github.jan.supabase.auth.auth
 import io.github.jan.supabase.auth.providers.builtin.Email
+import io.github.jan.supabase.auth.user.UserSession
 import io.github.jan.supabase.postgrest.postgrest
 import io.github.jan.supabase.storage.storage
 import kotlinx.coroutines.Dispatchers
+import kotlinx.datetime.Instant
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeout
 import kotlinx.serialization.json.JsonObject
@@ -107,10 +113,10 @@ class AuthRepository {
 
     suspend fun resendVerificationEmail(email: String): Result<Unit> {
         return try {
-            if (email.isBlank() || !android.util.Patterns.EMAIL_ADDRESS.matcher(email).matches()) {
+            if (email.isBlank() || !Patterns.EMAIL_ADDRESS.matcher(email).matches()) {
                 return Result.failure(Exception("Please enter a valid email address"))
             }
-            client.auth.resendEmail(type = io.github.jan.supabase.auth.OtpType.Email.SIGNUP, email = email)
+            client.auth.resendEmail(type = OtpType.Email.SIGNUP, email = email)
             Result.success(Unit)
         } catch (e: Exception) {
             val msg = e.message ?: ""
@@ -147,11 +153,11 @@ class AuthRepository {
 
     suspend fun importSession(accessToken: String, refreshToken: String): Boolean {
         return try {
-            val session = io.github.jan.supabase.auth.user.UserSession(
+            val session = UserSession(
                 accessToken = accessToken,
                 refreshToken = refreshToken,
                 expiresIn = 3600,
-                expiresAt = kotlinx.datetime.Instant.fromEpochSeconds(System.currentTimeMillis() / 1000 + 3600),
+                expiresAt = Instant.fromEpochSeconds(System.currentTimeMillis() / 1000 + 3600),
                 tokenType = "bearer",
                 user = null
             )
@@ -279,7 +285,7 @@ class AuthRepository {
                 mapOf("total_points" to newTotal)
             ) { filter { eq("id", userId) } }
         } catch (e: Exception) {
-            android.util.Log.e("AuthRepository", "Error updating points", e)
+            Log.e("AuthRepository", "Error updating points", e)
         }
     }
 
@@ -289,7 +295,7 @@ class AuthRepository {
                 mapOf("is_pro" to isPro)
             ) { filter { eq("id", userId) } }
         } catch (e: Exception) {
-            android.util.Log.e("AuthRepository", "Error updating pro status", e)
+            Log.e("AuthRepository", "Error updating pro status", e)
         }
     }
 
@@ -299,7 +305,7 @@ class AuthRepository {
             .decodeSingleOrNull()
     }
 
-    suspend fun uploadAvatar(userId: String, uri: android.net.Uri, context: android.content.Context): String? {
+    suspend fun uploadAvatar(userId: String, uri: Uri, context: Context): String? {
         return withContext(Dispatchers.IO) {
             try {
                 val bytes = context.contentResolver.openInputStream(uri)?.use { it.readBytes() } ?: return@withContext null
@@ -321,7 +327,7 @@ class AuthRepository {
         }
     }
 
-    suspend fun uploadBanner(userId: String, uri: android.net.Uri, context: android.content.Context): String? {
+    suspend fun uploadBanner(userId: String, uri: Uri, context: Context): String? {
         return withContext(Dispatchers.IO) {
             try {
                 val bytes = context.contentResolver.openInputStream(uri)?.use { it.readBytes() } ?: return@withContext null

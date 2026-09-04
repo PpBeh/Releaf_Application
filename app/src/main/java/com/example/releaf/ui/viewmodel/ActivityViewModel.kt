@@ -2,10 +2,14 @@ package com.example.releaf.ui.viewmodel
 
 import android.app.Application
 import android.content.Context
+import android.util.Log
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
+import com.example.releaf.data.remote.SupabaseModule
 import com.example.releaf.data.remote.dto.UserQuestDto
 import com.example.releaf.data.remote.dto.UserQuestUpdateDto
+import com.example.releaf.data.repository.AuthRepository
+import com.example.releaf.data.repository.GardenRepository
 import com.example.releaf.data.repository.QuestRepository
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -14,6 +18,7 @@ import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
+import java.util.TimeZone
 import kotlin.math.max
 import androidx.core.content.edit
 
@@ -38,7 +43,7 @@ class ActivityViewModel(application: Application) : AndroidViewModel(application
             _isLoading.value = true
             try {
                 val today = SimpleDateFormat("yyyy-MM-dd", Locale.US).run {
-                    timeZone = java.util.TimeZone.getTimeZone("Asia/Kuala_Lumpur")
+                    timeZone = TimeZone.getTimeZone("Asia/Kuala_Lumpur")
                     format(Date())
                 }
 
@@ -49,7 +54,7 @@ class ActivityViewModel(application: Application) : AndroidViewModel(application
                         repository.incrementQuestsByType(userId, "CHECK_IN")
                         activityPrefs.edit { putString("check_in_$userId", today) }
                     } catch (e: Exception) {
-                        android.util.Log.e("ActivityViewModel", "Check-in failed", e)
+                        Log.e("ActivityViewModel", "Check-in failed", e)
                     }
                 }
 
@@ -68,7 +73,7 @@ class ActivityViewModel(application: Application) : AndroidViewModel(application
                                 UserQuestUpdateDto(progress_current = 0, status = "IN_PROGRESS")
                             )
                         } catch (e: Exception) {
-                            android.util.Log.e("ActivityViewModel", "Failed to reset quest", e)
+                            Log.e("ActivityViewModel", "Failed to reset quest", e)
                         }
                     }
                 }
@@ -78,7 +83,7 @@ class ActivityViewModel(application: Application) : AndroidViewModel(application
                         try {
                             repository.assignQuestToUser(userId, quest.id)
                         } catch (e: Exception) {
-                            android.util.Log.e("ActivityViewModel", "Failed to assign new quest", e)
+                            Log.e("ActivityViewModel", "Failed to assign new quest", e)
                         }
                     }
                 }
@@ -97,15 +102,15 @@ class ActivityViewModel(application: Application) : AndroidViewModel(application
                     ))
 
             } catch (e: Exception) {
-                android.util.Log.e("ActivityViewModel", "Error loading quests completely", e)
+                Log.e("ActivityViewModel", "Error loading quests completely", e)
                 _errorMessage.value = "Could not load quests. Check your connection and try again."
             }
             _isLoading.value = false
         }
     }
 
-    private val gardenRepository = com.example.releaf.data.repository.GardenRepository()
-    private val authRepository = com.example.releaf.data.repository.AuthRepository()
+    private val gardenRepository = GardenRepository()
+    private val authRepository = AuthRepository()
 
     fun claimQuest(questId: String, userId: String) {
         viewModelScope.launch {
@@ -159,10 +164,10 @@ class ActivityViewModel(application: Application) : AndroidViewModel(application
                         )
                     }
 
-                    com.example.releaf.data.remote.SupabaseModule.triggerRefresh()
+                    SupabaseModule.triggerRefresh()
                 }
             } catch (e: Exception) {
-                android.util.Log.e("ActivityViewModel", "Error claiming quest", e)
+                Log.e("ActivityViewModel", "Error claiming quest", e)
                 _userQuests.value = previous
             }
             loadQuests(userId)

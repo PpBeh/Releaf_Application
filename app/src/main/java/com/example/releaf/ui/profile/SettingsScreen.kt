@@ -1,5 +1,6 @@
 package com.example.releaf.ui.profile
 
+import android.content.Context
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.Image
@@ -54,6 +55,7 @@ import androidx.core.content.edit
 import coil.compose.rememberAsyncImagePainter
 import coil.imageLoader
 import com.example.releaf.R
+import com.example.releaf.ui.theme.AppStrings
 import com.example.releaf.ui.theme.AppTheme
 import com.example.releaf.ui.viewmodel.AppLanguage
 import com.example.releaf.ui.viewmodel.ProfileViewModel
@@ -90,7 +92,7 @@ fun SettingsScreen(
     val prefs = remember {
         context.getSharedPreferences(
             "settings_prefs",
-            android.content.Context.MODE_PRIVATE
+            Context.MODE_PRIVATE
         )
     }
     var notificationsEnabled by remember {
@@ -103,7 +105,7 @@ fun SettingsScreen(
     }
     var showLogoutConfirm by remember { mutableStateOf(false) }
     val lang by themeViewModel.language.collectAsState()
-    fun t(key: String) = com.example.releaf.ui.theme.AppStrings.get(key, lang)
+    fun t(key: String) = AppStrings.get(key, lang)
 
     val avatarPicker = rememberLauncherForActivityResult(
         ActivityResultContracts.GetContent()

@@ -1,9 +1,13 @@
 package com.example.releaf.ui.map
 
+import android.content.Context
 import android.graphics.Bitmap
+import android.location.LocationManager
 import android.net.Uri
+import android.util.Log
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.core.content.FileProvider
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -22,21 +26,14 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.Send
-import androidx.compose.material.icons.filled.AccountCircle
-import androidx.compose.material.icons.filled.AddAPhoto
-import androidx.compose.material.icons.filled.CameraAlt
-import androidx.compose.material.icons.filled.Close
-import androidx.compose.material.icons.filled.Image
-import androidx.compose.material.icons.filled.MoreVert
-import androidx.compose.material.icons.filled.ThumbDown
-import androidx.compose.material.icons.filled.ThumbUp
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -67,11 +64,24 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.repeatOnLifecycle
 import coil.compose.rememberAsyncImagePainter
 import com.example.releaf.R
+import com.example.releaf.data.remote.TimeFormatter
+import com.example.releaf.model.SeedData
+import com.example.releaf.model.isPlantedState
+import com.example.releaf.data.remote.dto.GardenDto
+import com.example.releaf.data.remote.dto.PlantSlotDto
+import com.example.releaf.data.remote.dto.ProfileDto
 import com.example.releaf.data.remote.dto.ReviewDto
+import com.example.releaf.data.repository.AuthRepository
+import com.example.releaf.data.repository.GardenRepository
+import com.example.releaf.data.repository.RewardRepository
+import com.example.releaf.ui.theme.AppStrings
 import com.example.releaf.ui.viewmodel.CommentViewModel
+import com.example.releaf.ui.viewmodel.ThemeViewModel
 import java.io.File
 import kotlin.time.Duration.Companion.milliseconds
 
@@ -81,7 +91,7 @@ fun countWords(text: String): Int {
 }
 
 
-fun createCameraImageUri(context: android.content.Context): Uri {
+fun createCameraImageUri(context: Context): Uri {
 
     val imagesDir = File(context.cacheDir, "camera_photos").apply {
         if (!exists()) mkdirs()
@@ -89,7 +99,7 @@ fun createCameraImageUri(context: android.content.Context): Uri {
     val file = File(imagesDir, "comment_camera_${System.currentTimeMillis()}.jpg")
 
     val authority = "com.example.releaf.fileprovider"
-    return androidx.core.content.FileProvider.getUriForFile(context, authority, file)
+    return FileProvider.getUriForFile(context, authority, file)
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -100,10 +110,10 @@ fun CommentScreen(
     currentUserId: String,
     onBackClick: () -> Unit,
     onAvatarClick: (String) -> Unit,
-    themeViewModel: com.example.releaf.ui.viewmodel.ThemeViewModel
+    themeViewModel: ThemeViewModel
 ) {
     val lang by themeViewModel.language.collectAsState()
-    fun t(key: String) = com.example.releaf.ui.theme.AppStrings.get(key, lang)
+    fun t(key: String) = AppStrings.get(key, lang)
     val reviews by viewModel.reviews.collectAsState()
     val isLoading by viewModel.isLoading.collectAsState()
     val userVotes by viewModel.userVotes.collectAsState()
@@ -149,15 +159,15 @@ fun CommentScreen(
 
     var sheetUserId by remember { mutableStateOf<String?>(null) }
     var sheetProfile by remember {
-        mutableStateOf<com.example.releaf.data.remote.dto.ProfileDto?>(
+        mutableStateOf<ProfileDto?>(
             null
         )
     }
     var sheetAchievements by remember { mutableIntStateOf(0) }
     var sheetPoints by remember { mutableIntStateOf(0) }
-    var sheetGarden by remember { mutableStateOf<com.example.releaf.data.remote.dto.GardenDto?>(null) }
+    var sheetGarden by remember { mutableStateOf<GardenDto?>(null) }
     var sheetPlantSlots by remember {
-        mutableStateOf<List<com.example.releaf.data.remote.dto.PlantSlotDto>>(
+        mutableStateOf<List<PlantSlotDto>>(
             emptyList()
         )
     }
@@ -168,27 +178,27 @@ fun CommentScreen(
         sheetGarden = null
         sheetPlantSlots = emptyList()
         try {
-            val authRepository = com.example.releaf.data.repository.AuthRepository()
+            val authRepository = AuthRepository()
             sheetProfile = authRepository.getProfile(uid)
         } catch (_: Exception) {
         }
         try {
-            val rewardRepository = com.example.releaf.data.repository.RewardRepository()
+            val rewardRepository = RewardRepository()
             sheetAchievements = rewardRepository.getUserAchievements(uid).size
             sheetPoints = sheetProfile?.total_points ?: 0
         } catch (_: Exception) {
         }
         try {
-            val gardenRepository = com.example.releaf.data.repository.GardenRepository()
+            val gardenRepository = GardenRepository()
             sheetGarden = gardenRepository.getGarden(uid)
             sheetPlantSlots = gardenRepository.getPlantSlots(uid)
         } catch (_: Exception) {
         }
     }
 
-    val lifecycleOwner = androidx.lifecycle.compose.LocalLifecycleOwner.current
+    val lifecycleOwner = LocalLifecycleOwner.current
     LaunchedEffect(poiId, lifecycleOwner) {
-        lifecycleOwner.repeatOnLifecycle(androidx.lifecycle.Lifecycle.State.STARTED) {
+        lifecycleOwner.repeatOnLifecycle(Lifecycle.State.STARTED) {
             viewModel.loadReviews(poiId, currentUserId)
             while (true) {
                 kotlinx.coroutines.delay(3000.milliseconds)
@@ -232,7 +242,7 @@ fun CommentScreen(
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Icon(
-                            Icons.Default.Image,
+                            painter = painterResource(id = R.drawable.ic_image),
                             contentDescription = null,
                             tint = MaterialTheme.colorScheme.primary
                         )
@@ -260,7 +270,7 @@ fun CommentScreen(
                                     cameraError = null
                                     cameraLauncher.launch(newUri)
                                 } catch (e: Exception) {
-                                    android.util.Log.e("CameraDebug", "Failed to launch camera", e)
+                                    Log.e("CameraDebug", "Failed to launch camera", e)
                                     cameraError = t("camera_unavailable")
                                 }
                             }
@@ -268,7 +278,7 @@ fun CommentScreen(
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Icon(
-                            Icons.Default.CameraAlt,
+                            painter = painterResource(id = R.drawable.ic_camera),
                             contentDescription = null,
                             tint = MaterialTheme.colorScheme.primary
                         )
@@ -351,7 +361,7 @@ fun CommentScreen(
                             .background(Color.Red, CircleShape)
                     ) {
                         Icon(
-                            Icons.Default.Close,
+                            painter = painterResource(id = R.drawable.ic_close),
                             contentDescription = "Remove",
                             tint = Color.White,
                             modifier = Modifier.size(12.dp)
@@ -395,7 +405,7 @@ fun CommentScreen(
                 onClick = { showPhotoSourcePicker = true }
             ) {
                 Icon(
-                    Icons.Default.AddAPhoto,
+                    painter = painterResource(id = R.drawable.ic_add_a_photo),
                     contentDescription = "Attach Photo",
                     tint = if (selectedPhotoUri != null) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
                 )
@@ -405,10 +415,10 @@ fun CommentScreen(
                 onClick = {
                     if (commentText.isNotBlank() && !isWordLimitExceeded) {
                         val lm =
-                            context.getSystemService(android.content.Context.LOCATION_SERVICE) as? android.location.LocationManager
+                            context.getSystemService(Context.LOCATION_SERVICE) as? LocationManager
                         val loc = try {
-                            lm?.getLastKnownLocation(android.location.LocationManager.GPS_PROVIDER)
-                                ?: lm?.getLastKnownLocation(android.location.LocationManager.NETWORK_PROVIDER)
+                            lm?.getLastKnownLocation(LocationManager.GPS_PROVIDER)
+                                ?: lm?.getLastKnownLocation(LocationManager.NETWORK_PROVIDER)
                         } catch (_: SecurityException) {
                             null
                         }
@@ -428,7 +438,7 @@ fun CommentScreen(
                 },
                 enabled = commentText.isNotBlank() && !isWordLimitExceeded && !isProcessing
             ) {
-                Icon(Icons.AutoMirrored.Filled.Send, contentDescription = "Send")
+                Icon(painter = painterResource(id = R.drawable.ic_send), contentDescription = "Send")
             }
         }
 
@@ -675,13 +685,13 @@ fun CommentScreen(
 
                     Spacer(modifier = Modifier.height(8.dp))
 
-                    androidx.compose.foundation.lazy.LazyRow(
+                    LazyRow(
                         horizontalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
                         items((1..6).toList()) { slotIdx ->
                             val slot = sheetPlantSlots.find { it.slot_index == slotIdx }
-                            val seedInfo = com.example.releaf.model.SeedData.getSeedForSlot(slotIdx)
-                            val isPlanted = com.example.releaf.model.isPlantedState(slot?.state)
+                            val seedInfo = SeedData.getSeedForSlot(slotIdx)
+                            val isPlanted = isPlantedState(slot?.state)
                             val isUnlocked = isPlanted || targetExp >= seedInfo.targetPoints
 
                             val imgRes = if (isUnlocked) {
@@ -768,7 +778,7 @@ private fun ReviewRowItem(
     isOwnComment: Boolean,
     userVote: String?,
     isVoting: Boolean = false,
-    themeViewModel: com.example.releaf.ui.viewmodel.ThemeViewModel,
+    themeViewModel: ThemeViewModel,
     onAvatarClick: () -> Unit,
     onLike: () -> Unit,
     onDislike: () -> Unit,
@@ -777,7 +787,7 @@ private fun ReviewRowItem(
     onReport: () -> Unit
 ) {
     val lang by themeViewModel.language.collectAsState()
-    fun t(key: String) = com.example.releaf.ui.theme.AppStrings.get(key, lang)
+    fun t(key: String) = AppStrings.get(key, lang)
     var menuExpanded by remember { mutableStateOf(false) }
     var showFullImage by remember { mutableStateOf(false) }
 
@@ -824,7 +834,7 @@ private fun ReviewRowItem(
                     contentAlignment = Alignment.Center
                 ) {
                     Icon(
-                        Icons.Default.AccountCircle,
+                        painter = painterResource(id = R.drawable.ic_person),
                         contentDescription = "View profile",
                         modifier = Modifier.size(32.dp)
                     )
@@ -868,24 +878,24 @@ private fun ReviewRowItem(
                             modifier = Modifier.size(28.dp)
                         ) {
                             Icon(
-                                Icons.Default.MoreVert,
+                                painter = painterResource(id = R.drawable.ic_more_vert),
                                 contentDescription = "More options",
                                 modifier = Modifier.size(18.dp)
                             )
                         }
-                        androidx.compose.material3.DropdownMenu(
+                        DropdownMenu(
                             expanded = menuExpanded,
                             onDismissRequest = { menuExpanded = false }
                         ) {
                             if (isOwnComment) {
-                                androidx.compose.material3.DropdownMenuItem(
+                                DropdownMenuItem(
                                     text = { Text(t("edit")) },
                                     onClick = {
                                         menuExpanded = false
                                         onEdit()
                                     }
                                 )
-                                androidx.compose.material3.DropdownMenuItem(
+                                DropdownMenuItem(
                                     text = { Text(t("delete"), color = Color(0xFFE53935)) },
                                     onClick = {
                                         menuExpanded = false
@@ -893,7 +903,7 @@ private fun ReviewRowItem(
                                     }
                                 )
                             } else {
-                                androidx.compose.material3.DropdownMenuItem(
+                                DropdownMenuItem(
                                     text = { Text(t("report"), color = Color(0xFFE53935)) },
                                     onClick = {
                                         menuExpanded = false
@@ -926,7 +936,7 @@ private fun ReviewRowItem(
             verticalAlignment = Alignment.CenterVertically
         ) {
             Text(
-                com.example.releaf.data.remote.TimeFormatter.formatCommentTime(review.created_at),
+                TimeFormatter.formatCommentTime(review.created_at),
                 style = MaterialTheme.typography.labelSmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier.weight(1f)
@@ -937,7 +947,7 @@ private fun ReviewRowItem(
                 modifier = Modifier.size(28.dp)
             ) {
                 Icon(
-                    Icons.Default.ThumbUp,
+                    painter = painterResource(id = R.drawable.ic_thumb_up),
                     contentDescription = "Like",
                     modifier = Modifier.size(16.dp),
                     tint = if (userVote == "LIKE") Color(0xFF4285F4) else MaterialTheme.colorScheme.onSurfaceVariant
@@ -955,7 +965,7 @@ private fun ReviewRowItem(
                 modifier = Modifier.size(28.dp)
             ) {
                 Icon(
-                    Icons.Default.ThumbDown,
+                    painter = painterResource(id = R.drawable.ic_thumb_down),
                     contentDescription = "Dislike",
                     modifier = Modifier.size(16.dp),
                     tint = if (userVote == "DISLIKE") Color(0xFFE53935) else MaterialTheme.colorScheme.onSurfaceVariant

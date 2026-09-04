@@ -10,10 +10,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Lock
-import androidx.compose.material.icons.filled.Visibility
-import androidx.compose.material.icons.filled.VisibilityOff
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
@@ -29,11 +25,15 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import com.example.releaf.R
+import com.example.releaf.ui.theme.AppStrings
+import com.example.releaf.ui.viewmodel.ThemeViewModel
 
 @Composable
 fun SetNewPasswordScreen(
@@ -41,10 +41,10 @@ fun SetNewPasswordScreen(
     error: String?,
     onSubmit: (password: String) -> Unit,
     onClearError: () -> Unit,
-    themeViewModel: com.example.releaf.ui.viewmodel.ThemeViewModel
+    themeViewModel: ThemeViewModel
 ) {
     val lang by themeViewModel.language.collectAsState()
-    fun t(key: String) = com.example.releaf.ui.theme.AppStrings.get(key, lang)
+    fun t(key: String) = AppStrings.get(key, lang)
     var password by remember { mutableStateOf("") }
     var confirmPassword by remember { mutableStateOf("") }
     var passwordVisible by remember { mutableStateOf(false) }
@@ -61,7 +61,7 @@ fun SetNewPasswordScreen(
         verticalArrangement = Arrangement.Center
     ) {
         Icon(
-            Icons.Default.Lock,
+            painter = painterResource(id = R.drawable.ic_lock),
             contentDescription = null,
             modifier = Modifier.size(64.dp),
             tint = MaterialTheme.colorScheme.primary
@@ -94,7 +94,7 @@ fun SetNewPasswordScreen(
             trailingIcon = {
                 IconButton(onClick = { passwordVisible = !passwordVisible }) {
                     Icon(
-                        if (passwordVisible) Icons.Default.VisibilityOff else Icons.Default.Visibility,
+                        painter = painterResource(id = if (passwordVisible) R.drawable.ic_visibility_off else R.drawable.ic_visibility),
                         contentDescription = if (passwordVisible) "Hide" else "Show"
                     )
                 }

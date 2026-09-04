@@ -13,6 +13,8 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import com.example.releaf.ui.theme.AppStrings
+import com.example.releaf.ui.viewmodel.AppLanguage
 
 @Composable
 fun MapFilterBar(
@@ -26,9 +28,9 @@ fun MapFilterBar(
     onTogglePaid: (Boolean?) -> Unit,
     showUnverified: Boolean,
     onToggleUnverified: () -> Unit,
-    lang: com.example.releaf.ui.viewmodel.AppLanguage = com.example.releaf.ui.viewmodel.AppLanguage.ENGLISH
+    lang: AppLanguage = AppLanguage.ENGLISH
 ) {
-    fun t(key: String) = com.example.releaf.ui.theme.AppStrings.get(key, lang)
+    fun t(key: String) = AppStrings.get(key, lang)
     Column {
         Row(
             modifier = Modifier.horizontalScroll(rememberScrollState()),

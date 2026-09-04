@@ -1,5 +1,6 @@
 package com.example.releaf.ui.rewards
 
+import android.content.Context
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
@@ -34,6 +35,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.painterResource
@@ -43,6 +45,7 @@ import androidx.compose.ui.unit.sp
 import com.example.releaf.R
 import com.example.releaf.model.SeedData
 import com.example.releaf.model.SeedInfo
+import com.example.releaf.ui.theme.AppStrings
 import com.example.releaf.ui.theme.string
 import com.example.releaf.ui.viewmodel.RewardsViewModel
 import com.example.releaf.ui.viewmodel.ThemeViewModel
@@ -56,7 +59,7 @@ fun RewardsScreen(
     val tiers by viewModel.tiers.collectAsState()
     val userRewards by viewModel.userRewards.collectAsState()
     val lang by themeViewModel.language.collectAsState()
-    fun t(key: String) = com.example.releaf.ui.theme.AppStrings.get(key, lang)
+    fun t(key: String) = AppStrings.get(key, lang)
     val userPoints by viewModel.userPoints.collectAsState()
     val userGems by viewModel.userGems.collectAsState()
     val walletPoints by viewModel.walletPoints.collectAsState()
@@ -247,9 +250,9 @@ fun RewardsScreen(
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
             Spacer(modifier = Modifier.height(8.dp))
-            val framePrefs = androidx.compose.ui.platform.LocalContext.current.getSharedPreferences(
+            val framePrefs = LocalContext.current.getSharedPreferences(
                 "frames_$userId",
-                android.content.Context.MODE_PRIVATE
+                Context.MODE_PRIVATE
             )
             val frames = listOf(
                 Triple("None", 0 to 0, "No frame"),

@@ -1,5 +1,10 @@
 package com.example.releaf.ui.viewmodel
 
+import android.app.Application
+import android.content.Context
+import android.net.Uri
+import android.util.Log
+import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.releaf.data.remote.dto.AchievementDto
 import com.example.releaf.data.remote.dto.GardenDto
@@ -10,19 +15,20 @@ import com.example.releaf.data.remote.dto.UserAchievementDto
 import com.example.releaf.data.repository.AuthRepository
 import com.example.releaf.data.repository.GardenRepository
 import com.example.releaf.data.repository.RewardRepository
+import com.example.releaf.model.SeedData
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import androidx.core.content.edit
 
-class ProfileViewModel(application: android.app.Application) :
-    androidx.lifecycle.AndroidViewModel(application) {
+class ProfileViewModel(application: Application) :
+    AndroidViewModel(application) {
     private val authRepository = AuthRepository()
     private val rewardRepository = RewardRepository()
     private val gardenRepository = GardenRepository()
     private val gardenPrefs =
-        application.getSharedPreferences("garden_prefs", android.content.Context.MODE_PRIVATE)
+        application.getSharedPreferences("garden_prefs", Context.MODE_PRIVATE)
 
     private val _profile = MutableStateFlow<ProfileDto?>(null)
     val profile: StateFlow<ProfileDto?> = _profile.asStateFlow()
@@ -105,7 +111,7 @@ class ProfileViewModel(application: android.app.Application) :
                         slot_index = idx,
                         state = state,
                         plant_type = remote?.plant_type
-                            ?: com.example.releaf.model.SeedData.getSeedForSlot(idx).name
+                            ?: SeedData.getSeedForSlot(idx).name
                     )
                 }
                 _userPlantSlots.value = merged
@@ -165,7 +171,7 @@ class ProfileViewModel(application: android.app.Application) :
         }
     }
 
-    fun uploadAvatar(userId: String, uri: android.net.Uri, context: android.content.Context) {
+    fun uploadAvatar(userId: String, uri: Uri, context: Context) {
         viewModelScope.launch {
             try {
                 val url = authRepository.uploadAvatar(userId, uri, context)
@@ -177,7 +183,7 @@ class ProfileViewModel(application: android.app.Application) :
         }
     }
 
-    fun uploadBanner(userId: String, uri: android.net.Uri, context: android.content.Context) {
+    fun uploadBanner(userId: String, uri: Uri, context: Context) {
         viewModelScope.launch {
             try {
                 val url = authRepository.uploadBanner(userId, uri, context)
@@ -212,7 +218,7 @@ class ProfileViewModel(application: android.app.Application) :
                 loadProfile(userId)
                 com.example.releaf.data.remote.SupabaseModule.triggerRefresh()
             } catch (e: Exception) {
-                android.util.Log.e("ProfileViewModel", "deletePlantSlot failed", e)
+                Log.e("ProfileViewModel", "deletePlantSlot failed", e)
             }
         }
     }
@@ -232,7 +238,7 @@ class ProfileViewModel(application: android.app.Application) :
                 loadProfile(userId)
                 com.example.releaf.data.remote.SupabaseModule.triggerRefresh()
             } catch (e: Exception) {
-                android.util.Log.e("ProfileViewModel", "deleteGarden failed", e)
+                Log.e("ProfileViewModel", "deleteGarden failed", e)
             }
         }
     }
@@ -240,7 +246,7 @@ class ProfileViewModel(application: android.app.Application) :
     fun plantSeed(slotIndex: Int, userId: String) {
         viewModelScope.launch {
             try {
-                val seed = com.example.releaf.model.SeedData.getSeedForSlot(slotIndex)
+                val seed = SeedData.getSeedForSlot(slotIndex)
                 gardenRepository.upsertPlantSlot(userId, slotIndex, "GROWING", seed.name)
                 try {
                     rewardRepository.claimPlantReward(userId, slotIndex, seed.name)
@@ -250,7 +256,7 @@ class ProfileViewModel(application: android.app.Application) :
                 loadProfile(userId)
                 com.example.releaf.data.remote.SupabaseModule.triggerRefresh()
             } catch (e: Exception) {
-                android.util.Log.e("ProfileViewModel", "plantSeed failed", e)
+                Log.e("ProfileViewModel", "plantSeed failed", e)
             }
         }
     }

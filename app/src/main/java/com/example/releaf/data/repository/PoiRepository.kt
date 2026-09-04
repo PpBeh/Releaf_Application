@@ -1,5 +1,7 @@
 package com.example.releaf.data.repository
 
+import android.content.Context
+import android.net.Uri
 import com.example.releaf.data.remote.SupabaseModule
 import com.example.releaf.data.remote.dto.PoiDto
 import com.example.releaf.data.remote.dto.PoiInsertDto
@@ -65,7 +67,7 @@ class PoiRepository {
             .decodeList()
     }
 
-    suspend fun uploadPoiPhoto(poiId: String, userId: String, uri: android.net.Uri, context: android.content.Context): Boolean {
+    suspend fun uploadPoiPhoto(poiId: String, userId: String, uri: Uri, context: Context): Boolean {
         return kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
             try {
                 val bytes: ByteArray = run {

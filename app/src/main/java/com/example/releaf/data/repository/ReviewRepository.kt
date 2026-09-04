@@ -3,6 +3,7 @@ package com.example.releaf.data.repository
 import com.example.releaf.data.remote.SupabaseModule
 import com.example.releaf.data.remote.dto.PlantSlotDto
 import com.example.releaf.data.remote.dto.ProfileDto
+import com.example.releaf.data.remote.dto.ReviewCountDto
 import com.example.releaf.data.remote.dto.ReviewDto
 import com.example.releaf.data.remote.dto.ReviewInsertDto
 import io.github.jan.supabase.postgrest.postgrest
@@ -249,7 +250,7 @@ class ReviewRepository {
         return try {
             client.postgrest.from("reviews")
                 .select(io.github.jan.supabase.postgrest.query.Columns.raw("like_count")) { filter { eq("id", reviewId) } }
-                .decodeList<com.example.releaf.data.remote.dto.ReviewCountDto>().firstOrNull()?.like_count ?: 0
+                .decodeList<ReviewCountDto>().firstOrNull()?.like_count ?: 0
         } catch (_: Exception) { 0 }
     }
 
@@ -257,7 +258,7 @@ class ReviewRepository {
         return try {
             client.postgrest.from("reviews")
                 .select(io.github.jan.supabase.postgrest.query.Columns.raw("dislike_count")) { filter { eq("id", reviewId) } }
-                .decodeList<com.example.releaf.data.remote.dto.ReviewCountDto>().firstOrNull()?.dislike_count ?: 0
+                .decodeList<ReviewCountDto>().firstOrNull()?.dislike_count ?: 0
         } catch (_: Exception) { 0 }
     }
 

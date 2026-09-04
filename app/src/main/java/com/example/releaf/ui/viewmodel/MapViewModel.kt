@@ -1,11 +1,14 @@
 package com.example.releaf.ui.viewmodel
 
+import android.content.Context
+import android.net.Uri
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.releaf.data.remote.dto.PoiDto
 import com.example.releaf.data.remote.dto.PoiInsertDto
 import com.example.releaf.data.remote.dto.PoiPhotoDto
 import com.example.releaf.data.repository.PoiRepository
+import com.example.releaf.data.repository.QuestRepository
 import com.example.releaf.data.repository.ReportResult
 import com.example.releaf.data.repository.ReviewRepository
 import com.example.releaf.data.repository.VerifyResult
@@ -109,14 +112,14 @@ class MapViewModel : ViewModel() {
         }
     }
 
-    fun uploadPhoto(poiId: String, uri: android.net.Uri, context: android.content.Context) {
+    fun uploadPhoto(poiId: String, uri: Uri, context: Context) {
         viewModelScope.launch {
             _isProcessing.value = true
             try {
                 val success = repository.uploadPoiPhoto(poiId, currentUserId, uri, context)
                 if (success) {
                     _photos.value = repository.getPoiPhotos(poiId)
-                    com.example.releaf.data.repository.QuestRepository()
+                    QuestRepository()
                         .incrementQuestsByType(currentUserId, "PHOTO")
                     _actionResult.value = PoiActionResult.Message("photo_uploaded")
                 } else {
@@ -194,8 +197,8 @@ class MapViewModel : ViewModel() {
         isPaid: Boolean,
         userId: String,
         description: String = "",
-        photoUri: android.net.Uri? = null,
-        context: android.content.Context? = null
+        photoUri: Uri? = null,
+        context: Context? = null
     ) {
         viewModelScope.launch {
             val tooClose = _pois.value.any {
@@ -265,14 +268,14 @@ class MapViewModel : ViewModel() {
                     PoiActionResult.Message("already_verified")
 
                 is VerifyResult.NowVerified -> {
-                    com.example.releaf.data.repository.QuestRepository()
+                    QuestRepository()
                         .incrementQuestsByType(userId, "VERIFY")
                     _actionResult.value = PoiActionResult.Message("now_verified")
                     loadPois()
                 }
 
                 is VerifyResult.Counted -> {
-                    com.example.releaf.data.repository.QuestRepository()
+                    QuestRepository()
                         .incrementQuestsByType(userId, "VERIFY")
                     _actionResult.value = PoiActionResult.Message("verification_counted")
                     loadPois()

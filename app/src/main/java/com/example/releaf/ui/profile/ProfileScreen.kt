@@ -1,5 +1,6 @@
 package com.example.releaf.ui.profile
 
+import android.content.Context
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -22,8 +23,6 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Close
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ElevatedCard
@@ -56,6 +55,8 @@ import androidx.compose.ui.unit.sp
 import coil.compose.rememberAsyncImagePainter
 import com.example.releaf.R
 import com.example.releaf.model.SeedData
+import com.example.releaf.model.SeedInfo
+import com.example.releaf.ui.theme.AppStrings
 import com.example.releaf.ui.viewmodel.ProfileViewModel
 import com.example.releaf.ui.viewmodel.ThemeViewModel
 
@@ -82,7 +83,7 @@ fun ProfileScreen(
 ) {
     val context = LocalContext.current
     val lang by themeViewModel.language.collectAsState()
-    fun t(key: String) = com.example.releaf.ui.theme.AppStrings.get(key, lang)
+    fun t(key: String) = AppStrings.get(key, lang)
     val profile by viewModel.profile.collectAsState()
     val userAchievements by viewModel.achievements.collectAsState()
     val userGarden by viewModel.userGarden.collectAsState()
@@ -91,7 +92,7 @@ fun ProfileScreen(
     val userVerifiedCount by viewModel.userVerifiedCount.collectAsState()
     val userPhotoCount by viewModel.userPhotoCount.collectAsState()
 
-    var selectedSeedForDialog by remember { mutableStateOf<com.example.releaf.model.SeedInfo?>(null) }
+    var selectedSeedForDialog by remember { mutableStateOf<SeedInfo?>(null) }
 
 
     val avatarPicker = androidx.activity.compose.rememberLauncherForActivityResult(
@@ -342,7 +343,7 @@ fun ProfileScreen(
                             val prefs = remember {
                                 context.getSharedPreferences(
                                     "frames_${userId}",
-                                    android.content.Context.MODE_PRIVATE
+                                    Context.MODE_PRIVATE
                                 )
                             }
                             AlertDialog(
@@ -1071,7 +1072,7 @@ fun ProfileScreen(
                         }
 
                         IconButton(onClick = { selectedSeedForDialog = null }) {
-                            Icon(Icons.Default.Close, contentDescription = "Close")
+                            Icon(painter = painterResource(id = R.drawable.ic_close), contentDescription = "Close")
                         }
                     }
 

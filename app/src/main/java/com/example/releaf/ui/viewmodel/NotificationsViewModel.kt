@@ -4,6 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.releaf.data.remote.dto.NotificationDto
 import com.example.releaf.data.repository.NotificationRepository
+import com.example.releaf.model.SeedData
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -56,7 +57,7 @@ class NotificationsViewModel : ViewModel() {
         viewModelScope.launch {
             try {
                 val existing = repository.getNotifications(userId)
-                val seeds = com.example.releaf.model.SeedData.seedList
+                val seeds = SeedData.seedList
                 seeds.forEach { seed ->
                     if (userPoints >= seed.targetPoints) {
                         val title = "🎁 Reward Available: ${seed.name}"

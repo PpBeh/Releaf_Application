@@ -43,6 +43,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.example.releaf.R
 import com.example.releaf.data.remote.dto.UserQuestDto
+import com.example.releaf.ui.theme.AppStrings
 import com.example.releaf.ui.theme.string
 import com.example.releaf.ui.viewmodel.ActivityViewModel
 import com.example.releaf.ui.viewmodel.ThemeViewModel
@@ -56,7 +57,7 @@ fun ActivityScreen(
 ) {
     val context = LocalContext.current
     val lang by themeViewModel.language.collectAsState()
-    fun t(key: String) = com.example.releaf.ui.theme.AppStrings.get(key, lang)
+    fun t(key: String) = AppStrings.get(key, lang)
     val userQuests by viewModel.userQuests.collectAsState()
     val isLoading by viewModel.isLoading.collectAsState()
     val errorMessage by viewModel.errorMessage.collectAsState()
@@ -239,7 +240,7 @@ private fun QuestCard(
     onActionClick: () -> Unit
 ) {
     val lang by themeViewModel.language.collectAsState()
-    fun t(key: String) = com.example.releaf.ui.theme.AppStrings.get(key, lang)
+    fun t(key: String) = AppStrings.get(key, lang)
     val quest = userQuest.quest ?: return
     val cardColor = when (quest.difficulty) {
         "HARD" -> Color(0xFFE53935)
